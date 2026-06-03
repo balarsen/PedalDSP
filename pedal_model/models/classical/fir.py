@@ -45,9 +45,14 @@ class FIRModel(PedalModel):
         h = irfft(H, n=n)
         # Truncate and apply a Hann window to suppress time-aliasing artefacts
         h = h[: self.n_taps]
-        # Exponential decay window: preserves h[0]=1 and tapers the tail.
-        # A symmetric Hann window would zero out the h[0] (main gain tap).
-        h *= np.exp(-np.arange(self.n_taps) * 4.0 / self.n_taps)
+        # Flat-top + cosine-taper window: flat for the first 25% of taps
+        # (covers the IR peak wherever it lands), then smooth cosine rolloff.
+        # A symmetric Hann would zero h[0]; a purely exponential window
+        # attenuates IR peaks that occur beyond tap ~10.
+        flat = self.n_taps // 4
+        taper = np.ones(self.n_taps)
+        taper[flat:] = 0.5 * (1 + np.cos(np.pi * np.arange(self.n_taps - flat) / (self.n_taps - flat)))
+        h *= taper
         self._kernel = h.astype(np.float32)
 
     def predict(self, x: np.ndarray) -> np.ndarray:

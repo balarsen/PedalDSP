@@ -1,0 +1,68 @@
+# PedalDSP experiment configuration
+# Pass to trainer: python -m pedal_model.train.trainer --config configs/experiment.yaml
+
+audio:
+  sample_rate: 48000
+  bit_depth: 24
+
+capture:
+  path: data/raw/capture.wav          # stereo WAV, ch0=dry ch1=wet
+  harmonic_f0: 440.0                  # Hz, used for THD/HP metrics
+
+dataset:
+  receptive_field: 1024               # samples (MLP/TCN context window)
+  chunk_size: 2048                    # samples per TBPTT chunk (LSTM/GRU)
+  hop: 32                             # window step (larger = fewer training samples)
+  val_split: 0.1
+
+training:
+  n_epochs: 200
+  batch_size: 32
+  lr: 1.0e-3
+  weight_decay: 1.0e-4
+  loss:
+    alpha: 0.1                        # L2 time-domain weight
+    beta: 0.9                         # multi-scale STFT weight
+
+models:
+  lstm:
+    hidden_size: 32
+    num_layers: 1
+  gru:
+    hidden_size: 32
+    num_layers: 1
+  tcn:
+    channels: 32
+    kernel_size: 3
+    n_blocks: 10
+  wavenet:
+    channels: 16
+    n_stacks: 3
+    n_layers_per_stack: 10
+  mlp:
+    receptive_field_samples: 1024
+    hidden: 128
+  ddsp:
+    n_fir_taps: 64
+  conditioned_lstm:
+    n_knobs: 3
+    knob_embedding_dim: 8
+    hidden_size: 32
+
+classical:
+  fir:
+    n_taps: 1024
+  iir:
+    order: 8
+    n_freq_points: 512
+  hammerstein:
+    poly_order: 5
+    n_taps: 512
+  wiener_hammerstein:
+    poly_order: 5
+    n_taps: 512
+  volterra:
+    memory: 20
+
+checkpoints:
+  dir: checkpoints

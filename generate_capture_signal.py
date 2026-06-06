@@ -1,32 +1,26 @@
 #!/usr/bin/env python3
 """
-generate_capture_signal.py — Guitar pedal capture and NAM/neural training signal generator
+generate_capture_signal.py — CLI entry point for PedalDSP signal generation.
 
-══════════════════════════════════════════════════════════════════════════════════
-MASTER REFERENCE: READ BEFORE RUNNING
-══════════════════════════════════════════════════════════════════════════════════
+NEW (v2) — train/val signals with full JSON manifest:
+  python generate_capture_signal.py --signal train --output data/signals/
+  python generate_capture_signal.py --signal val   --output data/signals/
+  python generate_capture_signal.py --signal both  --output data/signals/
 
-  master_reference.wav is a PERMANENT, IMMUTABLE experimental constant.
+  Delegates to pedal_model.signals.generate; WAV + JSON written together.
+  All parameters (seed, sample rate, durations, freqs, levels) are dataclass
+  fields — see pedal_model/signals/generate.py for the full spec.
 
-  Generate it ONCE with --preset master and never regenerate it. Every pedal
-  capture session plays this exact file through the pedal — dry track captured
-  simultaneously, wet track on a second input. Because all sessions share an
-  identical dry source, models trained across different capture sessions, pedal
-  settings, and architectures are directly comparable.
-
-  Regenerating master_reference.wav destroys that comparability retroactively
-  for every capture already taken. The script refuses to overwrite it unless
-  --force is passed. Do not use --force unless starting a completely new
-  experimental line — and if you do, archive the old master first.
-
-══════════════════════════════════════════════════════════════════════════════════
-
-Usage:
+LEGACY (v1) — preset-based 48 kHz capture signals:
   python generate_capture_signal.py --preset master
   python generate_capture_signal.py --preset fuzz
   python generate_capture_signal.py --preset overdrive --output-dir ./my_signals
-  python generate_capture_signal.py --preset custom        # use CONFIG as-is
+  python generate_capture_signal.py --preset custom
   python generate_capture_signal.py --list-presets
+
+  MASTER REFERENCE: generate once with --preset master; never regenerate.
+  All capture sessions must use the same master WAV as the dry source so
+  models trained across sessions remain directly comparable.
 """
 
 from __future__ import annotations
@@ -797,28 +791,59 @@ def resolve_config(preset: str) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate optimized WAV capture signals for guitar pedal modeling.",
+        description="Generate PedalDSP capture/training signals.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
+    # ── New v2 flags (delegate to pedal_model.signals.generate) ───────────────
+    parser.add_argument(
+        "--signal", default=None, choices=["train", "val", "both"],
+        help="Generate train/val signal with JSON manifest (v2). "
+             "Overrides --preset; output goes to --output.",
+    )
+    parser.add_argument(
+        "--output", default="data/signals",
+        help="Output directory for --signal (v2 mode).",
+    )
+    parser.add_argument("--sr", type=int, default=96_000, help="Sample rate for --signal.")
+    parser.add_argument("--seed-train", type=int, default=1234)
+    parser.add_argument("--seed-val", type=int, default=42)
+    # ── Legacy v1 flags ───────────────────────────────────────────────────────
     parser.add_argument(
         "--preset", default="custom",
         choices=list(PRESETS.keys()),
-        help="Signal preset. 'master' generates the permanent reference file.",
+        help="(Legacy) signal preset. 'master' generates the permanent reference file.",
     )
     parser.add_argument(
         "--output-dir", default=None,
-        help="Override CONFIG['OUTPUT_DIR']. Directory is created if it does not exist.",
+        help="(Legacy) override CONFIG['OUTPUT_DIR'].",
     )
     parser.add_argument(
         "--force", action="store_true",
-        help="Allow overwriting master_reference.wav. Use with extreme caution.",
+        help="(Legacy) allow overwriting master_reference.wav.",
     )
     parser.add_argument(
         "--list-presets", action="store_true",
-        help="Print available presets and exit.",
+        help="(Legacy) print available presets and exit.",
     )
     args = parser.parse_args()
+
+    # ── v2 path ────────────────────────────────────────────────────────────────
+    if args.signal is not None:
+        from pedal_model.signals.generate import TrainParams, ValParams
+        from pedal_model.signals.generate import generate as _generate
+        import json as _json
+
+        sigs = ["train", "val"] if args.signal == "both" else [args.signal]
+        for sig in sigs:
+            p_train = TrainParams(sample_rate=args.sr, seed=args.seed_train) if sig == "train" else None
+            p_val = ValParams(sample_rate=args.sr, seed=args.seed_val) if sig == "val" else None
+            print(f"Generating {sig} signal ...", end=" ", flush=True)
+            wav_path, json_path = _generate(sig, args.output, train_params=p_train, val_params=p_val)
+            info = _json.loads(json_path.read_text())
+            print(f"done  {wav_path.name}  ({info['total_duration_s']:.1f}s, "
+                  f"{len(info['sections'])} sections)  {json_path.name}")
+        return
 
     if args.list_presets:
         descriptions = {

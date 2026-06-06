@@ -5,6 +5,21 @@ No training data beyond the fit signal is needed, and you can inspect exactly wh
 
 ---
 
+## Provisional Notaklon Results
+
+<!-- TODO: fill in after Step 11 training runs -->
+
+| Model | ESR | Null depth (dB) | STFT loss | THD pattern | Notes |
+|---|---|---|---|---|---|
+| FIR | — | — | — | — | <!-- TODO --> |
+| Hammerstein | — | — | — | — | <!-- TODO --> |
+| Wiener–Hammerstein | — | — | — | — | <!-- TODO --> |
+| Volterra (2nd order) | — | — | — | — | <!-- TODO --> |
+
+<!-- TODO: add metric-vs-perception correlation result from Step 12 -->
+
+---
+
 ## FIR Filter (Finite Impulse Response)
 
 **What it models:** any *linear, time-invariant* (LTI) system — boosts, EQ, buffers.
@@ -64,5 +79,10 @@ Memory $M=20$ gives $M + M(M+1)/2 = 230$ parameters.
 e.g. how the previous sample's value shapes the current clipping threshold.
 Still limited because it cannot model the infinite-memory dynamics of a capacitor.
 
-**Practical note:** fitting on 54 s of audio at 44100 Hz would require a 2.4M × 230 matrix.
+**Practical note:** fitting on 642 s of training signal at 96 kHz would require a huge matrix.
 We subsample every 8th sample so the least-squares solve stays tractable.
+
+**Notaklon expectation:** Volterra should outperform Hammerstein here because the Klon's
+soft-knee clipping has mild dynamic interaction between successive samples (bias-point shift
+from the preceding half-cycle). Whether it closes the gap to neural models is the key question.
+<!-- TODO: Notaklon Volterra ESR and null-test depth result -->

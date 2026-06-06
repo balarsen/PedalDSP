@@ -7,6 +7,7 @@ from pedal_model.metrics.harmonic import (
     compute_harmonic_profile,
     compute_hp_similarity,
     compute_thd,
+    compute_thd_pattern_distance,
 )
 
 SR = 48000
@@ -68,3 +69,36 @@ def test_hp_similarity_in_range():
 def test_eo_ratio_non_negative():
     signal = _pure_sine(F0)
     assert compute_eo_ratio(signal, F0, SR) >= 0.0
+
+
+# ── compute_thd_pattern_distance ──────────────────────────────────────────────
+
+
+def test_thd_pattern_distance_identical():
+    signal = _pure_sine(F0)
+    assert compute_thd_pattern_distance(signal, signal, F0, SR) == pytest.approx(0.0, abs=1e-6)
+
+
+def test_thd_pattern_distance_non_negative():
+    sine = _pure_sine(F0)
+    clipped = np.tanh(sine * 5.0).astype(np.float32)
+    assert compute_thd_pattern_distance(sine, clipped, F0, SR) >= 0.0
+
+
+def test_thd_pattern_distance_increases_with_distortion():
+    """More distortion = larger profile distance from original sine."""
+    sine = _pure_sine(F0)
+    mild = np.tanh(sine * 2.0).astype(np.float32)
+    heavy = np.tanh(sine * 20.0).astype(np.float32)
+    d_mild = compute_thd_pattern_distance(sine, mild, F0, SR)
+    d_heavy = compute_thd_pattern_distance(sine, heavy, F0, SR)
+    assert d_heavy > d_mild
+
+
+def test_thd_pattern_distance_symmetric():
+    """Distance(a, b) == Distance(b, a)."""
+    sine = _pure_sine(F0)
+    clipped = np.tanh(sine * 5.0).astype(np.float32)
+    d_ab = compute_thd_pattern_distance(sine, clipped, F0, SR)
+    d_ba = compute_thd_pattern_distance(clipped, sine, F0, SR)
+    assert d_ab == pytest.approx(d_ba, rel=1e-5)

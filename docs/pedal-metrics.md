@@ -3,6 +3,25 @@
 Every model is scored on the same set of metrics, computed on the held-out evaluation segment.
 Lower is better for all error metrics; higher is better for similarity metrics.
 
+Metrics are always computed **per manifest section** using the section label as the key —
+no hardcoded offsets. `metrics/suite.py` calls `Manifest.get_section(label)` and passes
+the resulting audio slice to each metric function.
+
+---
+
+## Provisional Notaklon Gates (Gain 11 / Tone noon)
+
+These are starting targets — refine after the first listening test (see §8 of the plan).
+
+| Metric | Provisional target | Notes |
+|---|---|---|
+| ESR (guitar medley) | < −30 dB (ratio < 0.032) | Waveform fidelity |
+| Null-test depth | > 20 dB | Most intuitive single number |
+| Multi-scale STFT | <!-- TODO: set after first run --> | Perceptual proxy |
+| THD-pattern distance | qualitative match first | Harmonic character |
+
+<!-- TODO: update gates after first listening test on real guitar medley -->
+
 ---
 
 ## Time-Domain Metrics
@@ -109,6 +128,35 @@ MCD captures *timbral* difference — how different the models sound in terms of
 independently of pitch or timing. Values < 2 dB are generally indistinguishable by ear;
 > 5 dB is clearly different. Developed for speech synthesis evaluation but works well for
 guitar tones.
+
+---
+
+## Null-Test Depth
+
+The null test subtracts the model output from the target and measures how much signal remains.
+
+$$\text{Null depth (dB)} = -20 \log_{10}\!\left(\frac{\text{RMS}(y - \hat{y})}{\text{RMS}(y)}\right)$$
+
+Higher is better. > 20 dB means the error is at least 10× quieter than the target — audibly
+insignificant in most contexts. < 10 dB is clearly audible. This is the single most intuitive
+number to cite in a listening test.
+
+Unlike ESR, null depth is in dB, matching how humans describe loudness differences.
+
+---
+
+## Metric-vs-Perception Study
+
+**Goal:** find which metric best predicts whether a model *sounds good* on the guitar medley.
+
+Protocol (from plan §8):
+1. Compute the full metric vector for every model on the guitar medley.
+2. Blind A/B/X listening test to rank models perceptually.
+3. Find which metric correlates best with the perceptual ranking.
+4. Deliverable: a metric-vs-perception correlation plot — the justified proxy metric.
+
+<!-- TODO: run after first full model zoo training pass on captured medley -->
+<!-- TODO: fill in metric-vs-perception correlation table here -->
 
 ---
 

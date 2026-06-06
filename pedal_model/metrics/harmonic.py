@@ -92,6 +92,34 @@ def compute_hp_similarity(
     return float(np.dot(p_target, p_pred) / denom)
 
 
+def compute_thd_pattern_distance(
+    target: np.ndarray,
+    predicted: np.ndarray,
+    f0: float,
+    sr: int,
+    n_harmonics: int = 8,
+) -> float:
+    """L2 distance between the normalised harmonic profiles of target and predicted.
+
+    Complementary to HP similarity: captures absolute magnitude differences
+    between harmonic profiles (not just their angular separation).
+    0 = identical profiles; typical well-matched models: < 0.1.
+
+    Args:
+        target: Reference audio, shape (N,).
+        predicted: Model output, same shape.
+        f0: Fundamental frequency in Hz.
+        sr: Sample rate in Hz.
+        n_harmonics: Number of harmonics to compare (including fundamental).
+
+    Returns:
+        L2 profile distance ∈ [0, ∞).
+    """
+    p_t = compute_harmonic_profile(target, f0, sr, n_harmonics)
+    p_p = compute_harmonic_profile(predicted, f0, sr, n_harmonics)
+    return float(np.linalg.norm(p_t - p_p))
+
+
 def compute_eo_ratio(signal: np.ndarray, f0: float, sr: int) -> float:
     """Even-to-odd harmonic ratio.
 

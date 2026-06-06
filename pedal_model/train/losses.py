@@ -41,22 +41,49 @@ class MultiScaleSTFTLoss(nn.Module):
         return loss / len(self.window_sizes)
 
 
-class CombinedLoss(nn.Module):
-    """α · L2_time + β · STFT_loss.
+class ESRLoss(nn.Module):
+    """Differentiable Error-to-Signal Ratio loss.
 
-    α=0.1, β=0.9 by default: STFT loss dominates for better tonal accuracy,
-    while the small L2 term anchors absolute amplitude.
+    Normalises the squared error by the signal power so the loss is
+    invariant to the overall output level of the pedal — a 0 dBFS and a
+    −12 dBFS version of the same distortion shape give the same ESR.
     """
 
-    def __init__(self, alpha: float = 0.1, beta: float = 0.9) -> None:
+    def forward(self, predicted: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Compute ESR.
+
+        Args:
+            predicted: Model output, any shape.
+            target: Reference audio, same shape.
+
+        Returns:
+            Scalar ESR in [0, ∞).  0 = perfect.
+        """
+        error_power = torch.sum((predicted - target) ** 2)
+        signal_power = torch.sum(target ** 2) + 1e-8
+        return error_power / signal_power
+
+
+class CombinedLoss(nn.Module):
+    """α · ESR + β · STFT_loss.
+
+    Default 70/30 split: ESR anchors waveform fidelity while the STFT term
+    penalises spectral shape errors.  The 70% ESR weight suits soft-clipping
+    pedals (Notaklon-style) where waveform alignment matters.  For harder fuzz
+    increase β to 0.5–0.7 so the STFT term tolerates phase-shifted approximations
+    of square waves.
+    """
+
+    def __init__(self, alpha: float = 0.7, beta: float = 0.3) -> None:
         """
         Args:
-            alpha: Weight for the L2 time-domain term.
-            beta: Weight for the multi-scale STFT term.
+            alpha: Weight for the ESR term. Default 0.7.
+            beta: Weight for the multi-scale STFT term. Default 0.3.
         """
         super().__init__()
         self.alpha = alpha
         self.beta = beta
+        self.esr_loss = ESRLoss()
         self.stft_loss = MultiScaleSTFTLoss()
 
     def forward(self, predicted: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
@@ -69,6 +96,6 @@ class CombinedLoss(nn.Module):
         Returns:
             Scalar loss tensor.
         """
-        l2 = F.mse_loss(predicted, target)
+        esr = self.esr_loss(predicted, target)
         stft = self.stft_loss(predicted, target)
-        return self.alpha * l2 + self.beta * stft
+        return self.alpha * esr + self.beta * stft

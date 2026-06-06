@@ -52,3 +52,26 @@ def compute_rms_error(target: np.ndarray, predicted: np.ndarray) -> float:
         RMS error as a float.
     """
     return float(np.sqrt(np.mean((target - predicted) ** 2)))
+
+
+def compute_null_depth(target: np.ndarray, predicted: np.ndarray) -> float:
+    """Null-test depth in dB: how much quieter the error is than the target.
+
+    Higher is better.  > 20 dB means the error is inaudible in most contexts;
+    < 10 dB is clearly audible.  Returns ``inf`` for identical signals.
+    Returns ``0.0`` when the target is silence (undefined ratio).
+
+    Args:
+        target: Reference audio, shape (N,), float32, range [-1, 1].
+        predicted: Model output, same shape.
+
+    Returns:
+        Null depth in dB ∈ (−∞, +∞].
+    """
+    error_power = float(np.mean((target - predicted) ** 2))
+    if error_power == 0.0:
+        return float("inf")
+    signal_power = float(np.mean(target ** 2))
+    if signal_power < 1e-12:
+        return 0.0
+    return float(-20.0 * np.log10(np.sqrt(error_power / signal_power)))

@@ -141,6 +141,16 @@ class TrainParams:
 class ValParams:
     """Full parameter set for val_signal_v1 (~1 min at 96 kHz).
 
+    All frequencies are deliberately chosen to be OUTSIDE the training
+    frequency grid so this signal is legitimate held-back evaluation data.
+
+    Training stepped tones: 82.4, 110, 165, 220, 330, 440, 660, 880, 1320, 2640, 5280, 10560 Hz
+    Val stepped tones:      146.8, 196, 246.9, 293.7, 392, 523.3, 784, 987.8 Hz (guitar notes
+                            not in the training grid: D3, G3, B3, D4, G4, C5, G5, B5)
+
+    Training sweep:  20–20000 Hz
+    Val sweep:       30–16000 Hz (different endpoints — model must interpolate/extrapolate)
+
     Fixed seed makes this a reproducible, cross-project benchmark.
     """
 
@@ -148,45 +158,50 @@ class ValParams:
     seed: int = 42
     silence_gap_s: float = 1.0
 
-    # Amplitude-stepped sweep (each level = one sweep)
+    # Amplitude-stepped sweep — different range from training (20–20000 Hz)
     stepped_sweep_amplitudes_dbfs: list[float] = field(
         default_factory=lambda: [-24.0, -12.0, -3.0]
     )
     stepped_sweep_duration_s: float = 5.0
-    stepped_sweep_f_start_hz: float = 20.0
-    stepped_sweep_f_end_hz: float = 20_000.0
+    stepped_sweep_f_start_hz: float = 30.0    # training starts at 20 Hz
+    stepped_sweep_f_end_hz: float = 16_000.0  # training ends at 20000 Hz
 
-    # Stepped tones
+    # Stepped tones — guitar notes NOT in the training frequency grid
+    # D3=146.8, G3=196, B3=246.9, D4=293.7, G4=392, C5=523.3, G5=784, B5=987.8
     val_stepped_freqs_hz: list[float] = field(
-        default_factory=lambda: [110.0, 220.0, 440.0, 880.0, 1_760.0, 3_520.0, 7_040.0]
+        default_factory=lambda: [146.8, 196.0, 246.9, 293.7, 392.0, 523.3, 784.0, 987.8]
     )
     val_stepped_levels_dbfs: list[float] = field(
         default_factory=lambda: [-18.0, -9.0, -3.0]
     )
     val_stepped_tone_duration_s: float = 0.5
 
-    # Pink noise (2 RMS levels)
+    # Pink noise (2 RMS levels — same character, new seed state)
     val_pink_amplitudes_dbfs: list[float] = field(
         default_factory=lambda: [-18.0, -6.0]
     )
     val_pink_duration_s: float = 5.0
 
-    # Two-tone IM segments
+    # Two-tone IM segments — real guitar intervals between val-only frequencies
+    # [G3, D4] perfect 5th; [B3, F#4≈370] major 3rd + 5th; [G4, C5] perfect 4th
+    # None of these pairs were seen in training (training: fixed at 110, 220, 440)
     val_two_tone_pairs: list[list[float]] = field(
-        default_factory=lambda: [[220.0, 330.0], [440.0, 660.0], [220.0, 880.0]]
+        default_factory=lambda: [[196.0, 293.7], [246.9, 369.9], [392.0, 523.3]]
     )
     val_two_tone_duration_s: float = 3.33
 
-    # Transient impulses
+    # Transient impulses (same timing pattern — tests time-domain recovery)
     val_impulse_duration_s: float = 3.0
     val_impulse_amplitude_dbfs: float = -6.0
     val_impulse_spacings_s: list[float] = field(
         default_factory=lambda: [0.05, 0.10, 0.20, 0.05, 0.15]
     )
 
-    # Decaying plucks
+    # Decaying plucks — guitar strings not in training pluck set
+    # Training plucks: 82.4, 110, 165, 220, 330, 440, 880 Hz
+    # Val plucks: D3, G3, B3, G4, E5 — the strings between training pitches
     val_pluck_freqs_hz: list[float] = field(
-        default_factory=lambda: [110.0, 220.0, 440.0]
+        default_factory=lambda: [146.8, 196.0, 246.9, 392.0, 659.3]
     )
     val_pluck_decay_tau_s: float = 0.4
     val_pluck_amplitude_dbfs: float = -6.0

@@ -30,12 +30,19 @@ ENV/
 *.pth
 checkpoints/
 
-# Audio data (large files)
-data/raw/
+# Audio data (large files — never commit WAV/MP3/FLAC/AIFF)
+# Regenerate signals from their JSON manifests (seed + all params recorded there).
+# Captured stems are too large for git; store externally if archiving.
 *.wav
 *.mp3
 *.flac
 *.aiff
+*.ogg
+data/raw/
+data/signals/*.wav
+data/signals/legacy/*.wav
+data/captures/**/*.wav
+data/stems/**/*.wav
 capture_sweep.wav
 capture_check.png
 

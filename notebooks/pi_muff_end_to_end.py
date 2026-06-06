@@ -1206,7 +1206,7 @@ def _(metrics_df, mo):
     superior. The harmonic profile plot shows how many odd harmonics the fuzz generates
     (3rd, 5th, 7th, …) — a good model should reproduce this profile.
 
-    Predictions saved to `stems/2026-06-04 pi muff/predictions/` for listening.
+    Predictions saved to `data/stems/2026-06-04_pi_muff/predictions/` for listening.
     """)
     return
 

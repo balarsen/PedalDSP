@@ -59,7 +59,7 @@ CONFIG: dict = {
     # Output WAV bit depth: 16 or 24.
     # 24-bit gives 144 dB dynamic range — always use 24 for captures.
 
-    "OUTPUT_DIR": "./capture_signals",
+    "OUTPUT_DIR": "./data/signals/legacy",
     # Directory for all output files. Created if it does not exist.
 
     "MASTER_FILENAME": "master_reference.wav",

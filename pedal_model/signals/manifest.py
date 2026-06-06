@@ -133,6 +133,18 @@ class Manifest:
         """
         return [s for s in self.sections if s.type == type_name]
 
+    def sections_of_type_multi(self, type_names: list[str]) -> list[Section]:
+        """Return all sections whose type is in *type_names*, in manifest order.
+
+        Args:
+            type_names: One or more type strings.
+
+        Returns:
+            Matching sections in manifest order.
+        """
+        names = set(type_names)
+        return [s for s in self.sections if s.type in names]
+
     def labels(self) -> list[str]:
         """Return all section labels in manifest order."""
         return [s.label for s in self.sections]

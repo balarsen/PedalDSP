@@ -833,9 +833,8 @@ def main(argv: list[str] | None = None) -> None:
         wav_path, json_path = from_manifest(args.from_manifest, output_dir=args.output)
         manifest = json.loads(json_path.read_text())
         print(
-            f"done  {wav_path.name}  "
-            f"({manifest['total_duration_s']:.1f} s, {len(manifest['sections'])} sections)  "
-            f"{json_path.name}"
+            f"done\n  wav:  {wav_path.resolve()}\n  json: {json_path.resolve()}\n"
+            f"  ({manifest['total_duration_s']:.1f} s, {len(manifest['sections'])} sections)"
         )
         return
 
@@ -853,7 +852,10 @@ def main(argv: list[str] | None = None) -> None:
         wav_path, json_path = generate(sig, out_dir, train_params=p_train, val_params=p_val)
         duration = json.loads(json_path.read_text())["total_duration_s"]
         n_sections = len(json.loads(json_path.read_text())["sections"])
-        print(f"done  {wav_path.name}  ({duration:.1f} s, {n_sections} sections)  {json_path.name}")
+        print(
+            f"done\n  wav:  {wav_path.resolve()}\n  json: {json_path.resolve()}\n"
+            f"  ({duration:.1f} s, {n_sections} sections)"
+        )
 
 
 if __name__ == "__main__":

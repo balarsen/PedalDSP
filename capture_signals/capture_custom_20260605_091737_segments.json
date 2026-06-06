@@ -1,0 +1,32 @@
+[
+  {
+    "label": "alignment_click",
+    "start_sample": 0,
+    "end_sample": 480
+  },
+  {
+    "label": "log_sweep_1",
+    "start_sample": 24480,
+    "end_sample": 504480
+  },
+  {
+    "label": "log_sweep_2",
+    "start_sample": 600480,
+    "end_sample": 1080480
+  },
+  {
+    "label": "guitar_range_sweep",
+    "start_sample": 1128480,
+    "end_sample": 1608480
+  },
+  {
+    "label": "noise_burst",
+    "start_sample": 1656480,
+    "end_sample": 1896480
+  },
+  {
+    "label": "tail_silence",
+    "start_sample": 1944480,
+    "end_sample": 2088480
+  }
+]

@@ -1,0 +1,82 @@
+[
+  {
+    "label": "alignment_click",
+    "start_sample": 0,
+    "end_sample": 480
+  },
+  {
+    "label": "log_sweep_1",
+    "start_sample": 24480,
+    "end_sample": 504480
+  },
+  {
+    "label": "log_sweep_2",
+    "start_sample": 600480,
+    "end_sample": 1080480
+  },
+  {
+    "label": "guitar_range_sweep",
+    "start_sample": 1128480,
+    "end_sample": 1608480
+  },
+  {
+    "label": "amp_sweep_440Hz",
+    "start_sample": 1656480,
+    "end_sample": 2040480
+  },
+  {
+    "label": "amp_sweep_110Hz",
+    "start_sample": 2088480,
+    "end_sample": 2472480
+  },
+  {
+    "label": "amp_sweep_220Hz",
+    "start_sample": 2520480,
+    "end_sample": 2904480
+  },
+  {
+    "label": "amp_sweep_880Hz",
+    "start_sample": 2952480,
+    "end_sample": 3336480
+  },
+  {
+    "label": "im_tones_220_330Hz",
+    "start_sample": 3384480,
+    "end_sample": 3528480
+  },
+  {
+    "label": "im_tones_440_660Hz",
+    "start_sample": 3576480,
+    "end_sample": 3720480
+  },
+  {
+    "label": "im_tones_880_1320Hz",
+    "start_sample": 3768480,
+    "end_sample": 3912480
+  },
+  {
+    "label": "im_tones_110_440Hz",
+    "start_sample": 3960480,
+    "end_sample": 4104480
+  },
+  {
+    "label": "transients_slow_attack",
+    "start_sample": 4152480,
+    "end_sample": 4555680
+  },
+  {
+    "label": "transients_fast_attack",
+    "start_sample": 4603680,
+    "end_sample": 4988064
+  },
+  {
+    "label": "noise_burst",
+    "start_sample": 5036064,
+    "end_sample": 5276064
+  },
+  {
+    "label": "tail_silence",
+    "start_sample": 5324064,
+    "end_sample": 5468064
+  }
+]

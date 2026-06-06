@@ -1,0 +1,81 @@
+{
+  "preset": "fuzz",
+  "timestamp": "2026-06-05T09:17:29",
+  "git_hash": "0854112",
+  "total_samples": 5468064,
+  "total_duration_sec": 113.918,
+  "peak_amplitude": 0.7079457640647888,
+  "config": {
+    "SAMPLE_RATE": 48000,
+    "BIT_DEPTH": 24,
+    "OUTPUT_DIR": "capture_signals",
+    "MASTER_FILENAME": "master_reference.wav",
+    "SESSION_FILENAME": "capture_{preset}_{timestamp}.wav",
+    "SEED": 42,
+    "NORMALIZE_HEADROOM_DB": -3.0,
+    "CLICK_ENABLED": true,
+    "CLICK_DURATION_MS": 10.0,
+    "CLICK_AMPLITUDE": 0.9,
+    "CLICK_SILENCE_AFTER_MS": 500.0,
+    "SWEEP_ENABLED": true,
+    "SWEEP_FREQ_START": 30.0,
+    "SWEEP_FREQ_END": 20000.0,
+    "SWEEP_DURATION_SEC": 10.0,
+    "SWEEP_REPETITIONS": 2,
+    "SWEEP_SILENCE_BETWEEN_SEC": 1.0,
+    "SWEEP_GUITAR_RANGE_ENABLED": true,
+    "SWEEP_GUITAR_FREQ_START": 80.0,
+    "SWEEP_GUITAR_FREQ_END": 8000.0,
+    "SWEEP_GUITAR_DURATION_SEC": 10.0,
+    "AMP_SWEEP_ENABLED": true,
+    "AMP_SWEEP_FREQ_HZ": 440.0,
+    "AMP_SWEEP_ADDITIONAL_FREQS": [
+      110.0,
+      220.0,
+      880.0
+    ],
+    "AMP_SWEEP_DURATION_SEC": 8.0,
+    "AMP_SWEEP_MIN_AMPLITUDE": 0.001,
+    "AMP_SWEEP_MAX_AMPLITUDE": 0.95,
+    "AMP_SWEEP_SHAPE": "log",
+    "IM_TONES_ENABLED": true,
+    "IM_TONE_PAIRS": [
+      [
+        220,
+        330
+      ],
+      [
+        440,
+        660
+      ],
+      [
+        880,
+        1320
+      ],
+      [
+        110,
+        440
+      ]
+    ],
+    "IM_TONE_DURATION_SEC": 3.0,
+    "IM_TONE_AMPLITUDE": 0.4,
+    "TRANSIENT_ENABLED": true,
+    "TRANSIENT_FREQ_HZ": 220.0,
+    "TRANSIENT_SLOW_ATTACK_MS": 50.0,
+    "TRANSIENT_FAST_ATTACK_MS": 1.0,
+    "TRANSIENT_SUSTAIN_MS": 500.0,
+    "TRANSIENT_DECAY_MS": 200.0,
+    "TRANSIENT_REPETITIONS": 8,
+    "TRANSIENT_SILENCE_BETWEEN_MS": 300.0,
+    "NOISE_ENABLED": true,
+    "NOISE_DURATION_SEC": 5.0,
+    "NOISE_AMPLITUDE": 0.7,
+    "NOISE_BANDPASS_ENABLED": true,
+    "NOISE_BANDPASS_LOW_HZ": 80.0,
+    "NOISE_BANDPASS_HIGH_HZ": 8000.0,
+    "SILENCE_BETWEEN_SECTIONS_SEC": 1.0,
+    "SILENCE_AT_END_SEC": 3.0,
+    "WRITE_METADATA_JSON": true,
+    "WRITE_SEGMENT_MAP": true
+  }
+}

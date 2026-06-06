@@ -8,6 +8,19 @@ Stack: Python 3.11+, PyTorch, torchaudio, NumPy, SciPy, soundfile, seaborn. Runs
 
 ---
 
+## Environment Setup
+
+This is a **uv project**. The virtualenv lives at `.venv` in the project root.
+
+- **Activate venv:** `source .venv/bin/activate`
+- **Run commands in venv without activating:** `uv run <command>` or `.venv/bin/python <script>`
+- **Add dependencies:** `uv add <package>`
+- **Install all deps:** `uv sync`
+- **Python version:** 3.12 (`.venv/bin/python --version`)
+- Never use bare `pip install` — always go through `uv add` so `pyproject.toml` stays in sync.
+
+---
+
 ## Code Style
 
 - Follow PEP 8. Use `ruff` for linting (`ruff check .`).

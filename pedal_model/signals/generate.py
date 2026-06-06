@@ -10,6 +10,7 @@ Usage (CLI):
     python -m pedal_model.signals.generate --signal train --output data/signals/
     python -m pedal_model.signals.generate --signal val   --output data/signals/
     python -m pedal_model.signals.generate --signal both  --output data/signals/
+    python -m pedal_model.signals.generate --from-manifest data/signals/train_signal_v1.json
 
 Usage (library):
     from pedal_model.signals import generate, TrainParams
@@ -20,7 +21,8 @@ from __future__ import annotations
 
 import argparse
 import json
-from dataclasses import asdict, dataclass, field
+import warnings
+from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
@@ -701,6 +703,104 @@ def generate(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Manifest reproduction
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def from_manifest(
+    manifest_path: Path | str,
+    output_dir: Path | str | None = None,
+) -> tuple[Path, Path]:
+    """Reproduce a WAV + JSON manifest pair bit-for-bit from an existing manifest.
+
+    Reads all params (including seed) from the JSON written by :func:`generate`
+    and re-runs generation with identical settings.  Warns if any params stored
+    in the manifest are no longer known to the current dataclass (they will be
+    ignored) or if the current dataclass has fields absent from the manifest
+    (they will fall back to current defaults and may produce a different signal).
+
+    Args:
+        manifest_path: Path to an existing ``{signal}_signal_v1.json`` file.
+        output_dir: Write the reproduced WAV + JSON here. Defaults to the same
+            directory as *manifest_path*.
+
+    Returns:
+        ``(wav_path, json_path)`` of the reproduced files.
+
+    Raises:
+        ValueError: If ``signal_name`` in the manifest is not recognisable as a
+            ``"train"`` or ``"val"`` signal.
+    """
+    manifest_path = Path(manifest_path)
+    manifest = json.loads(manifest_path.read_text())
+
+    signal_name: str = manifest["signal_name"]
+    stored_params: dict[str, Any] = dict(manifest["params"])
+
+    if "train" in signal_name:
+        cls: type[TrainParams] | type[ValParams] = TrainParams
+        sig = "train"
+    elif "val" in signal_name:
+        cls = ValParams
+        sig = "val"
+    else:
+        raise ValueError(
+            f"Cannot determine signal type from signal_name={signal_name!r}. "
+            "Expected a name containing 'train' or 'val'."
+        )
+
+    expected_fields = {f.name for f in fields(cls)}
+
+    # Fields the manifest knows about but the current dataclass does not.
+    extra = set(stored_params) - expected_fields
+    if extra:
+        warnings.warn(
+            f"{manifest_path.name}: {len(extra)} param(s) in the manifest are "
+            f"not known to the current {cls.__name__} and will be ignored: "
+            f"{sorted(extra)}. The reproduced signal may differ from the original.",
+            UserWarning,
+            stacklevel=2,
+        )
+        for k in extra:
+            del stored_params[k]
+
+    # Fields the current dataclass expects but the manifest does not have.
+    missing = expected_fields - set(stored_params)
+    if missing:
+        warnings.warn(
+            f"{manifest_path.name}: {len(missing)} param(s) are present in the "
+            f"current {cls.__name__} but absent from the manifest: {sorted(missing)}. "
+            "Current dataclass defaults will be used — the reproduced signal "
+            "may differ from the original.",
+            UserWarning,
+            stacklevel=2,
+        )
+
+    params = cls(**stored_params)
+    out_dir = Path(output_dir) if output_dir is not None else manifest_path.parent
+
+    expected_samples: int | None = manifest.get("total_samples")
+
+    if sig == "train":
+        wav_path, json_path = generate(sig, out_dir, train_params=params)  # type: ignore[arg-type]
+    else:
+        wav_path, json_path = generate(sig, out_dir, val_params=params)  # type: ignore[arg-type]
+
+    if expected_samples is not None:
+        actual = json.loads(json_path.read_text())["total_samples"]
+        if actual != expected_samples:
+            warnings.warn(
+                f"Reproduced signal has {actual} samples but the original manifest "
+                f"recorded {expected_samples}. The two files are NOT identical — "
+                "check for generator version mismatch.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    return wav_path, json_path
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CLI
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -711,15 +811,35 @@ def main(argv: list[str] | None = None) -> None:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(
+        "--from-manifest", default=None, metavar="JSON",
+        help=(
+            "Reproduce a signal exactly from an existing manifest JSON. "
+            "All params (including seed) are read from the file. "
+            "Overrides --signal, --sr, --seed-train, and --seed-val."
+        ),
+    )
+    parser.add_argument(
         "--signal", choices=["train", "val", "both"], default="both",
         help="Which signal(s) to generate.",
     )
-    parser.add_argument("--output", default="data/signals", help="Output directory.")
+    parser.add_argument("--output", default=None, help="Output directory. Defaults to data/signals, or the manifest's own directory when --from-manifest is used.")
     parser.add_argument("--sr", type=int, default=96_000, help="Sample rate in Hz.")
     parser.add_argument("--seed-train", type=int, default=1234, help="RNG seed for train signal.")
     parser.add_argument("--seed-val", type=int, default=42, help="RNG seed for val signal.")
     args = parser.parse_args(argv)
 
+    if args.from_manifest is not None:
+        print(f"Reproducing from manifest {args.from_manifest} ...", end=" ", flush=True)
+        wav_path, json_path = from_manifest(args.from_manifest, output_dir=args.output)
+        manifest = json.loads(json_path.read_text())
+        print(
+            f"done  {wav_path.name}  "
+            f"({manifest['total_duration_s']:.1f} s, {len(manifest['sections'])} sections)  "
+            f"{json_path.name}"
+        )
+        return
+
+    out_dir = args.output or "data/signals"
     signals = ["train", "val"] if args.signal == "both" else [args.signal]
     for sig in signals:
         if sig == "train":
@@ -730,7 +850,7 @@ def main(argv: list[str] | None = None) -> None:
             p_val = ValParams(sample_rate=args.sr, seed=args.seed_val)
 
         print(f"Generating {sig} signal ...", end=" ", flush=True)
-        wav_path, json_path = generate(sig, args.output, train_params=p_train, val_params=p_val)
+        wav_path, json_path = generate(sig, out_dir, train_params=p_train, val_params=p_val)
         duration = json.loads(json_path.read_text())["total_duration_s"]
         n_sections = len(json.loads(json_path.read_text())["sections"])
         print(f"done  {wav_path.name}  ({duration:.1f} s, {n_sections} sections)  {json_path.name}")

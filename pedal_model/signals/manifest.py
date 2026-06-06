@@ -64,6 +64,8 @@ class Manifest:
         total_duration_s: Total length in seconds.
         schema_version: Manifest schema version string.
         generator_version: Generator code version string.
+        date_created: ISO 8601 UTC timestamp when the signal was generated, or
+            ``None`` for manifests written before this field was added.
         params: Raw params dict from the manifest.
         sections: All sections in order.
     """
@@ -79,6 +81,7 @@ class Manifest:
         self.total_duration_s: float = raw["total_duration_s"]
         self.schema_version: str = raw["schema_version"]
         self.generator_version: str = raw["generator_version"]
+        self.date_created: str | None = raw.get("date_created")
         self.params: dict[str, Any] = raw["params"]
 
         self.sections: list[Section] = [

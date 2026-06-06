@@ -23,6 +23,7 @@ import argparse
 import json
 import warnings
 from dataclasses import asdict, dataclass, field, fields
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -649,14 +650,17 @@ def generate(
     *,
     train_params: TrainParams | None = None,
     val_params: ValParams | None = None,
+    output_name: str | None = None,
 ) -> tuple[Path, Path]:
     """Generate a WAV + JSON manifest pair and write to output_dir.
 
     Args:
         signal: ``"train"`` or ``"val"``.
-        output_dir: Directory to write ``{name}.wav`` and ``{name}.json``.
+        output_dir: Directory to write the output files.
         train_params: Override defaults for the train signal.
         val_params: Override defaults for the val signal.
+        output_name: Filename stem (no extension). Defaults to
+            ``"train_signal_v1"`` or ``"val_signal_v1"``.
 
     Returns:
         ``(wav_path, json_path)``
@@ -668,21 +672,24 @@ def generate(
         p = train_params or TrainParams()
         rng = np.random.default_rng(p.seed)
         audio, sections = _build_train(p, rng)
-        name = "train_signal_v1"
+        default_name = "train_signal_v1"
         params_dict: dict[str, Any] = asdict(p)
     elif signal == "val":
         p = val_params or ValParams()
         rng = np.random.default_rng(p.seed)
         audio, sections = _build_val(p, rng)
-        name = "val_signal_v1"
+        default_name = "val_signal_v1"
         params_dict = asdict(p)
     else:
         raise ValueError(f"Unknown signal: {signal!r}. Choose 'train' or 'val'.")
+
+    name = output_name or default_name
 
     manifest: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
         "generator_version": GENERATOR_VERSION,
         "signal_name": name,
+        "date_created": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "sample_rate": p.sample_rate,
         "bit_depth": 32,
         "format": "float",
@@ -710,6 +717,8 @@ def generate(
 def from_manifest(
     manifest_path: Path | str,
     output_dir: Path | str | None = None,
+    *,
+    output_name: str | None = None,
 ) -> tuple[Path, Path]:
     """Reproduce a WAV + JSON manifest pair bit-for-bit from an existing manifest.
 
@@ -723,6 +732,8 @@ def from_manifest(
         manifest_path: Path to an existing ``{signal}_signal_v1.json`` file.
         output_dir: Write the reproduced WAV + JSON here. Defaults to the same
             directory as *manifest_path*.
+        output_name: Filename stem for the output files (no extension). Defaults
+            to the ``signal_name`` stored in the manifest.
 
     Returns:
         ``(wav_path, json_path)`` of the reproduced files.
@@ -778,13 +789,14 @@ def from_manifest(
 
     params = cls(**stored_params)
     out_dir = Path(output_dir) if output_dir is not None else manifest_path.parent
+    name = output_name or manifest["signal_name"]
 
     expected_samples: int | None = manifest.get("total_samples")
 
     if sig == "train":
-        wav_path, json_path = generate(sig, out_dir, train_params=params)  # type: ignore[arg-type]
+        wav_path, json_path = generate(sig, out_dir, train_params=params, output_name=name)  # type: ignore[arg-type]
     else:
-        wav_path, json_path = generate(sig, out_dir, val_params=params)  # type: ignore[arg-type]
+        wav_path, json_path = generate(sig, out_dir, val_params=params, output_name=name)  # type: ignore[arg-type]
 
     if expected_samples is not None:
         actual = json.loads(json_path.read_text())["total_samples"]
@@ -823,6 +835,7 @@ def main(argv: list[str] | None = None) -> None:
         help="Which signal(s) to generate.",
     )
     parser.add_argument("--output", default=None, help="Output directory. Defaults to data/signals, or the manifest's own directory when --from-manifest is used.")
+    parser.add_argument("--name", default=None, metavar="STEM", help="Output filename stem (no extension). E.g. --name my_signal writes my_signal.wav + my_signal.json.")
     parser.add_argument("--sr", type=int, default=96_000, help="Sample rate in Hz.")
     parser.add_argument("--seed-train", type=int, default=1234, help="RNG seed for train signal.")
     parser.add_argument("--seed-val", type=int, default=42, help="RNG seed for val signal.")
@@ -830,7 +843,9 @@ def main(argv: list[str] | None = None) -> None:
 
     if args.from_manifest is not None:
         print(f"Reproducing from manifest {args.from_manifest} ...", end=" ", flush=True)
-        wav_path, json_path = from_manifest(args.from_manifest, output_dir=args.output)
+        wav_path, json_path = from_manifest(
+            args.from_manifest, output_dir=args.output, output_name=args.name
+        )
         manifest = json.loads(json_path.read_text())
         print(
             f"done\n  wav:  {wav_path.resolve()}\n  json: {json_path.resolve()}\n"
@@ -849,7 +864,9 @@ def main(argv: list[str] | None = None) -> None:
             p_val = ValParams(sample_rate=args.sr, seed=args.seed_val)
 
         print(f"Generating {sig} signal ...", end=" ", flush=True)
-        wav_path, json_path = generate(sig, out_dir, train_params=p_train, val_params=p_val)
+        wav_path, json_path = generate(
+            sig, out_dir, train_params=p_train, val_params=p_val, output_name=args.name
+        )
         duration = json.loads(json_path.read_text())["total_duration_s"]
         n_sections = len(json.loads(json_path.read_text())["sections"])
         print(

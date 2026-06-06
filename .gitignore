@@ -23,6 +23,7 @@ ENV/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb_checkpoints
+*.ipynb
 
 # PyTorch / model checkpoints
 *.pt

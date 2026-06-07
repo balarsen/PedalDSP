@@ -58,21 +58,31 @@ class MLPModel(nn.Module, PedalModel):
         """Not implemented: train via train/trainer.py instead."""
         raise NotImplementedError("Use train/trainer.py to train neural models.")
 
-    def predict(self, x: np.ndarray) -> np.ndarray:
-        """Run inference over a full signal sample-by-sample.
+    def predict(self, x: np.ndarray, batch_size: int = 4096) -> np.ndarray:
+        """Batched inference using stride-trick sliding windows.
 
         Args:
             x: Dry input, shape (N,), float32.
+            batch_size: Windows per forward pass. Tune for GPU memory.
 
         Returns:
             Predicted wet signal, shape (N,), float32.
         """
         self.eval()
         R = self._rf
-        out = np.zeros(len(x), dtype=np.float32)
+        N = len(x)
         padded = np.pad(x, (R - 1, 0))
+        # Zero-copy sliding-window view: shape (N, R)
+        stride = padded.strides[0]
+        windows = np.lib.stride_tricks.as_strided(
+            padded, shape=(N, R), strides=(stride, stride)
+        )
+        out = np.empty(N, dtype=np.float32)
         with torch.no_grad():
-            for n in range(len(x)):
-                window = torch.tensor(padded[n : n + R], dtype=torch.float32).unsqueeze(0)
-                out[n] = self(window).item()
+            for start in range(0, N, batch_size):
+                end = min(start + batch_size, N)
+                batch = torch.tensor(
+                    windows[start:end].copy(), dtype=torch.float32
+                )
+                out[start:end] = self(batch).squeeze(-1).cpu().numpy()
         return out

@@ -26,8 +26,13 @@ class MultiScaleSTFTLoss(nn.Module):
             Scalar loss tensor.
         """
         if predicted.dim() == 3:
-            predicted = predicted.squeeze(1)
-            target = target.squeeze(1)
+            # Accept (batch, 1, time) channels-first OR (batch, time, 1) channels-last
+            if predicted.shape[1] == 1:
+                predicted = predicted.squeeze(1)
+                target = target.squeeze(1)
+            elif predicted.shape[-1] == 1:
+                predicted = predicted.squeeze(-1)
+                target = target.squeeze(-1)
 
         loss = torch.zeros((), device=predicted.device)
         for win in self.window_sizes:

@@ -48,7 +48,7 @@ class TestPedalDataset:
     def test_mismatched_lengths_raise(self):
         dry = np.zeros(1000, dtype=np.float32)
         wet = np.zeros(900, dtype=np.float32)
-        with pytest.raises(AssertionError):
+        with pytest.raises(ValueError):
             PedalDataset(dry, wet, receptive_field=32)
 
 

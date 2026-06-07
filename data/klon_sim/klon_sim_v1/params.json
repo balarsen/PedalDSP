@@ -1,0 +1,34 @@
+{
+  "schema_version": "1.0",
+  "date_created": "2026-06-06T20:13:59Z",
+  "pedal_type": "klon_sim",
+  "pedal_version": "1.0",
+  "params": {
+    "drive": 4.0,
+    "input_hpf_hz": 80.0,
+    "clip_hpf_hz": 350.0,
+    "presence_hz": 3000.0,
+    "presence_db": 2.0,
+    "output_level": 0.7,
+    "noise_floor_dbfs": -70.0,
+    "noise_seed": 42
+  },
+  "captures": {
+    "train": {
+      "dry_signal": "train_signal_v1",
+      "dry_manifest": "../../signals/train_signal_v1.json",
+      "wet_wav": "wet_train_signal_v1.wav",
+      "sample_rate": 96000,
+      "n_samples": 61680000,
+      "duration_s": 642.5
+    },
+    "val": {
+      "dry_signal": "val_signal_v1",
+      "dry_manifest": "../../signals/val_signal_v1.json",
+      "wet_wav": "wet_val_signal_v1.wav",
+      "sample_rate": 96000,
+      "n_samples": 6239040,
+      "duration_s": 64.99
+    }
+  }
+}

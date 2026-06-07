@@ -58,12 +58,12 @@ class GRUModel(nn.Module, PedalModel):
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
         raise NotImplementedError("Use train/trainer.py to train neural models.")
 
-    def predict(self, x: np.ndarray, chunk_size: int = 4096) -> np.ndarray:
+    def predict(self, x: np.ndarray, chunk_size: int = 65536) -> np.ndarray:
         """Chunked inference with carried hidden state.
 
         Args:
             x: Dry input, shape (N,), float32.
-            chunk_size: Samples per chunk.
+            chunk_size: Samples per chunk. Larger values reduce Python loop overhead.
 
         Returns:
             Predicted wet signal, shape (N,), float32.

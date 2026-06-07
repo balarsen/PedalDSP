@@ -63,7 +63,7 @@ class LSTMModel(nn.Module, PedalModel):
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
         raise NotImplementedError("Use train/trainer.py to train neural models.")
 
-    def predict(self, x: np.ndarray, chunk_size: int = 4096) -> np.ndarray:
+    def predict(self, x: np.ndarray, chunk_size: int = 65536) -> np.ndarray:
         """Run inference in chunks, carrying hidden state between chunks.
 
         Args:

@@ -61,25 +61,18 @@ class HammersteinModel(PedalModel):
             full[self.poly_order - p] = coeffs[i]
         self._poly_coeffs = full
 
-        # --- Identify h[k] from linear regime (low-amplitude samples) ---
-        threshold = np.percentile(np.abs(dry), 25)
-        mask = np.abs(dry) < threshold
-        if mask.sum() < self.n_taps * 4:
-            # Fall back to full signal if not enough low-amplitude samples
-            mask = np.ones(len(dry), dtype=bool)
-
-        dry_lin = dry[mask]
-        # Apply NL to get intermediate signal, then find filter from intermediate→wet
-        v_lin = self._apply_nl(dry_lin)
-        # Align wet to same samples for kernel estimation
-        wet_lin = wet[mask]
-
-        n = len(v_lin)
-        V = rfft(v_lin, n=n)
-        W = rfft(wet_lin, n=n)
+        # --- Identify h[k] via deconvolution on the full signal ---
+        # Masking to the low-amplitude regime gives near-zero spectral content
+        # in V = FFT(f(x_lin)), making W/V numerically catastrophic. Using the
+        # full signal keeps sufficient spectral energy across all frequencies.
+        v = self._apply_nl(dry)
+        n = len(v)
+        V = rfft(v, n=n)
+        W = rfft(wet, n=n)
         H = W / (V + 1e-8 * np.max(np.abs(V)))
+        # np.hanning[0] = 0, which zeros h[0] and destroys causal responses.
+        # Truncation alone is sufficient for n >> n_taps.
         h = irfft(H, n=n)[: self.n_taps]
-        h *= np.hanning(self.n_taps)
         self._kernel = h.astype(np.float32)
 
     def predict(self, x: np.ndarray) -> np.ndarray:

@@ -72,20 +72,31 @@ class VolterraModel(PedalModel):
         y = wet[self.memory :].astype(np.float64)
         self._coeffs, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
 
-    def predict(self, x: np.ndarray) -> np.ndarray:
-        """Apply the Volterra series.
+    def predict(self, x: np.ndarray, chunk_size: int = 50_000) -> np.ndarray:
+        """Apply the Volterra series in chunks to keep memory bounded.
+
+        Building the full feature matrix for a long signal at once can exceed
+        RAM (e.g., 3 M samples × 252 features × 8 bytes ≈ 6 GB). Processing
+        in 50 k-sample chunks keeps peak usage under 100 MB.
 
         Args:
             x: Dry input, shape (N,), float32.
+            chunk_size: Samples per chunk. Reduce if memory-constrained.
 
         Returns:
-            Predicted output, shape (N - memory,), float32.
-            Note: output is shorter than input by `memory` samples.
+            Predicted output, shape (N,), float32.
+            First `memory` samples are zero (no context for prediction).
         """
         if self._coeffs is None:
             raise RuntimeError("Call fit() before predict().")
-        X = self._build_features(x.astype(np.float64))
-        y = X @ self._coeffs
-        # Prepend zeros so output length matches input length
-        out = np.concatenate([np.zeros(self.memory), y])
-        return out.astype(np.float32)
+        M = self.memory
+        N = len(x)
+        out = np.zeros(N, dtype=np.float32)
+        xd = x.astype(np.float64)
+        for start in range(M, N, chunk_size):
+            end = min(start + chunk_size, N)
+            # Slice includes M context samples so _build_features can form lags
+            X_chunk = self._build_features(xd[start - M : end])
+            # X_chunk shape: (end - start, n_features)
+            out[start:end] = (X_chunk @ self._coeffs).astype(np.float32)
+        return out

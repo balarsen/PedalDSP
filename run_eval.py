@@ -63,6 +63,14 @@ def main(argv: list[str] | None = None) -> None:
         "200 epochs = 1.55 full signal passes at 480k window.",
     )
     parser.add_argument(
+        "--tcn-epochs",
+        type=int,
+        default=0,
+        metavar="N",
+        help="Override epoch count for TCN only (0 = use --epochs). "
+        "TCN val_esr=0.0088 at 200ep and still descending; 500ep targets <0.005.",
+    )
+    parser.add_argument(
         "--circuit-dict-window",
         type=int,
         default=480_000,
@@ -132,6 +140,7 @@ def main(argv: list[str] | None = None) -> None:
         max_hammerstein_samples=args.max_hammerstein or 5_000_000,
         max_mlp_samples=args.mlp_train or 0,  # 0 → use full signal
         neural_epochs=args.epochs,
+        tcn_epochs=args.tcn_epochs,
         circuit_dict_epochs=args.circuit_dict_epochs,
         circuit_dict_window_size=args.circuit_dict_window,
         device=args.device,
@@ -144,7 +153,10 @@ def main(argv: list[str] | None = None) -> None:
     print(f"klon_sim dir : {cfg.klon_sim_dir}")
     print(f"output dir   : {cfg.output_dir}")
     print(f"classical    : {cfg.run_classical}  neural: {cfg.run_neural}")
-    print(f"epochs       : neural={cfg.neural_epochs}  circuit_dict={cfg.circuit_dict_epochs}  device={cfg.device}")
+    ep_line = f"epochs       : neural={cfg.neural_epochs}  circuit_dict={cfg.circuit_dict_epochs}  device={cfg.device}"
+    if cfg.tcn_epochs > 0:
+        ep_line += f"  tcn={cfg.tcn_epochs}"
+    print(ep_line)
     if cfg.skip_models:
         print(f"skipping     : {cfg.skip_models}")
     print()

@@ -67,6 +67,7 @@ class EvalConfig:
     max_hammerstein_samples: int = 5_000_000
     max_mlp_samples: int = 5_000_000
     neural_epochs: int = 50
+    tcn_epochs: int = 0  # 0 = use neural_epochs; override just for TCN/DDSP
     circuit_dict_epochs: int = 200
     circuit_dict_window_size: int = 480_000
     neural_batch_size: int = 32
@@ -150,6 +151,78 @@ _NEURAL_REGISTRY: dict[str, tuple[str, str, dict]] = {
         {"gru_hidden": 16},
     ),
 }
+
+
+# ── Block filter helpers ──────────────────────────────────────────────────── #
+
+
+def _bad_block_set(
+    manifest: Any, chunk_size: int, total_samples: int
+) -> frozenset[int]:
+    """Block indices to exclude from recurrent training.
+
+    Excludes every block that contains at least one silence sample (i.e. a
+    sample not within any manifest section's [start, end) range), plus all
+    blocks that overlap an impulse_train section.
+
+    Silence blocks cause ESR loss to divide by ≈1e-8 once the model has
+    non-zero bias-driven output, producing gradients ~1e8× amplified that
+    corrupt LSTM/GRU parameters over successive epochs.  Impulse_train blocks
+    contain sharp high-amplitude transients that spike the loss even without
+    the silence problem.
+
+    Args:
+        manifest: Loaded Manifest for the training signal.
+        chunk_size: Block length in samples (neural_chunk_size).
+        total_samples: Total training signal length in samples.
+
+    Returns:
+        frozenset of 0-indexed block indices to exclude.
+    """
+    n_blocks = total_samples // chunk_size
+
+    # Mark every sample that belongs to an active section.
+    active = np.zeros(total_samples, dtype=bool)
+    for sec in manifest.sections:
+        s = max(0, sec.start_sample)
+        e = min(total_samples, sec.end_sample)
+        if e > s:
+            active[s:e] = True
+
+    # A block is bad if it contains any silence sample.
+    block_active = active[:n_blocks * chunk_size].reshape(n_blocks, chunk_size)
+    bad = set(int(i) for i in np.where(~block_active.all(axis=1))[0])
+
+    # All blocks that overlap any impulse_train section.
+    for sec in manifest.sections_of_type("impulse_train"):
+        first = sec.start_sample // chunk_size
+        last = min((sec.end_sample - 1) // chunk_size, n_blocks - 1)
+        bad.update(range(first, last + 1))
+
+    return frozenset(bad)
+
+
+def _filter_seq_blocks(
+    dry: np.ndarray, wet: np.ndarray, chunk_size: int, bad_blocks: frozenset[int]
+) -> tuple[np.ndarray, np.ndarray]:
+    """Remove bad blocks and return filtered contiguous arrays.
+
+    Args:
+        dry: Full dry training signal, shape (N,), float32.
+        wet: Full wet training signal, same shape.
+        chunk_size: Block length in samples.
+        bad_blocks: Block indices to exclude (from _bad_block_set).
+
+    Returns:
+        Filtered (dry, wet) as contiguous float32 arrays.
+    """
+    n_blocks = len(dry) // chunk_size
+    good = [i for i in range(n_blocks) if i not in bad_blocks]
+    if len(good) == n_blocks:
+        return dry[:n_blocks * chunk_size], wet[:n_blocks * chunk_size]
+    d = np.concatenate([dry[i * chunk_size : (i + 1) * chunk_size] for i in good])
+    w = np.concatenate([wet[i * chunk_size : (i + 1) * chunk_size] for i in good])
+    return d, w
 
 
 # ── Worker function (top-level for pickle compatibility) ──────────────────── #
@@ -404,8 +477,10 @@ def _train_recurrent(
     t_loop_start = time.perf_counter()
 
     avg = float("nan")
+    total_nan_skips = 0
     for epoch in range(1, cfg.neural_epochs + 1):
         epoch_loss = 0.0
+        n_valid = 0
         for dry_chunk, wet_chunk in loader:
             dry_chunk = dry_chunk.to(device)
             wet_chunk = wet_chunk.to(device)
@@ -418,13 +493,24 @@ def _train_recurrent(
             if out.dim() == 3 and out.shape[1] == 1 and out.shape[2] != 1:
                 out = out.transpose(1, 2)
             loss = loss_fn(out, wet_chunk)
+            if not loss.isfinite():
+                total_nan_skips += 1
+                continue
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0).item()
+            if not np.isfinite(grad_norm):
+                # NaN gradient corrupted params — restore from last good checkpoint.
+                optimiser.zero_grad()
+                if best_state is not None:
+                    model.load_state_dict(best_state)
+                total_nan_skips += 1
+                continue
             max_grad_norm_seen = max(max_grad_norm_seen, grad_norm)
             optimiser.step()
             epoch_loss += loss.item()
+            n_valid += 1
         scheduler.step()
-        avg = epoch_loss / max(1, len(loader))
+        avg = epoch_loss / max(1, n_valid)
         if avg < best_loss:
             best_loss = avg
             best_epoch = epoch
@@ -433,13 +519,15 @@ def _train_recurrent(
             elapsed = time.perf_counter() - t_loop_start
             eta_s = elapsed / epoch * (cfg.neural_epochs - epoch)
             eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
+            skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
             print(f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  best={best_loss:.4f}@ep{best_epoch}"
-                  f"  elapsed={elapsed:.0f}s  eta {eta_str}")
+                  f"  elapsed={elapsed:.0f}s  eta {eta_str}{skip_str}")
 
     if best_state is not None:
         model.load_state_dict(best_state)
     weights_ok = all(torch.isfinite(p).all().item() for p in model.parameters())
-    print(f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}")
+    skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
+    print(f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}{skip_str}")
     return best_loss
 
 
@@ -452,6 +540,7 @@ def _train_tcn(
     dry_val: np.ndarray | None = None,
     wet_val: np.ndarray | None = None,
     val_check_interval: int = 50,
+    n_epochs: int = 0,
 ) -> float:
     """Train TCN model (expects channels-first (batch, 1, time) input).
 
@@ -460,19 +549,23 @@ def _train_tcn(
     val-ESR degrades (overfitting to training distribution), so training-loss
     is not a reliable proxy — periodic val-ESR is the correct signal.
 
+    Args:
+        n_epochs: Override epoch count (0 = use cfg.neural_epochs). Use this
+            to run TCN longer than other neural models without changing cfg.
+
     Returns:
         Best val-ESR (or best training loss when val not provided).
     """
     from pedal_model.data.dataset import ChunkDataset
     from pedal_model.train.losses import CombinedLoss
 
+    n_ep = n_epochs if n_epochs > 0 else cfg.neural_epochs
+
     dataset = ChunkDataset(dry_train, wet_train, chunk_size=cfg.neural_chunk_size)
     loader = DataLoader(dataset, batch_size=cfg.neural_batch_size, shuffle=True, drop_last=True)
     loss_fn = CombinedLoss().to(device)
     optimiser = torch.optim.AdamW(model.parameters(), lr=cfg.neural_lr)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-        optimiser, T_max=cfg.neural_epochs
-    )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimiser, T_max=n_ep)
     model.to(device).train()
 
     use_val_esr = dry_val is not None and wet_val is not None
@@ -483,7 +576,7 @@ def _train_tcn(
     t_loop_start = time.perf_counter()
 
     avg = float("nan")
-    for epoch in range(1, cfg.neural_epochs + 1):
+    for epoch in range(1, n_ep + 1):
         epoch_loss = 0.0
         for dry_chunk, wet_chunk in loader:
             # dry_chunk/wet_chunk: (batch, time, 1) from ChunkDataset
@@ -508,31 +601,29 @@ def _train_tcn(
             model.train()
             n = min(len(wet_val), len(pred))
             val_esr = compute_esr(wet_val[:n], pred[:n])
-            metric = val_esr
             if val_esr < best_metric:
                 best_metric = val_esr
                 best_epoch = epoch
                 best_state = copy.deepcopy(model.state_dict())
-            if epoch % max(1, cfg.neural_epochs // 5) == 0:
+            if epoch % max(1, n_ep // 5) == 0:
                 elapsed = time.perf_counter() - t_loop_start
-                eta_s = elapsed / epoch * (cfg.neural_epochs - epoch)
+                eta_s = elapsed / epoch * (n_ep - epoch)
                 eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
-                print(f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  val_esr={val_esr:.4f}  best={best_metric:.4f}@ep{best_epoch}"
+                print(f"      epoch {epoch}/{n_ep}  loss={avg:.4f}  val_esr={val_esr:.4f}  best={best_metric:.4f}@ep{best_epoch}"
                       f"  elapsed={elapsed:.0f}s  eta {eta_str}")
         else:
-            metric = avg
             if not use_val_esr and avg < best_metric:
                 best_metric = avg
                 best_epoch = epoch
                 best_state = copy.deepcopy(model.state_dict())
-            if epoch % max(1, cfg.neural_epochs // 5) == 0:
+            if epoch % max(1, n_ep // 5) == 0:
                 elapsed = time.perf_counter() - t_loop_start
-                eta_s = elapsed / epoch * (cfg.neural_epochs - epoch)
+                eta_s = elapsed / epoch * (n_ep - epoch)
                 eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
-                print(f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  best={best_metric:.4f}@ep{best_epoch}"
+                print(f"      epoch {epoch}/{n_ep}  loss={avg:.4f}  best={best_metric:.4f}@ep{best_epoch}"
                       f"  elapsed={elapsed:.0f}s  eta {eta_str}")
 
-    # If val-ESR checkpointing never fired (neural_epochs < val_check_interval),
+    # If val-ESR checkpointing never fired (n_ep < val_check_interval),
     # run one final check so best_state is always set before restore.
     if use_val_esr and best_state is None:
         from pedal_model.metrics.time_domain import compute_esr
@@ -541,15 +632,15 @@ def _train_tcn(
         model.train()
         n = min(len(wet_val), len(pred))
         best_metric = compute_esr(wet_val[:n], pred[:n])
-        best_epoch = cfg.neural_epochs
+        best_epoch = n_ep
         best_state = copy.deepcopy(model.state_dict())
-        print(f"      (final val-ESR check: {best_metric:.4f} — val_check_interval > neural_epochs)")
+        print(f"      (final val-ESR check: {best_metric:.4f} — val_check_interval > n_epochs)")
 
     if best_state is not None:
         model.load_state_dict(best_state)
     weights_ok = all(torch.isfinite(p).all().item() for p in model.parameters())
     metric_name = "val_esr" if use_val_esr else "train_loss"
-    print(f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  {metric_name}={best_metric:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}")
+    print(f"      best checkpoint: epoch {best_epoch}/{n_ep}  {metric_name}={best_metric:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}")
     return best_metric
 
 
@@ -663,8 +754,10 @@ def _train_klon_ddsp(
     t_loop_start = time.perf_counter()
 
     avg = float("nan")
+    total_nan_skips = 0
     for epoch in range(1, cfg.neural_epochs + 1):
         epoch_loss = 0.0
+        n_valid = 0
         for dry_chunk, wet_chunk in loader:
             dry_chunk = dry_chunk.to(device)   # (batch, time, 1)
             wet_chunk = wet_chunk.to(device)
@@ -681,13 +774,24 @@ def _train_klon_ddsp(
                 aux = loss_fn(ddsp_out, wet_chunk)
                 loss = loss + aux_weight * aux
 
+            if not loss.isfinite():
+                total_nan_skips += 1
+                continue
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0).item()
+            if not np.isfinite(grad_norm):
+                # NaN gradient corrupted params — restore from last good checkpoint.
+                optimiser.zero_grad()
+                if best_state is not None:
+                    model.load_state_dict(best_state)
+                total_nan_skips += 1
+                continue
             max_grad_norm_seen = max(max_grad_norm_seen, grad_norm)
             optimiser.step()
             epoch_loss += loss.item()
+            n_valid += 1
         scheduler.step()
-        avg = epoch_loss / max(1, len(loader))
+        avg = epoch_loss / max(1, n_valid)
         if avg < best_loss:
             best_loss = avg
             best_epoch = epoch
@@ -696,13 +800,15 @@ def _train_klon_ddsp(
             elapsed = time.perf_counter() - t_loop_start
             eta_s = elapsed / epoch * (cfg.neural_epochs - epoch)
             eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
+            skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
             print(f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  best={best_loss:.4f}@ep{best_epoch}"
-                  f"  elapsed={elapsed:.0f}s  eta {eta_str}")
+                  f"  elapsed={elapsed:.0f}s  eta {eta_str}{skip_str}")
 
     if best_state is not None:
         model.load_state_dict(best_state)
     weights_ok = all(torch.isfinite(p).all().item() for p in model.parameters())
-    print(f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}")
+    skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
+    print(f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}{skip_str}")
     return best_loss
 
 
@@ -715,6 +821,7 @@ def train_neural_sequential(
     dry_val: np.ndarray,
     wet_val: np.ndarray,
     sr: int,
+    bad_blocks: frozenset[int] | None = None,
 ) -> dict[str, tuple[np.ndarray, float, float, dict | None]]:
     """Train neural models one at a time on the available device.
 
@@ -733,6 +840,9 @@ def train_neural_sequential(
         dry_val: Dry validation signal for prediction.
         wet_val: Wet validation signal (used for klon_ddsp fraction analysis).
         sr: Sample rate in Hz.
+        bad_blocks: Block indices to exclude from sequential training (silence,
+            impulse_train, boundary blocks). Computed from train manifest by
+            run_zoo via _bad_block_set. None = no filtering.
 
     Returns:
         Mapping from model key to (val_prediction, train_time_s, predict_time_s,
@@ -740,12 +850,30 @@ def train_neural_sequential(
     """
     device = _resolve_device(cfg)
     total_s = len(dry_train_seq)
-    n_seq_blocks = total_s // cfg.neural_chunk_size
-    seq_coverage = 100.0 * (n_seq_blocks * cfg.neural_chunk_size) / total_s
+    n_seq_blocks_raw = total_s // cfg.neural_chunk_size
+
+    # Filter bad blocks (silence, impulse_train, boundary crossings) from
+    # sequential training data before creating ChunkDataset.
+    if bad_blocks:
+        dry_train_seq, wet_train_seq = _filter_seq_blocks(
+            dry_train_seq, wet_train_seq, cfg.neural_chunk_size, bad_blocks
+        )
+        n_removed = n_seq_blocks_raw - len(dry_train_seq) // cfg.neural_chunk_size
+
+    n_seq_blocks = len(dry_train_seq) // cfg.neural_chunk_size
+    seq_samples = n_seq_blocks * cfg.neural_chunk_size
+    seq_coverage = 100.0 * seq_samples / total_s
     mlp_coverage = 100.0 * len(dry_train_rnd) / total_s
-    print(f"  neural models on device: {device}  epochs={cfg.neural_epochs}")
-    print(f"  recurrent: {n_seq_blocks} blocks, {n_seq_blocks * cfg.neural_chunk_size / 1e6:.2f}M samples "
+
+    tcn_n_ep = cfg.tcn_epochs if cfg.tcn_epochs > 0 else cfg.neural_epochs
+
+    print(f"  neural models on device: {device}  epochs={cfg.neural_epochs}"
+          + (f"  tcn={tcn_n_ep}" if tcn_n_ep != cfg.neural_epochs else ""))
+    print(f"  recurrent: {n_seq_blocks} blocks, {seq_samples / 1e6:.2f}M samples "
           f"({seq_coverage:.1f}% of training signal)")
+    if bad_blocks:
+        print(f"    → removed {n_removed} silence/impulse/boundary blocks "
+              f"({len(bad_blocks)} bad of {n_seq_blocks_raw} total)")
     print(f"  MLP:       {len(dry_train_rnd) / 1e6:.2f}M random samples "
           f"({mlp_coverage:.1f}% of training signal)")
 
@@ -763,9 +891,11 @@ def train_neural_sequential(
             # Channels-first (batch, 1, time); needs contiguous temporal data.
             # Pass val signal so TCN uses periodic val-ESR checkpointing instead
             # of training-loss proxy (TCN loss can still descend as val-ESR degrades).
+            n_ep = tcn_n_ep if key == "tcn" else cfg.neural_epochs
             train_loss = _train_tcn(
                 model, dry_train_seq, wet_train_seq, cfg, device,
                 dry_val=dry_val, wet_val=wet_val,
+                n_epochs=n_ep,
             )
         elif key == "mlp":
             # Pointwise model; benefits from amplitude diversity of random samples
@@ -860,6 +990,7 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     wet_val, _ = sf.read(str(wet_val_wav), dtype="float32", always_2d=False)
 
     manifest = Manifest(dry_val_manifest_path)
+    train_manifest = Manifest(dry_manifest_path)
 
     # ── Training data ─────────────────────────────────────────────────── #
     print("Loading train signal…")
@@ -871,9 +1002,14 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     # ChunkDataset divides it into non-overlapping blocks of neural_chunk_size.
     dry_train_seq = dry_train
     wet_train_seq = wet_train
-    n_seq_blocks = total_s // cfg.neural_chunk_size
-    seq_samples = n_seq_blocks * cfg.neural_chunk_size
+    n_seq_blocks_raw = total_s // cfg.neural_chunk_size
+    seq_samples = n_seq_blocks_raw * cfg.neural_chunk_size
     seq_coverage = 100.0 * seq_samples / total_s
+
+    # Block filter: exclude silence-containing blocks (ESR ÷ 1e-8 blowup) and
+    # impulse_train blocks from the sequential training pool.
+    bad_blocks = _bad_block_set(train_manifest, cfg.neural_chunk_size, total_s)
+    n_seq_blocks = n_seq_blocks_raw - len(bad_blocks)
 
     # MLP uses random scatter (non-contiguous OK; amplitude diversity matters).
     if cfg.max_mlp_samples and total_s > cfg.max_mlp_samples:
@@ -896,8 +1032,10 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     ham_samples = min(cfg.max_hammerstein_samples, total_s)
     ham_coverage = 100.0 * ham_samples / total_s
 
-    # Silence-block note: 84 sections, 15 gaps × 48k samples = 720k silence samples.
-    # 720k / 4096 = 175 silence-only blocks out of 15,058 total = 1.2% — negligible.
+    seq_filt_samples = n_seq_blocks * cfg.neural_chunk_size
+    seq_filt_coverage = 100.0 * seq_filt_samples / total_s
+
+    tcn_n_ep = cfg.tcn_epochs if cfg.tcn_epochs > 0 else cfg.neural_epochs
 
     print(f"\n┌──────────────────────────────────────────────────────────────────┐")
     print(f"│ Data coverage summary  (train signal: {total_s/1e6:.2f}M samples)         │")
@@ -910,9 +1048,12 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     print(f"│ Hammerstein            │ {ham_samples/1e6:7.2f}M     │ {ham_coverage:5.1f}% (random subsample) │")
     print(f"│ circuit_dict           │ {cd_W/1e3:5.0f}k/ep      │ {cd_coverage:5.1f}% ({cfg.circuit_dict_epochs}ep, {cd_full_pass}ep/pass) │")
     print(f"│ MLP                    │ {mlp_samples/1e6:7.2f}M     │ {mlp_coverage:5.1f}% (random subsample) │")
-    print(f"│ LSTM/GRU/TCN/klon_ddsp │ {seq_samples/1e6:7.2f}M     │ {seq_coverage:5.1f}% ({n_seq_blocks} blocks)        │")
+    print(f"│ LSTM/GRU/TCN/klon_ddsp │ {seq_filt_samples/1e6:7.2f}M     │ {seq_filt_coverage:5.1f}% ({n_seq_blocks} blocks, -{len(bad_blocks)} filtered) │")
     print(f"└────────────────────────┴──────────────┴────────────────────────────┘")
-    print(f"  neural_epochs={cfg.neural_epochs}  circuit_dict_epochs={cfg.circuit_dict_epochs}")
+    ep_line = f"  neural_epochs={cfg.neural_epochs}  circuit_dict_epochs={cfg.circuit_dict_epochs}"
+    if tcn_n_ep != cfg.neural_epochs:
+        ep_line += f"  tcn_epochs={tcn_n_ep}"
+    print(ep_line)
     print(f"  CosineAnnealingLR T_max={cfg.neural_epochs} (auto-adapts to epoch count)\n")
 
     date_run = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -951,6 +1092,7 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
             dry_train_seq, wet_train_seq,
             dry_val, wet_val,
             sr,
+            bad_blocks=bad_blocks,
         )
         for key, (pred, train_s, pred_s, ddsp_analysis, train_loss) in neural.items():
             metrics = _compute_metrics(wet_val, pred, dry_val, manifest, sr)

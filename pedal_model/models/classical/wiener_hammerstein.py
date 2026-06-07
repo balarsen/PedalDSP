@@ -54,9 +54,12 @@ class WienerHammersteinModel(PedalModel):
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
         """Three-stage identification on the full training signal.
 
-        Stages 1 and 3 use FFT-based deconvolution on the full signal.
+        Stage 1 uses FFT-based deconvolution on the lowest-amplitude contiguous
+        block (non-silence).  Scattered-mask sampling is wrong: FFT of
+        non-contiguous samples is not a transfer function.
         Stage 2 uses streaming normal-equation accumulation so the polynomial
         feature matrix (N × poly_order) is never materialised in RAM.
+        Stage 3 uses FFT-based deconvolution on the full signal.
 
         Args:
             dry: Dry input, shape (N,), float32.
@@ -64,12 +67,29 @@ class WienerHammersteinModel(PedalModel):
             sr: Sample rate in Hz.
         """
         N = len(dry)
-        # Stage 1: estimate h1 from linear regime (dry → wet at low amplitude)
-        threshold = np.percentile(np.abs(dry), 20)
-        mask = np.abs(dry) < threshold
-        if mask.sum() < self.n_taps * 4:
-            mask = np.ones(N, dtype=bool)
-        self._h1 = self._fit_fir(dry[mask], wet[mask])
+        # Stage 1: estimate h1 from the contiguous block with the lowest
+        # non-silence amplitude. Silence blocks (peak < 1e-3) are excluded
+        # because 0/0 deconvolution gives garbage. Using a contiguous window
+        # preserves time-domain causality for the FFT deconvolution.
+        _NOISE_FLOOR = 1e-3
+        _block = max(self.n_taps * 16, 8192)
+        n_cand = N // _block
+        if n_cand >= 4:
+            peaks = np.fromiter(
+                (float(np.max(np.abs(dry[i * _block : (i + 1) * _block])))
+                 for i in range(n_cand)),
+                dtype=np.float64, count=n_cand,
+            )
+            valid = np.where(peaks > _NOISE_FLOOR)[0]
+            if valid.size:
+                best = int(valid[np.argmin(peaks[valid])])
+                n_lin = min(8, n_cand - best)   # up to 8 consecutive blocks
+                s, e = best * _block, (best + n_lin) * _block
+                self._h1 = self._fit_fir(dry[s:e], wet[s:e])
+            else:
+                self._h1 = self._fit_fir(dry, wet)
+        else:
+            self._h1 = self._fit_fir(dry, wet)
 
         # Stage 2: apply h1 to full signal, fit f(·) via streaming XTX/XTy.
         # Building the full Vandermonde matrix (N × poly_order) would require

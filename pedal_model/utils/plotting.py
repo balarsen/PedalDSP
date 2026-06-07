@@ -803,3 +803,357 @@ def model_fit_panel(
     fig.suptitle(f"{model_name} — Fit Quality", fontsize=13, y=1.01)
     fig.tight_layout()
     return fig
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Results-analysis plots (used in zoo-results and diagnostics notebooks)
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Metrics where a lower value is better (used to invert heatmap colour)
+_LOWER_IS_BETTER: frozenset[str] = frozenset(
+    {"ESR", "STFT", "FR_err_dB", "THD_err", "THD_pattern_dist"}
+)
+
+
+def db_spectrum_smooth(
+    signal: np.ndarray,
+    sr: int,
+    n_bins: int = 512,
+    f_min: float = 20.0,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Log-smoothed magnitude spectrum: resample raw FFT to n_bins log-spaced bins.
+
+    Raw FFT bins are linearly spaced — at high frequencies thousands of bins per
+    octave create a filled blob on a log-freq plot. Resampling to ~512 log-spaced
+    bins gives one clean line per trace and guarantees identical smoothing when
+    n_bins is the same across all signals in a figure.
+
+    Args:
+        signal: Audio signal, shape (N,), float32.
+        sr: Sample rate in Hz.
+        n_bins: Number of log-spaced output bins. Default 512.
+        f_min: Lowest output frequency in Hz. Default 20 Hz.
+
+    Returns:
+        (log_freqs, log_db) — both shape (n_bins,).
+    """
+    n = len(signal)
+    w = np.hanning(n)
+    X = rfft(signal * w)
+    mag = np.abs(X) / (n / 2)
+    freqs = rfftfreq(n, d=1.0 / sr)
+    db_raw = 20.0 * np.log10(np.maximum(mag, 1e-9))
+    # Skip DC (index 0); work with positive frequencies
+    f_pos, db_pos = freqs[1:], db_raw[1:]
+    f_start = max(f_pos[0], f_min)
+    log_f = np.logspace(np.log10(f_start), np.log10(f_pos[-1]), n_bins)
+    log_db = np.interp(log_f, f_pos, db_pos)
+    return log_f, log_db
+
+
+def compare_spectra_smooth(
+    signals: dict[str, tuple[np.ndarray, str]],
+    sr: int,
+    n_bins: int = 512,
+    f_min: float = 20.0,
+    floor_db: float = -120.0,
+    figsize: tuple[float, float] = (10, 4),
+    title: str = "",
+    lw_default: float = 0.9,
+) -> plt.Figure:
+    """Overlay log-smoothed spectra for multiple signals on a log-frequency axis.
+
+    All traces use the same ``n_bins`` log-spaced bins so smoothing is identical
+    across every model. The last signal in the dict is drawn on top (highest zorder).
+
+    Args:
+        signals: Ordered dict of {label: (signal_array, color)}.
+            Put the reference / target signal last so it renders on top.
+        sr: Sample rate in Hz.
+        n_bins: Log-spaced bins for smoothing. Same value applied to every trace.
+        f_min: Lowest x-axis frequency in Hz.
+        floor_db: Lower y-axis limit (clips quantisation noise). Default -120 dB.
+        figsize: Figure size.
+        title: Axes title.
+        lw_default: Line width for all traces.
+
+    Returns:
+        matplotlib Figure.
+    """
+    fig, ax = plt.subplots(figsize=figsize)
+    n_sig = len(signals)
+    for z, (label, (sig, color)) in enumerate(signals.items()):
+        f, db = db_spectrum_smooth(sig, sr, n_bins=n_bins, f_min=f_min)
+        db = np.maximum(db, floor_db)
+        ax.semilogx(f, db, color=color, lw=lw_default, label=label, zorder=z)
+    ax.set_xlim(f_min, sr // 2)
+    ax.set_ylim(bottom=floor_db)
+    ax.set_xlabel("Frequency (Hz)")
+    ax.set_ylabel("Magnitude (dBFS)")
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0f}"))
+    ax.grid(True, which="both", lw=0.4, alpha=0.5)
+    ax.legend(fontsize=9)
+    if title:
+        ax.set_title(title)
+    fig.tight_layout()
+    return fig
+
+
+def plot_metrics_heatmap(
+    df: "pd.DataFrame",  # type: ignore[name-defined]
+    metric_cols: list[str] | None = None,
+    figsize: tuple[float, float] | None = None,
+    title: str = "Summary metrics — mean across all sections",
+) -> plt.Figure:
+    """Normalised heatmap of model zoo metrics. Green = good regardless of metric direction.
+
+    Lower-is-better metrics (ESR, STFT, FR_err_dB, THD_err, THD_pattern_dist) are
+    inverted before colouring so the colour scale is always 0 = worst → 1 = best.
+
+    Args:
+        df: DataFrame indexed by model name with metric columns. Typically the
+            output of ``ZooResults.to_dataframe()``.
+        metric_cols: Columns to display. Default: recognised metrics present in df.
+        figsize: Figure size. Default auto-sized by number of models and metrics.
+        title: Axes title.
+
+    Returns:
+        matplotlib Figure.
+    """
+    import seaborn as sns
+    import pandas as pd  # noqa: F401 — checked via isinstance
+
+    _preferred = [
+        "ESR", "null_depth_dB", "STFT", "FR_err_dB",
+        "THD_err", "THD_pattern_dist", "HP_sim", "MCD",
+    ]
+    if metric_cols is None:
+        metric_cols = [m for m in _preferred if m in df.columns]
+    if not metric_cols:
+        metric_cols = [c for c in df.columns if c not in ("type", "fit_s", "predict_s")]
+
+    df_heat = df[metric_cols].copy()
+
+    # Per-column normalise: 0 = worst, 1 = best
+    df_norm = df_heat.copy()
+    for col in df_norm.columns:
+        mn, mx = df_norm[col].min(), df_norm[col].max()
+        df_norm[col] = (df_norm[col] - mn) / max(mx - mn, 1e-9)
+    df_norm = df_norm.fillna(0.5)
+
+    # Invert lower-is-better metrics so green = good everywhere
+    for col in _LOWER_IS_BETTER:
+        if col in df_norm.columns:
+            df_norm[col] = 1.0 - df_norm[col]
+
+    w = max(8, len(metric_cols) * 1.2)
+    h = max(4, len(df_heat) * 0.55)
+    fig, ax = plt.subplots(figsize=figsize or (w, h))
+    annot = df_heat.map(lambda v: f"{v:.3g}" if v == v else "—")  # NaN → "—"
+    sns.heatmap(
+        df_norm,
+        ax=ax,
+        annot=annot,
+        fmt="",
+        cmap="RdYlGn",
+        linewidths=0.4,
+        vmin=0,
+        vmax=1,
+        cbar_kws={"label": "0 = worst  →  1 = best (normalised per metric)"},
+    )
+    ax.set_title(title)
+    ax.set_xlabel("")
+    ax.set_ylabel("")
+    fig.tight_layout()
+    return fig
+
+
+def plot_esr_scatter(
+    esr_df: "pd.DataFrame",  # type: ignore[name-defined]
+    figsize: tuple[float, float] = (14, 4),
+    esr_clip: float = 2.0,
+    target_esr: float = 0.01,
+    color_map: dict[str, str] | None = None,
+) -> plt.Figure:
+    """Scatter plot of ESR per section for each model.
+
+    Args:
+        esr_df: Long-form DataFrame with columns: model, section, ESR.
+        figsize: Figure size.
+        esr_clip: Clip displayed ESR at this maximum.
+        target_esr: Draw a horizontal reference line at this ESR value.
+        color_map: {model_name: color}. Default: tab10 auto-assignment.
+
+    Returns:
+        matplotlib Figure.
+    """
+    fig, ax = plt.subplots(figsize=figsize)
+    models = list(esr_df["model"].unique())
+    cmap = plt.cm.tab10
+    for i, key in enumerate(models):
+        color = (color_map or {}).get(key, cmap(i / max(1, len(models))))
+        sub = esr_df[esr_df["model"] == key]
+        ax.scatter(
+            sub["section"],
+            sub["ESR"].clip(upper=esr_clip),
+            label=key,
+            s=40,
+            alpha=0.8,
+            color=color,
+        )
+    ax.axhline(target_esr, color="green", ls="--", lw=1, label=f"ESR={target_esr} target")
+    ax.set_xlabel("section")
+    ax.set_ylabel(f"ESR (clipped at {esr_clip})")
+    ax.set_title("ESR per section (lower is better)")
+    ax.legend(fontsize=8)
+    plt.xticks(rotation=45, ha="right", fontsize=7)
+    fig.tight_layout()
+    return fig
+
+
+def plot_esr_by_section_type(
+    esr_df: "pd.DataFrame",  # type: ignore[name-defined]
+    model_names: list[str] | None = None,
+    figsize: tuple[float, float] = (16, 5),
+    color_map: dict[str, str] | None = None,
+    target_esr: float = 0.01,
+) -> plt.Figure:
+    """Grouped bar chart of mean ESR per section type for each model.
+
+    Requires a ``type`` column in esr_df (section type label, e.g. 'val_sweep',
+    'val_stepped_tone'). ESR axis is log-scaled so both excellent and poor models
+    are readable simultaneously.
+
+    Args:
+        esr_df: Long-form DataFrame with columns: model, section, type, ESR.
+        model_names: Ordered model keys to show. Default: all models in esr_df.
+        figsize: Figure size.
+        color_map: {model_name: color}. Default: tab10 auto-assignment.
+        target_esr: Draw reference lines at ESR=1 (silence) and target_esr.
+
+    Returns:
+        matplotlib Figure.
+    """
+    if model_names is None:
+        model_names = list(esr_df["model"].unique())
+
+    df_grp = esr_df.groupby(["model", "type"])["ESR"].mean().reset_index()
+    types = sorted(df_grp["type"].unique())
+    x = np.arange(len(types))
+    w = 0.8 / max(len(model_names), 1)
+    cmap = plt.cm.tab10
+
+    fig, ax = plt.subplots(figsize=figsize)
+    for i, name in enumerate(model_names):
+        color = (color_map or {}).get(name, cmap(i / max(1, len(model_names))))
+        sub = df_grp[df_grp["model"] == name].set_index("type")
+        vals = [float(sub.loc[t, "ESR"]) if t in sub.index else float("nan") for t in types]
+        ax.bar(x + i * w - 0.4, vals, w, label=name, color=color, alpha=0.85)
+
+    ax.set_yscale("log")
+    ax.axhline(1.0, color="black", ls="--", lw=1, label="ESR=1 (worse than silence)")
+    ax.axhline(target_esr, color="green", ls="--", lw=1, label=f"ESR={target_esr} (good target)")
+    ax.set_xticks(x)
+    ax.set_xticklabels(types, rotation=20, ha="right")
+    ax.set_ylabel("ESR (mean within type, log scale)")
+    ax.set_title("ESR per section type — lower is better")
+    ax.legend(fontsize=7, ncol=4)
+    fig.tight_layout()
+    return fig
+
+
+def plot_rms_envelope(
+    dry: np.ndarray,
+    wet: np.ndarray,
+    sr: int,
+    sections: list[tuple[int, int]] | None = None,
+    win_ms: float = 10.0,
+    figsize: tuple[float, float] = (18, 5),
+    dry_color: str = "steelblue",
+    wet_color: str = "tomato",
+) -> plt.Figure:
+    """Two-panel RMS envelope overview: dry (top) and wet/target (bottom).
+
+    Args:
+        dry: Dry signal, shape (N,), float32.
+        wet: Wet (target) signal, shape (N,), float32.
+        sr: Sample rate in Hz.
+        sections: List of (start_sample, end_sample) pairs to shade on the wet
+            panel. Pass ``[(s.start_sample, s.end_sample) for s in manifest.sections]``
+            to show section boundaries.
+        win_ms: RMS window length in milliseconds.
+        figsize: Figure size.
+        dry_color: Line colour for the dry panel.
+        wet_color: Line colour for the wet panel.
+
+    Returns:
+        matplotlib Figure.
+    """
+    win = max(1, int(sr * win_ms / 1000.0))
+    n_frames = min(len(dry), len(wet)) // win
+    t_env = np.arange(n_frames) * win / sr
+
+    def _rms_env(x: np.ndarray) -> np.ndarray:
+        return np.sqrt(np.mean(x[: n_frames * win].reshape(n_frames, win) ** 2, axis=1))
+
+    dry_env = _rms_env(dry)
+    wet_env = _rms_env(wet)
+
+    fig, (ax_d, ax_w) = plt.subplots(2, 1, figsize=figsize, sharex=True)
+    ax_d.plot(t_env, dry_env, lw=0.7, color=dry_color, label="dry")
+    ax_d.set_ylabel("RMS amplitude")
+    ax_d.set_title(f"Dry signal RMS envelope ({win_ms:.0f} ms)")
+    ax_d.legend()
+
+    ax_w.plot(t_env, wet_env, lw=0.7, color=wet_color, label="wet / target")
+    ax_w.set_ylabel("RMS amplitude")
+    ax_w.set_xlabel("time (s)")
+    ax_w.set_title(f"Wet signal RMS envelope ({win_ms:.0f} ms)")
+    ax_w.legend()
+
+    if sections:
+        for start_s, end_s in sections:
+            ax_w.axvspan(start_s / sr, end_s / sr, alpha=0.04, color="gray")
+
+    fig.tight_layout()
+    return fig
+
+
+def plot_topology_weights(
+    topology: dict[str, float],
+    title: str = "CircuitDictionary — learned topology (α weights)",
+    figsize: tuple[float, float] = (7, 4),
+) -> plt.Figure:
+    """Horizontal bar chart of CircuitDictionary architecture weights.
+
+    Bars are sorted descending by weight. A dashed vertical line marks the
+    uniform-prior weight (1/n_primitives) for reference.
+
+    Args:
+        topology: {primitive_name: softmax_weight} as stored in
+            ``ModelResult.topology`` after a CircuitDictionary eval run.
+        title: Axes title.
+        figsize: Figure size.
+
+    Returns:
+        matplotlib Figure.
+    """
+    pairs = sorted(topology.items(), key=lambda kv: kv[1], reverse=True)
+    names = [p[0] for p in pairs]
+    weights = [p[1] for p in pairs]
+    uniform_prior = 1.0 / max(len(names), 1)
+    max_w = max(weights) if weights else 1.0
+
+    colors = plt.cm.RdYlGn([0.2 + 0.6 * w / max(max_w, 1e-9) for w in weights])
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.barh(range(len(names)), weights, color=colors, alpha=0.85)
+    ax.set_yticks(range(len(names)))
+    ax.set_yticklabels(names, fontsize=9)
+    ax.set_xlabel("softmax weight α")
+    ax.set_title(title)
+    ax.axvline(uniform_prior, color="gray", ls="--", lw=0.8,
+                label=f"uniform prior ({uniform_prior:.2f})")
+    ax.legend(fontsize=8)
+    ax.invert_yaxis()
+    fig.tight_layout()
+    return fig

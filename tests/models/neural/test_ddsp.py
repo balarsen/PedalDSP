@@ -114,6 +114,25 @@ def test_learnable_waveshaper_output_finite():
     assert torch.isfinite(y).all()
 
 
+def test_learnable_waveshaper_initial_output_small():
+    """Output layer must be near-zero at init to prevent large initial ESR.
+
+    Default Kaiming-uniform on Linear(16,1) produces outputs up to ±4 RMS,
+    giving ESR ≈ 8 from epoch 0 and saturating tanh gradients.
+    """
+    torch.manual_seed(0)
+    ws = LearnableWaveshaper(hidden=16)
+    x = torch.randn(1, 1, 4096) * 0.3  # typical dry RMS
+    with torch.no_grad():
+        y = ws(x)
+    input_rms = float(x.pow(2).mean().sqrt())
+    output_rms = float(y.pow(2).mean().sqrt())
+    # Initial output must be at least 50× quieter than input
+    assert output_rms < input_rms * 0.02, (
+        f"output_rms={output_rms:.4f} too large vs input_rms={input_rms:.4f}"
+    )
+
+
 # ── DDSPModel ─────────────────────────────────────────────────────────────── #
 
 

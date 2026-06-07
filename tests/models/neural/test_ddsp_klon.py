@@ -165,6 +165,76 @@ def test_gradients_flow_through_gru():
         assert p.grad is not None, f"No gradient on GRU param {name}"
 
 
+def test_gradients_flow_through_ff1_alpha():
+    """FF1 LPF coefficient must receive gradients from the loss."""
+    model = KlonDDSP()
+    x = _dry_t()
+    out, _ = model(x)
+    out.mean().backward()
+    assert model._alpha_ff1_raw.grad is not None
+    assert torch.isfinite(model._alpha_ff1_raw.grad)
+
+
+def test_gradients_flow_through_ff2_blend():
+    """FF2 blend parameters must receive gradients from the loss."""
+    model = KlonDDSP()
+    x = _dry_t()
+    out, _ = model(x)
+    out.mean().backward()
+    assert model._ff2_blend_w.grad is not None
+    assert model._ff2_blend_b.grad is not None
+
+
+def test_ff1_attenuates_high_freq():
+    """FF1 (106 Hz LPF) should pass a 50 Hz tone and attenuate a 5 kHz tone."""
+    import math
+    model = KlonDDSP()
+    sr = 48000
+    N = 4096
+    t = torch.arange(N, dtype=torch.float32)
+
+    low = torch.sin(2 * math.pi * 50 / sr * t).unsqueeze(0)
+    high = torch.sin(2 * math.pi * 5000 / sr * t).unsqueeze(0)
+
+    with torch.no_grad():
+        a = model.alpha_ff1
+        low_out = model._lpf(low, a)
+        high_out = model._lpf(high, a)
+
+    # Skip the first 256 samples (LPF transient), measure steady-state
+    low_rms = low_out[:, 256:].pow(2).mean().sqrt().item()
+    high_rms = high_out[:, 256:].pow(2).mean().sqrt().item()
+    assert low_rms > high_rms * 10, (
+        f"FF1 should attenuate 5 kHz by >20 dB vs 50 Hz: "
+        f"low_rms={low_rms:.4f}, high_rms={high_rms:.4f}"
+    )
+
+
+def test_ff2_blend_differs_by_gain():
+    """Different gain knob positions must produce different DDSP outputs."""
+    torch.manual_seed(0)
+    model = KlonDDSP()
+    x = torch.randn(1, CHUNK) * 0.3
+
+    with torch.no_grad():
+        gain_low = torch.tensor(0.0)
+        gain_high = torch.tensor(1.0)
+        out_low = model._ddsp_stage(x, gain_low)
+        out_high = model._ddsp_stage(x, gain_high)
+
+    assert not torch.allclose(out_low, out_high, atol=1e-6), (
+        "FF2 blend must produce different outputs at gain=0 vs gain=1"
+    )
+
+
+def test_gru_input_includes_ddsp_context():
+    """GRU input size must be 2 + N_KNOBS (dry + ddsp context + knobs)."""
+    from pedal_model.models.neural.ddsp_klon import _GRU_INPUT_SIZE
+    model = KlonDDSP()
+    assert model.gru.input_size == _GRU_INPUT_SIZE
+    assert _GRU_INPUT_SIZE == 2 + N_KNOBS
+
+
 # ── DDSP fraction analysis ────────────────────────────────────────────────── #
 
 

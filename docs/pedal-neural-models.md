@@ -121,6 +121,72 @@ A small variant (channels=8, 2 stacks) is a Daisy candidate.
 
 ---
 
+## KlonDDSP (Klon-Informed Hybrid DDSP + GRU)
+
+`pedal_model/models/neural/ddsp_klon.py`
+
+**Architecture:** a physics-informed DDSP stage models the Klon Centaur circuit topology
+explicitly; a GRU correction stage learns the residual the physics can't capture.
+
+```
+x[n]  ──────────────────────────────────────────────────────────┐
+        │                                                         │
+        ▼                                                         │
+   FF1: 1-pole LP (106 Hz, learned α)                            │
+        │ ← clean bass pass-through path                         │
+        ▼                                                         │
+   Clip path: drive → tanh soft-clip                             │
+        │                                                         │
+        ▼                                                         │
+   FF2 blend: sigmoid(w·gain_knob + b) × clip + (1−blend) × FF1 │
+        │ ← gain-conditioned clean/dirty mix                     │
+        ▼                                                         │
+   output_level (sigmoid-scaled amplitude)                        │
+        │                                                         │
+        └──────────────────────┐ ddsp_out (detached)             │
+                                ▼                                 │
+                    GRU([dry, ddsp_out, condition])               │
+                        ↓                                         │
+                    gru_fc (small weights)                        │
+                        ↓                                         │
+                    correction                                    │
+                        │                                         │
+                        └──────────────────── + ddsp_out ────────┘
+                                                ▼
+                                              ŷ[n]
+```
+
+**FF1 — clean bass feed-forward:**
+The real Klon uses a parallel 106 Hz LPF on the dry signal that bypasses the clipping
+stage entirely. This gives the pedal its "transparent" character at lower gain settings —
+the bass passes clean while the mids/treble are saturated.
+
+- Pole radius: `α_ff1 = sigmoid(raw_param) × 0.999`  (init ≈ 0.986, matching 106 Hz at 48 kHz)
+- Truncated FIR approximation: `h[k] = (1-α) · α^k` for k=0..255, convolved with `F.conv1d`
+- Differentiable w.r.t. `_alpha_ff1_raw`
+
+**FF2 — gain-conditioned blend:**
+At gain=0 the output is nearly clean (blend → 0 → mostly FF1).
+At gain=1 the output is mostly clipped signal (blend → 1 → clip path dominates).
+
+```python
+blend = torch.sigmoid(w · gain_knob + b)   # learned affine function of the gain knob
+ddsp_out = blend × clip_path + (1 − blend) × ff1_path
+```
+
+**GRU context input:**
+The GRU receives `[dry, ddsp_out.detach(), condition]` rather than just `[dry, condition]`.
+By observing the DDSP stage's output directly, the GRU learns the *residual* — what the
+physics got wrong — rather than trying to model everything from scratch.
+`.detach()` prevents gradients from flowing back through the DDSP path a second time.
+
+**Conditioned on 3 knobs:** `[gain, tone, volume]` in [0, 1]. Default = 3/11 (nine-o'clock).
+
+**Initialisation:** `gru_fc` is initialised with very small weights (`std=0.001`) so the
+model starts near-DDSP-only; the GRU correction grows from near-zero as training proceeds.
+
+---
+
 ## DDSP (Differentiable DSP)
 
 **Architecture:** replace some NN layers with actual DSP operations that have learnable parameters.
@@ -161,6 +227,53 @@ One model covers the whole parameter space.
 
 **Planned:** captured at Gain 9/Tone noon and Gain 11/Tone noon initially (see plan §6).
 <!-- TODO: add after primary position is validated -->
+
+---
+
+## CircuitDictionary (DARTS-Inspired Classical Model)
+
+`pedal_model/models/classical/circuit_dictionary.py`
+
+A parallel differentiable circuit primitive dictionary with learned architecture weights.
+Registered in the eval harness as `"circuit_dict"`.
+
+**Motivation:** rather than committing to a single circuit topology, let the model learn
+*which* primitives matter for the pedal. After fitting, the softmax weights reveal the
+effective circuit hypothesis — which primitives the data selected.
+
+**Architecture:**
+```
+x[n]  ──┬── LearnableLowpass(fc)          ──┐
+         ├── LearnableHighpass(fc)          ─┤
+         ├── LearnableHighShelf(fc, dB)     ─┤
+         ├── LearnableBandpass(fc, Q)       ─┤
+         ├── LearnableSoftClipper(drive)    ─┤  weighted sum  →  ŷ[n]
+         ├── LearnableAsymClipper           ─┤  (softmax α)
+         ├── LearnableClipThenFilter        ─┤
+         ├── LearnableParallelBlend         ─┤
+         ├── SkipConnection (x unchanged)  ─┤
+         └── LearnableGain(g)              ─┘
+```
+
+**Architecture weights:** `raw_alpha` (10-vector, `nn.Parameter`) → `softmax(raw_alpha)` → weighted sum.
+An L1 penalty `λ · mean(|raw_alpha|)` encourages sparsity (few dominant primitives).
+
+**Filter implementation:** all LP/HP filters use a truncated FIR approximation of the IIR
+impulse response (`h[k] = (1-a)·a^k`, K=512 taps), convolved via `F.conv1d` with causal
+zero-padding. This is fast, differentiable, and avoids sequential sample loops over N.
+Biquad (shelf, bandpass) impulse responses are computed via a 512-step recurrence (K << N).
+
+**Training:** Adam, lr=1e-3, 500 epochs, loss = ESR + λ·L1.
+
+**Reading the results:** after `fit()`:
+- `model.alpha_` — softmax weights in decreasing order
+- `model.primitive_names` — names aligned with `alpha_`
+- Topology summary is printed to stdout
+
+**Hyperparameters:**
+- `sr`: sample rate (default 48000)
+- `n_epochs`: training epochs (default 500)
+- `lambda_l1`: L1 sparsity weight (default 0.01)
 
 ---
 

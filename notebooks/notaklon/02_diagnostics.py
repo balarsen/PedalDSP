@@ -26,6 +26,7 @@ app = marimo.App(width="full")
 
 @app.cell
 def _():
+    import re
     import sys
     from pathlib import Path
 
@@ -81,6 +82,7 @@ def _():
         np,
         pd,
         plt,
+        re,
         sns,
         sr,
         zoo,
@@ -96,36 +98,11 @@ def _(mo):
 
 
 @app.cell
-def _(manifest, mo, np, plt, sr, zoo):
-    def _rms_envelope(x, win_samples):
-        n = len(x) // win_samples
-        return np.sqrt(np.mean(x[: n * win_samples].reshape(n, win_samples) ** 2, axis=1))
+def _(manifest, mo, sr, zoo):
+    from pedal_model.utils.plotting import plot_rms_envelope
 
-    win = int(sr * 0.01)  # 10 ms windows
-    t_env = np.arange(len(zoo.dry_val) // win) * win / sr
-
-    dry_env = _rms_envelope(zoo.dry_val, win)
-    wet_env = _rms_envelope(zoo.wet_val, win)
-
-    fig_ov, axes_ov = plt.subplots(2, 1, figsize=(18, 5), sharex=True)
-    axes_ov[0].plot(t_env, dry_env, lw=0.7, color="steelblue", label="dry")
-    axes_ov[0].set_ylabel("RMS amplitude")
-    axes_ov[0].set_title("Dry signal RMS envelope (10 ms)")
-    axes_ov[0].legend()
-
-    axes_ov[1].plot(t_env, wet_env, lw=0.7, color="tomato", label="wet / target")
-    axes_ov[1].set_ylabel("RMS amplitude")
-    axes_ov[1].set_xlabel("time (s)")
-    axes_ov[1].set_title("Wet signal RMS envelope (10 ms)")
-    axes_ov[1].legend()
-
-    # Shade section regions on wet plot
-    for sec in manifest.sections:
-        t0 = sec.start_sample / sr
-        t1 = sec.end_sample   / sr
-        axes_ov[1].axvspan(t0, t1, alpha=0.04, color="gray")
-
-    plt.tight_layout()
+    _sections = [(sec.start_sample, sec.end_sample) for sec in manifest.sections]
+    fig_ov = plot_rms_envelope(zoo.dry_val, zoo.wet_val, sr, sections=_sections)
     mo.mpl.interactive(fig_ov)
     return
 
@@ -139,47 +116,22 @@ def _(mo):
 
 
 @app.cell
-def _(MODEL_NAMES, mo, np, pd, plt, sns, zoo):
+def _(MODEL_NAMES, mo, np, pd, zoo):
+    from pedal_model.utils.plotting import plot_metrics_heatmap
+
     _DISPLAY_METRICS = ["ESR", "null_depth_dB", "STFT", "FR_err_dB",
                         "THD_pattern_dist", "HP_sim"]
-    rows_heat = {}
+    _rows = {}
     for _name in MODEL_NAMES:
         _secs = zoo.models[_name].metrics_per_section
         _row = {}
         for _m in _DISPLAY_METRICS:
             _vals = [v[_m] for v in _secs.values() if _m in v and np.isfinite(v[_m])]
             _row[_m] = float(np.mean(_vals)) if _vals else float("nan")
-        rows_heat[_name] = _row
+        _rows[_name] = _row
 
-    df_heat = pd.DataFrame(rows_heat).T[_DISPLAY_METRICS]
-
-    # Per-column normalise to [0,1] for colour; NaN → 0.5
-    df_norm = df_heat.copy()
-    for _col in df_norm.columns:
-        _mn, _mx = df_norm[_col].min(), df_norm[_col].max()
-        df_norm[_col] = (df_norm[_col] - _mn) / max(_mx - _mn, 1e-9)
-    df_norm = df_norm.fillna(0.5)
-
-    # For ESR/STFT/FR_err/THD_pattern_dist lower is better → invert colour
-    _invert = {"ESR", "STFT", "FR_err_dB", "THD_pattern_dist"}
-    for _col in _invert:
-        if _col in df_norm.columns:
-            df_norm[_col] = 1.0 - df_norm[_col]
-
-    fig_heat, ax_heat = plt.subplots(figsize=(12, 5))
-    sns.heatmap(
-        df_norm,
-        ax=ax_heat,
-        annot=df_heat.map(lambda v: f"{v:.3g}" if np.isfinite(v) else "—"),
-        fmt="",
-        cmap="RdYlGn",
-        linewidths=0.4,
-        vmin=0, vmax=1,
-        cbar_kws={"label": "0 = worst  →  1 = best (normalised per metric)"},
-    )
-    ax_heat.set_title("Summary metrics — mean across all sections")
-    ax_heat.set_ylabel("")
-    plt.tight_layout()
+    df_heat = pd.DataFrame(_rows).T
+    fig_heat = plot_metrics_heatmap(df_heat, metric_cols=_DISPLAY_METRICS, figsize=(12, 5))
     mo.mpl.interactive(fig_heat)
     return
 
@@ -193,7 +145,9 @@ def _(mo):
 
 
 @app.cell
-def _(COLOR_MAP, MODEL_NAMES, SECTION_TYPES, mo, np, pd, plt, zoo):
+def _(COLOR_MAP, MODEL_NAMES, SECTION_TYPES, mo, pd, zoo):
+    from pedal_model.utils.plotting import plot_esr_by_section_type
+
     _rows_esr = []
     for _name in MODEL_NAMES:
         for _sec, _metrics in zoo.models[_name].metrics_per_section.items():
@@ -204,29 +158,7 @@ def _(COLOR_MAP, MODEL_NAMES, SECTION_TYPES, mo, np, pd, plt, zoo):
                 "ESR": float(_metrics.get("ESR", float("nan"))),
             })
     df_esr = pd.DataFrame(_rows_esr)
-
-    # Mean ESR per model × type
-    df_esr_grp = df_esr.groupby(["model", "type"])["ESR"].mean().reset_index()
-    _types = sorted(df_esr_grp["type"].unique())
-    _x = np.arange(len(_types))
-    _w = 0.8 / len(MODEL_NAMES)
-
-    fig_esr, ax_esr = plt.subplots(figsize=(16, 5))
-    for _i, _name in enumerate(MODEL_NAMES):
-        _sub = df_esr_grp[df_esr_grp["model"] == _name].set_index("type")
-        _vals = [float(_sub.loc[t, "ESR"]) if t in _sub.index else float("nan") for t in _types]
-        ax_esr.bar(_x + _i * _w - 0.4, _vals, _w, label=_name,
-                   color=COLOR_MAP[_name], alpha=0.85)
-
-    ax_esr.set_yscale("log")
-    ax_esr.axhline(1.0, color="black", ls="--", lw=1, label="ESR=1 (worse than silence)")
-    ax_esr.axhline(0.01, color="green", ls="--", lw=1, label="ESR=0.01 (good target)")
-    ax_esr.set_xticks(_x)
-    ax_esr.set_xticklabels(_types, rotation=20, ha="right")
-    ax_esr.set_ylabel("ESR (mean within type, log scale)")
-    ax_esr.set_title("ESR per section type — lower is better")
-    ax_esr.legend(fontsize=7, ncol=4)
-    plt.tight_layout()
+    fig_esr = plot_esr_by_section_type(df_esr, MODEL_NAMES, color_map=COLOR_MAP, figsize=(16, 5))
     mo.mpl.interactive(fig_esr)
     return
 
@@ -415,45 +347,23 @@ def _(MODEL_NAMES, SECTION_LABELS, mo):
 
 
 @app.cell
-def _(
-    COLOR_MAP,
-    SECTION_BOUNDS,
-    fft_models,
-    fft_section,
-    mo,
-    np,
-    plt,
-    sr,
-    zoo,
-):
+def _(COLOR_MAP, SECTION_BOUNDS, fft_models, fft_section, mo, sr, zoo):
+    from pedal_model.utils.plotting import compare_spectra_smooth
+
     _sec = fft_section.value
     _s, _e = SECTION_BOUNDS[_sec]
 
-    def _mag_db(x):
-        N = len(x)
-        w = np.hanning(N)
-        X = np.fft.rfft(x * w)
-        mag = np.abs(X) / (N / 2)
-        return np.fft.rfftfreq(N, 1.0 / sr), 20 * np.log10(mag + 1e-9)
-
-    fig_fft, ax_fft = plt.subplots(figsize=(16, 6))
-    _wet_chunk = zoo.wet_val[_s:_e]
-    _f, _db = _mag_db(_wet_chunk)
+    # Build signals dict: models first, target last so it renders on top
+    _signals: dict = {}
     for _name in fft_models.value:
-        _pred = zoo.models[_name].prediction[_s:_e]
-        _f2, _db2 = _mag_db(_pred)
-        ax_fft.semilogx(_f2[1:], _db2[1:], lw=0.8, alpha=0.8,
-                        color=COLOR_MAP[_name], label=_name)
+        _signals[_name] = (zoo.models[_name].prediction[_s:_e], COLOR_MAP[_name])
+    _signals["target"] = (zoo.wet_val[_s:_e], "black")
 
-    ax_fft.semilogx(_f[1:], _db[1:], color="black", lw=1.5, label="target", zorder=5)
-
-    ax_fft.set_xlim(20, sr // 2)
-    ax_fft.set_xlabel("frequency (Hz)")
-    ax_fft.set_ylabel("magnitude (dB)")
-    ax_fft.set_title(f"Magnitude spectrum — {_sec}")
-    ax_fft.legend(fontsize=8, ncol=3)
-    ax_fft.xaxis.set_major_formatter(plt.FuncFormatter(lambda v, _: f"{v:.0f}"))
-    plt.tight_layout()
+    fig_fft = compare_spectra_smooth(
+        _signals, sr, n_bins=512, floor_db=-120.0,
+        figsize=(16, 6),
+        title=f"Magnitude spectrum — {_sec}",
+    )
     mo.mpl.interactive(fig_fft)
     return
 
@@ -796,7 +706,196 @@ def _(mo, zoo):
 @app.cell
 def _(mo):
     mo.md("""
-    ## 16. Timing — fit/train time and predict time
+    ## 16. ESR vs STFT loss — time-domain vs spectral fidelity
+    """)
+    return
+
+
+@app.cell
+def _(COLOR_MAP, MODEL_NAMES, mo, np, plt, zoo):
+    fig_es, ax_es = plt.subplots(figsize=(10, 7))
+    for _name in MODEL_NAMES:
+        _esrs, _stfts = [], []
+        for _m in zoo.models[_name].metrics_per_section.values():
+            _e = _m.get("ESR", float("nan"))
+            _s = _m.get("STFT", float("nan"))
+            if np.isfinite(_e) and np.isfinite(_s):
+                _esrs.append(min(_e, 5.0))
+                _stfts.append(_s)
+        ax_es.scatter(_esrs, _stfts, s=20, alpha=0.6, color=COLOR_MAP[_name], label=_name)
+        if _esrs:
+            ax_es.scatter([float(np.mean(_esrs))], [float(np.mean(_stfts))],
+                          s=120, marker="D", color=COLOR_MAP[_name], edgecolors="black", lw=1, zorder=5)
+    ax_es.axvline(1.0, color="gray", ls="--", lw=0.8, label="ESR=1 (worse than silence)")
+    ax_es.set_xlabel("ESR (clipped at 5)  ← better")
+    ax_es.set_ylabel("STFT loss  ← better")
+    ax_es.set_title("ESR vs STFT — time-domain vs spectral fidelity\n"
+                    "top-left = good both; right = right spectrum wrong phase; top = wrong spectrum")
+    ax_es.legend(fontsize=7)
+    plt.tight_layout()
+    mo.mpl.interactive(fig_es)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## 17. THD_pattern_dist vs HP_sim — harmonic shape vs harmonic similarity
+    """)
+    return
+
+
+@app.cell
+def _(COLOR_MAP, MODEL_NAMES, TONE_LABELS, mo, np, plt, zoo):
+    if not TONE_LABELS:
+        mo.md("*No tone sections — harmonic scatter not available.*")
+    else:
+        fig_hpsc, ax_hpsc = plt.subplots(figsize=(9, 7))
+        for _name in MODEL_NAMES:
+            _dists, _sims = [], []
+            for _sec in TONE_LABELS:
+                _m = zoo.models[_name].metrics_per_section.get(_sec, {})
+                _d = _m.get("THD_pattern_dist", float("nan"))
+                _h = _m.get("HP_sim", float("nan"))
+                if np.isfinite(_d) and np.isfinite(_h):
+                    _dists.append(_d)
+                    _sims.append(_h)
+            ax_hpsc.scatter(_dists, _sims, s=25, alpha=0.7, color=COLOR_MAP[_name], label=_name)
+            if _dists:
+                ax_hpsc.scatter([float(np.mean(_dists))], [float(np.mean(_sims))],
+                                s=120, marker="D", color=COLOR_MAP[_name], edgecolors="black", lw=1, zorder=5)
+        ax_hpsc.set_xlabel("THD pattern distance  ← better")
+        ax_hpsc.set_ylabel("HP_sim (harmonic profile cosine similarity)  → better")
+        ax_hpsc.set_title("Harmonic shape vs profile similarity (tone sections)\n"
+                          "models on the diagonal = metrics agree; off-diagonal = discrepancy")
+        ax_hpsc.legend(fontsize=7)
+        plt.tight_layout()
+        mo.mpl.interactive(fig_hpsc)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## 18. ESR vs drive level — does accuracy degrade under harder clipping?
+
+    The Klon's gain stage is drive-dependent: at high drive levels the circuit saturates
+    harder, producing a richer harmonic spectrum that is more difficult to model.
+    This plot isolates whether model accuracy degrades in that regime.
+    """)
+    return
+
+
+@app.cell
+def _(COLOR_MAP, MODEL_NAMES, mo, np, plt, re, zoo):
+    # Match _lXX or _l-XX suffix where XX is the dB level (positive or negative)
+    _drive_re = re.compile(r"_l(-?\d+)")
+
+    def _extract_drive(label: str) -> int | None:
+        _m = _drive_re.search(label)
+        return int(_m.group(1)) if _m else None
+
+    fig_dr, ax_dr = plt.subplots(figsize=(12, 7))
+    for _name in MODEL_NAMES:
+        _drives, _esrs_dr = [], []
+        for _sec, _metrics in zoo.models[_name].metrics_per_section.items():
+            _d = _extract_drive(_sec)
+            _e = _metrics.get("ESR", float("nan"))
+            if _d is not None and np.isfinite(_e):
+                _drives.append(_d)
+                _esrs_dr.append(min(_e, 5.0))
+        if not _drives:
+            continue
+        ax_dr.scatter(_drives, _esrs_dr, s=20, alpha=0.5, color=COLOR_MAP[_name])
+        _unique = sorted(set(_drives))
+        _means = [float(np.mean([_esrs_dr[i] for i, x in enumerate(_drives) if x == u]))
+                  for u in _unique]
+        ax_dr.plot(_unique, _means, marker="o", ms=7, color=COLOR_MAP[_name], label=_name)
+
+    ax_dr.axhline(1.0, color="gray", ls="--", lw=0.8, label="ESR=1 (worse than silence)")
+    ax_dr.axhline(0.01, color="green", ls="--", lw=0.8, label="ESR=0.01 (good fit target)")
+    ax_dr.set_xlabel("Drive level (dB)")
+    ax_dr.set_ylabel("ESR (clipped at 5.0)  ← better")
+    ax_dr.set_title("ESR vs drive level — does the model fail as drive increases?")
+    ax_dr.legend(fontsize=7, ncol=4)
+    plt.tight_layout()
+    mo.mpl.interactive(fig_dr)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## 19. Train loss vs validation ESR — undertrained vs wrong architecture
+    """)
+    return
+
+
+@app.cell
+def _(COLOR_MAP, MODEL_NAMES, mo, np, plt, zoo):
+    _neural_models = [(n, zoo.models[n]) for n in MODEL_NAMES
+                      if zoo.models[n].model_type == "neural"]
+    if not _neural_models or all(r.train_loss is None for _, r in _neural_models):
+        mo.md("*Train loss not recorded in this results file — re-run eval to populate.*")
+    else:
+        fig_tl, ax_tl = plt.subplots(figsize=(8, 6))
+        for _name, _r in _neural_models:
+            if _r.train_loss is None:
+                continue
+            _esr_vals = [v["ESR"] for v in _r.metrics_per_section.values()
+                         if "ESR" in v and np.isfinite(v["ESR"])]
+            _mean_esr = float(np.mean(_esr_vals)) if _esr_vals else float("nan")
+            ax_tl.scatter([_r.train_loss], [_mean_esr], s=80, color=COLOR_MAP[_name], zorder=4)
+            ax_tl.annotate(_name, (_r.train_loss, _mean_esr),
+                           textcoords="offset points", xytext=(5, 3), fontsize=8)
+        ax_tl.axhline(1.0, color="gray", ls="--", lw=0.8, label="ESR=1 (silence baseline)")
+        ax_tl.set_xlabel("Final training loss  ← better converged")
+        ax_tl.set_ylabel("Mean validation ESR  ← better")
+        ax_tl.set_title("Train loss vs val ESR\nundertrained = high loss + high ESR; "
+                        "overfit = low loss + high ESR")
+        ax_tl.legend(fontsize=8)
+        plt.tight_layout()
+        mo.mpl.interactive(fig_tl)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## 20. ESR vs FR_err_dB — overall error vs linear frequency response error
+    """)
+    return
+
+
+@app.cell
+def _(COLOR_MAP, MODEL_NAMES, mo, np, plt, zoo):
+    fig_ef, ax_ef = plt.subplots(figsize=(10, 7))
+    for _name in MODEL_NAMES:
+        _esrs_ef, _frs = [], []
+        for _m in zoo.models[_name].metrics_per_section.values():
+            _e = _m.get("ESR", float("nan"))
+            _f = _m.get("FR_err_dB", float("nan"))
+            if np.isfinite(_e) and np.isfinite(_f):
+                _esrs_ef.append(min(_e, 5.0))
+                _frs.append(min(_f, 80.0))
+        ax_ef.scatter(_esrs_ef, _frs, s=20, alpha=0.6, color=COLOR_MAP[_name], label=_name)
+        if _esrs_ef:
+            ax_ef.scatter([float(np.mean(_esrs_ef))], [float(np.mean(_frs))],
+                          s=120, marker="D", color=COLOR_MAP[_name], edgecolors="black", lw=1, zorder=5)
+    ax_ef.axvline(1.0, color="gray", ls="--", lw=0.8, label="ESR=1")
+    ax_ef.set_xlabel("ESR (clipped at 5)  ← better")
+    ax_ef.set_ylabel("FR error dB (clipped at 80)  ← better")
+    ax_ef.set_title("ESR vs FR error — low ESR + high FR_err = right nonlinearity, wrong EQ")
+    ax_ef.legend(fontsize=7)
+    plt.tight_layout()
+    mo.mpl.interactive(fig_ef)
+    return
+
+
+@app.cell
+def _(mo):
+    mo.md("""
+    ## 21. Timing — fit/train time and predict time
     """)
     return
 
@@ -827,7 +926,7 @@ def _(COLOR_MAP, MODEL_NAMES, mo, np, plt, zoo):
 @app.cell
 def _(mo):
     mo.md("""
-    ## 17. Raw per-section metrics table
+    ## 22. Raw per-section metrics table
     """)
     return
 
@@ -854,7 +953,7 @@ def _(mo, np, pd, raw_model, zoo):
 @app.cell
 def _(mo):
     mo.md("""
-    ## 18. Aggregated summary table (mean across sections)
+    ## 23. Aggregated summary table (mean across sections)
     """)
     return
 

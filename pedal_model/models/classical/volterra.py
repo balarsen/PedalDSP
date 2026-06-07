@@ -61,16 +61,54 @@ class VolterraModel(PedalModel):
         return np.column_stack(cols).astype(np.float64)
 
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
-        """Identify Volterra kernels via least-squares.
+        """Identify Volterra kernels via streaming ridge-regularised least-squares.
+
+        Streams through the full signal in 65536-sample blocks, accumulating
+        the normal-equation matrices X.T @ X and X.T @ y without ever
+        building the full feature matrix.  Mathematically identical to solving
+        on the concatenated matrix but requires only O(features²) RAM instead
+        of O(N × features).
+
+        Ridge regularisation strength scales with trace(X.T X) so it is
+        amplitude-invariant across different gain stages.
 
         Args:
             dry: Dry input, shape (N,), float32.
             wet: Wet output, shape (N,), float32.
             sr: Sample rate in Hz.
         """
-        X = self._build_features(dry.astype(np.float64))
-        y = wet[self.memory :].astype(np.float64)
-        self._coeffs, _, _, _ = np.linalg.lstsq(X, y, rcond=None)
+        M = self.memory
+        N = len(dry)
+        if N <= M:
+            raise ValueError(f"Signal too short for memory={M}. Need > {M} samples.")
+
+        xd = dry.astype(np.float64)
+        yd = wet.astype(np.float64)
+
+        # Probe feature count using the smallest valid input
+        n_feat = self._build_features(xd[: M + 2]).shape[1]
+
+        XTX = np.zeros((n_feat, n_feat), dtype=np.float64)
+        XTy = np.zeros(n_feat, dtype=np.float64)
+
+        _BLOCK = 65_536
+        pos = M  # first sample with full M-sample context
+        n_blocks = 0
+        while pos < N:
+            end = min(pos + _BLOCK, N)
+            # xd[pos-M : end] supplies M context samples + (end-pos) target samples
+            X_block = self._build_features(xd[pos - M : end])   # (end-pos, n_feat)
+            y_block = yd[pos : end]
+            XTX += X_block.T @ X_block
+            XTy += X_block.T @ y_block
+            pos = end
+            n_blocks += 1
+
+        # Ridge: (X.T X + αI) h = X.T y
+        alpha = 1e-4 * float(np.trace(XTX)) / n_feat
+        self._coeffs = np.linalg.solve(XTX + alpha * np.eye(n_feat), XTy)
+        print(f"      Volterra: streamed {n_blocks} blocks, {N/1e6:.2f}M samples "
+              f"(100.0% coverage)")
 
     def predict(self, x: np.ndarray, chunk_size: int = 50_000) -> np.ndarray:
         """Apply the Volterra series in chunks to keep memory bounded.

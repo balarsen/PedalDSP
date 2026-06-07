@@ -41,6 +41,11 @@ class LearnableWaveshaper(nn.Module):
             nn.Tanh(),
             nn.Linear(hidden, 1),
         )
+        # Small init on output layer: default Kaiming-uniform on Linear(16,1)
+        # produces outputs up to ±4 RMS before training starts, causing loss
+        # saturation and stalled gradients through the tanh-saturated hidden layers.
+        nn.init.normal_(self.net[-1].weight, std=1e-3)
+        nn.init.zeros_(self.net[-1].bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Apply sample-wise nonlinearity.

@@ -5,7 +5,13 @@ Usage:
     python run_eval.py
     python run_eval.py --klon-sim-dir data/klon_sim/klon_sim_v1 --epochs 50
     python run_eval.py --classical-only --skip volterra
-    python run_eval.py --neural-only --epochs 100 --device cuda
+    python run_eval.py --neural-only --epochs 50 --device cuda
+
+Epoch guidance (full 61.68M-sample signal at 96 kHz):
+    --epochs 50   → ~750k gradient steps (15k chunks × 50), full signal coverage
+    --epochs 100  → ~1.5M gradient steps, good convergence for most architectures
+    --epochs 200  → ~3.0M gradient steps, extended run for diminishing returns check
+    --circuit-dict-epochs 200  → 1.55 full signal passes at 480k window (default)
 """
 from __future__ import annotations
 
@@ -41,9 +47,28 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--epochs",
         type=int,
-        default=30,
+        default=50,
         metavar="N",
-        help="Training epochs for each neural model.",
+        # 50 epochs × 15,058 chunks = ~753k gradient steps on the full signal;
+        # 6× more total steps than the old 1000 epochs × 122 fixed chunks,
+        # with full signal diversity instead of the same 0.81% repeated.
+        help="Training epochs for LSTM, GRU, TCN, DDSP, KlonDDSP.",
+    )
+    parser.add_argument(
+        "--circuit-dict-epochs",
+        type=int,
+        default=200,
+        metavar="N",
+        help="Training epochs for CircuitDictionary (independent of --epochs). "
+        "200 epochs = 1.55 full signal passes at 480k window.",
+    )
+    parser.add_argument(
+        "--circuit-dict-window",
+        type=int,
+        default=480_000,
+        metavar="N",
+        help="Window size (samples) per epoch for CircuitDictionary. "
+        "480000 = 5 s at 96 kHz; one full pass every 129 epochs.",
     )
     parser.add_argument(
         "--device",
@@ -52,25 +77,19 @@ def main(argv: list[str] | None = None) -> None:
         help="PyTorch device for neural training.",
     )
     parser.add_argument(
-        "--max-train",
+        "--mlp-train",
         type=int,
-        default=500_000,
+        default=5_000_000,
         metavar="N",
-        help="Max samples fed to neural training (0 = unlimited).",
+        help="Random subsample size for MLP (0 = full signal). "
+        "MLP is pointwise so random scatter is correct.",
     )
     parser.add_argument(
-        "--max-classical",
+        "--max-hammerstein",
         type=int,
-        default=200_000,
+        default=5_000_000,
         metavar="N",
-        help="Max training samples for Hammerstein/WH models.",
-    )
-    parser.add_argument(
-        "--max-volterra",
-        type=int,
-        default=100_000,
-        metavar="N",
-        help="Max training samples for Volterra (large matrices).",
+        help="Subsample cap for Hammerstein polynomial lstsq stage.",
     )
     parser.add_argument(
         "--workers",
@@ -110,10 +129,11 @@ def main(argv: list[str] | None = None) -> None:
     cfg = EvalConfig(
         klon_sim_dir=klon_dir,
         output_dir=out_dir,
-        max_classical_samples=args.max_classical or None,
-        max_volterra_samples=args.max_volterra,
-        max_train_samples=args.max_train or None,
+        max_hammerstein_samples=args.max_hammerstein or 5_000_000,
+        max_mlp_samples=args.mlp_train or 0,  # 0 → use full signal
         neural_epochs=args.epochs,
+        circuit_dict_epochs=args.circuit_dict_epochs,
+        circuit_dict_window_size=args.circuit_dict_window,
         device=args.device,
         run_classical=not args.neural_only,
         run_neural=not args.classical_only,
@@ -124,7 +144,7 @@ def main(argv: list[str] | None = None) -> None:
     print(f"klon_sim dir : {cfg.klon_sim_dir}")
     print(f"output dir   : {cfg.output_dir}")
     print(f"classical    : {cfg.run_classical}  neural: {cfg.run_neural}")
-    print(f"epochs       : {cfg.neural_epochs}  device: {cfg.device}")
+    print(f"epochs       : neural={cfg.neural_epochs}  circuit_dict={cfg.circuit_dict_epochs}  device={cfg.device}")
     if cfg.skip_models:
         print(f"skipping     : {cfg.skip_models}")
     print()

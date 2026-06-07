@@ -20,6 +20,7 @@ class ModelResult:
         fit_time_s: Time to fit/train the model in seconds.
         predict_time_s: Time to run inference on the val signal.
         metrics_per_section: Section label → metric name → float value.
+        train_loss: Final epoch average training loss (neural models only).
         ddsp_analysis: Optional DDSP fraction analysis for KlonDDSP models.
     """
 
@@ -29,7 +30,9 @@ class ModelResult:
     fit_time_s: float
     predict_time_s: float
     metrics_per_section: dict[str, dict[str, float]] = field(default_factory=dict)
+    train_loss: float | None = None
     ddsp_analysis: dict[str, float] | None = None
+    topology: dict[str, float] | None = None
 
 
 @dataclass

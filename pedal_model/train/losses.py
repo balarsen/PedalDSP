@@ -69,26 +69,95 @@ class ESRLoss(nn.Module):
         return error_power / signal_power
 
 
-class CombinedLoss(nn.Module):
-    """α · ESR + β · STFT_loss.
+def _hp_preemphasis(x: torch.Tensor, coef: float = 0.85) -> torch.Tensor:
+    """Apply a 1-pole high-pass pre-emphasis filter in-place (no gradient).
 
-    Default 70/30 split: ESR anchors waveform fidelity while the STFT term
-    penalises spectral shape errors.  The 70% ESR weight suits soft-clipping
-    pedals (Notaklon-style) where waveform alignment matters.  For harder fuzz
-    increase β to 0.5–0.7 so the STFT term tolerates phase-shifted approximations
-    of square waves.
+    y[n] = x[n] - coef * x[n-1]
+
+    This is the Wright et al. (2019) pre-emphasis filter. With coef=0.85 the
+    -3 dB point is roughly 2 kHz at 48 kHz sample rate, re-weighting gradient
+    energy toward the treble frequencies that define overdrive character.
+
+    Args:
+        x: Audio tensor, shape (..., time). Applied along the last dimension.
+        coef: Feedback coefficient. Higher = more high-pass emphasis.
+
+    Returns:
+        Pre-emphasised tensor, same shape as input.
+    """
+    # First-difference with leaky integration: y[n] = x[n] - coef * x[n-1]
+    return x[..., 1:] - coef * x[..., :-1]
+
+
+class PreEmphasisESRLoss(nn.Module):
+    """ESR computed on high-pass pre-emphasised signals (Wright et al. 2019).
+
+    Applying a 1-pole HP filter before ESR re-weights the loss toward
+    mid/high frequencies. Without pre-emphasis the bulk of the audio power
+    lives at low frequencies so the gradient signal is dominated by bass
+    accuracy; with pre-emphasis the network is forced to fit the treble
+    detail that defines the Klon's character.
+
+    Reference: Wright et al., "Real-Time Guitar Amplifier Emulation with
+    Deep Learning", Applied Sciences, 2020.
     """
 
-    def __init__(self, alpha: float = 0.7, beta: float = 0.3) -> None:
+    def __init__(self, coef: float = 0.85) -> None:
         """
         Args:
-            alpha: Weight for the ESR term. Default 0.7.
-            beta: Weight for the multi-scale STFT term. Default 0.3.
+            coef: HP pre-emphasis coefficient. 0.85 ≈ 2 kHz at 48 kHz.
+                  Range (0, 1): higher = more treble emphasis.
+        """
+        super().__init__()
+        self.coef = coef
+        self._esr = ESRLoss()
+
+    def forward(self, predicted: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        """Compute pre-emphasised ESR.
+
+        Args:
+            predicted: Model output, any shape with time on last axis.
+            target: Reference audio, same shape.
+
+        Returns:
+            Scalar ESR of the pre-emphasised signals.
+        """
+        pred_hp = _hp_preemphasis(predicted, self.coef)
+        targ_hp = _hp_preemphasis(target, self.coef)
+        return self._esr(pred_hp, targ_hp)
+
+
+class CombinedLoss(nn.Module):
+    """α · PreEmphasisESR + β · STFT_loss  (Wright et al. 2019 formulation).
+
+    Default 75/25 split. The pre-emphasis ESR term pushes the network to fit
+    treble frequencies where the Klon's character lives; the STFT term keeps
+    the overall spectral shape honest. For harder fuzz devices increase β to
+    0.5–0.7 so the STFT term tolerates phase-shifted square-wave approximations.
+
+    Set ``preemphasis_coef=0.0`` to revert to plain ESR (coef=0 → identity).
+    """
+
+    def __init__(
+        self,
+        alpha: float = 0.75,
+        beta: float = 0.25,
+        preemphasis_coef: float = 0.85,
+    ) -> None:
+        """
+        Args:
+            alpha: Weight for the pre-emphasis ESR term. Default 0.75.
+            beta: Weight for the multi-scale STFT term. Default 0.25.
+            preemphasis_coef: HP coefficient for pre-emphasis. Default 0.85
+                (~2 kHz at 48 kHz). Set to 0.0 to disable pre-emphasis.
         """
         super().__init__()
         self.alpha = alpha
         self.beta = beta
-        self.esr_loss = ESRLoss()
+        if preemphasis_coef > 0.0:
+            self.esr_loss: nn.Module = PreEmphasisESRLoss(coef=preemphasis_coef)
+        else:
+            self.esr_loss = ESRLoss()
         self.stft_loss = MultiScaleSTFTLoss()
 
     def forward(self, predicted: torch.Tensor, target: torch.Tensor) -> torch.Tensor:

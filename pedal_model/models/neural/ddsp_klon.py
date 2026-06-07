@@ -2,14 +2,21 @@
 
 Stage 1 (DDSP): differentiable Klon-style signal chain with learnable parameters.
   - Input HPF (feedforward FIR: y[n] = x[n] - α_in · x[n-1])
-  - Drive + tanh clipping
+  - Drive + tanh clipping (the nonlinear core)
   - Post-clip HPF
   - High-frequency shelf (1st-difference boost with learnable gain)
+  - FF1: single-pole 106 Hz LPF applied to the dry signal in parallel
+  - FF2: gain-conditioned blend of the clipped path and FF1 clean path
   - Output level scalar
 
-Stage 2 (ML): small GRU that sees the dry signal and adds a correction.
-  correction = f_GRU(dry ‖ condition)
-  output = ddsp_out + correction
+Stage 2 (ML): small GRU that sees [dry, ddsp_out.detach(), condition] and adds
+a correction to the physics-stage output.
+  output = ddsp_out + f_GRU(dry ‖ ddsp_out.detach() ‖ condition)
+
+The FF1 + FF2 pair is the key missing ingredient in vanilla clipping models of the
+Klon.  The gain knob simultaneously sets the pre-clip gain AND the blend ratio
+between the clean-bass (FF1) and clipped-treble paths, which is what gives the
+Klon its "transparent overdrive" character at lower drive settings.
 
 Conditioning: the three physical Klon knobs [gain, treble, volume] ∈ [0, 1]³
 are concatenated to every GRU time step as side-chain information, allowing the
@@ -24,6 +31,7 @@ from __future__ import annotations
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from ..base import PedalModel
 
@@ -32,17 +40,29 @@ _NINE_OCLOCK = float(3.0 / 11.0)
 DEFAULT_CONDITION = np.array([_NINE_OCLOCK, _NINE_OCLOCK, _NINE_OCLOCK], dtype=np.float32)
 N_KNOBS = 3  # gain, treble, volume
 
+# GRU receives: dry (1) + ddsp_out context (1) + knobs (N_KNOBS)
+_GRU_INPUT_SIZE = 2 + N_KNOBS
+
+# FF1 LPF taps — 256 taps captures 99.9 % of the 106 Hz IIR energy at 48 kHz
+_FF1_TAPS = 256
+
 
 class KlonDDSP(nn.Module, PedalModel):
     """Klon-topology differentiable circuit + GRU residual corrector.
+
+    The DDSP stage now implements the full Klon parallel architecture:
+      - Clip path: HPF → gain/tanh → post-HPF → shelf
+      - FF1 clean path: 106 Hz LPF applied to the dry input
+      - FF2 blend: gain-conditioned mix of clip and FF1 paths
+
+    The GRU corrector receives [dry, ddsp_out.detach(), condition] so it can
+    directly observe the physics-stage output and learn its residual error
+    rather than reconstructing the correction from the dry signal alone.
 
     Conditioning: each forward pass accepts an optional `condition` tensor
     of shape (n_knobs,) or (batch, n_knobs) with normalised knob positions
     [gain, treble, volume] ∈ [0, 1]. At 9 o'clock each value is ≈ 0.273.
     When condition=None, DEFAULT_CONDITION (9 o'clock) is used.
-
-    Training: use train/trainer.py with ChunkDataset. Input/output shape is
-    (batch, time, 1). CombinedLoss (ESR 70 / STFT 30) is recommended.
 
     Args:
         gru_hidden: Hidden units in the GRU corrector.
@@ -51,28 +71,40 @@ class KlonDDSP(nn.Module, PedalModel):
 
     def __init__(self, gru_hidden: int = 16, n_fir_pre: int = 0) -> None:
         nn.Module.__init__(self)
-        # DDSP parameters — unconstrained; sigmoid/exp applied in properties
+
+        # ── Clip-path DDSP parameters ──────────────────────────────────── #
+        # Unconstrained raw values; sigmoid/exp applied in properties below.
         self._alpha_in_raw = nn.Parameter(torch.zeros(1))
         self._alpha_post_raw = nn.Parameter(torch.zeros(1))
-        self._log_drive = nn.Parameter(torch.tensor(1.4))  # exp → ~4× drive
-        self._level_raw = nn.Parameter(torch.zeros(1))     # sigmoid → 0.5
-        self._shelf_gain = nn.Parameter(torch.zeros(1))    # 0 = no shelf
+        self._log_drive = nn.Parameter(torch.tensor(1.4))   # exp → ~4× drive
+        self._level_raw = nn.Parameter(torch.zeros(1))      # sigmoid → 0.5
+        self._shelf_gain = nn.Parameter(torch.zeros(1))     # 0 = no shelf
 
-        # Optional FIR pre-filter
+        # ── FF1: learnable 1-pole LPF (initialised to 106 Hz at 48 kHz) ── #
+        # a ≈ 0.986 → sigmoid(4.34) * 0.999 ≈ 0.986
+        # fc ≈ (1 - a) * sr / (2π) = 0.014 * 48000 / 6.28 ≈ 107 Hz
+        self._alpha_ff1_raw = nn.Parameter(torch.tensor(4.34))
+
+        # ── FF2: gain-conditioned blend (clip path vs. FF1 clean path) ─── #
+        # blend = sigmoid(blend_w * gain_knob + blend_b)
+        # Init: blend_w=1, blend_b=0 → sigmoid(gain_knob) ≈ 0.5 at 9-o'clock
+        self._ff2_blend_w = nn.Parameter(torch.tensor(1.0))
+        self._ff2_blend_b = nn.Parameter(torch.tensor(0.0))
+
+        # ── Optional FIR pre-filter ────────────────────────────────────── #
         self._use_pre_fir = n_fir_pre > 0
         if self._use_pre_fir:
             kernel = torch.zeros(1, 1, n_fir_pre)
             nn.init.dirac_(kernel)
             self.pre_fir_kernel = nn.Parameter(kernel)
 
-        # GRU corrector: (dry + condition) → correction to add onto DDSP output
-        # Input dim = 1 (dry sample) + N_KNOBS (condition) = 4
+        # ── GRU corrector ─────────────────────────────────────────────── #
+        # Input: [dry, ddsp_out.detach(), gain, treble, volume]
         self.gru_hidden = gru_hidden
-        self.gru = nn.GRU(1 + N_KNOBS, gru_hidden, batch_first=True)
+        self.gru = nn.GRU(_GRU_INPUT_SIZE, gru_hidden, batch_first=True)
         self.gru_fc = nn.Linear(gru_hidden, 1)
-        # Small init so the model starts near-DDSP-only; gradients still flow to GRU.
-        # Default Kaiming-uniform weights produce ~0.1 RMS correction noise that
-        # immediately pushes full_esr > 1, stalling training from the first step.
+        # Small init: model starts near-DDSP-only; Kaiming-uniform default
+        # produces ~0.1 RMS correction noise that immediately pushes ESR > 1.
         nn.init.normal_(self.gru_fc.weight, std=1e-3)
         nn.init.zeros_(self.gru_fc.bias)
 
@@ -80,7 +112,7 @@ class KlonDDSP(nn.Module, PedalModel):
 
     @property
     def alpha_in(self) -> torch.Tensor:
-        """HPF coefficient ∈ (0, 0.999). Higher → lower cutoff frequency."""
+        """HPF coefficient ∈ (0, 0.999). Higher → sharper high-pass."""
         return torch.sigmoid(self._alpha_in_raw) * 0.999
 
     @property
@@ -89,8 +121,13 @@ class KlonDDSP(nn.Module, PedalModel):
         return torch.sigmoid(self._alpha_post_raw) * 0.999
 
     @property
+    def alpha_ff1(self) -> torch.Tensor:
+        """FF1 LPF coefficient ∈ (0, 0.999). Initialised to ≈ 106 Hz at 48 kHz."""
+        return torch.sigmoid(self._alpha_ff1_raw) * 0.999
+
+    @property
     def drive(self) -> torch.Tensor:
-        """Pre-gain into the tanh stage. Always positive; clamped to [1, 20]."""
+        """Pre-clip gain, clamped to [1, 20]."""
         return torch.exp(self._log_drive).clamp(1.0, 20.0)
 
     @property
@@ -111,53 +148,98 @@ class KlonDDSP(nn.Module, PedalModel):
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
         raise NotImplementedError("Use train/trainer.py to train KlonDDSP.")
 
-    # ── Forward pass ─────────────────────────────────────────────────────── #
+    # ── Filter primitives ─────────────────────────────────────────────────── #
 
     def _hpf(self, x: torch.Tensor, alpha: torch.Tensor) -> torch.Tensor:
-        """Feedforward FIR high-pass: y[n] = x[n] - alpha · x[n-1].
-
-        Causal, fully differentiable w.r.t. alpha.
+        """Causal first-difference HPF: y[n] = x[n] - alpha · x[n-1].
 
         Args:
             x: (batch, time)
-            alpha: scalar tensor ∈ (0, 1)
+            alpha: scalar ∈ (0, 1)
 
         Returns:
-            Filtered signal, same shape as x.
+            Filtered signal, same shape.
         """
         return torch.cat([x[..., :1], x[..., 1:] - alpha * x[..., :-1]], dim=-1)
 
-    def _ddsp_stage(self, x: torch.Tensor) -> torch.Tensor:
-        """Klon-like differentiable signal chain.
+    def _lpf(self, x: torch.Tensor, a: torch.Tensor) -> torch.Tensor:
+        """Causal 1-pole LPF as a truncated FIR: h[k] = (1-a) · a^k.
+
+        The truncated impulse response captures 99.9 % of the IIR energy at
+        K=256 taps for a ≈ 0.986 (106 Hz at 48 kHz). Fully differentiable
+        w.r.t. `a` through the pow() and multiplication.
 
         Args:
-            x: (batch, time) dry signal
+            x: (batch, time)
+            a: scalar LPF coefficient ∈ (0, 1)
 
         Returns:
-            (batch, time) processed signal
+            Filtered signal, same shape.
         """
+        K = _FF1_TAPS
+        k = torch.arange(K, device=x.device, dtype=x.dtype)
+        h = (1 - a) * torch.pow(a, k)               # (K,) geometric series
+        kernel = h.flip(0).view(1, 1, K)             # (1, 1, K) causal
+        x3d = x.unsqueeze(1)                         # (batch, 1, time)
+        y3d = F.conv1d(F.pad(x3d, (K - 1, 0)), kernel)
+        return y3d.squeeze(1)                        # (batch, time)
+
+    # ── DDSP circuit ──────────────────────────────────────────────────────── #
+
+    def _ddsp_stage(
+        self,
+        x: torch.Tensor,
+        gain_knob: torch.Tensor | None = None,
+    ) -> torch.Tensor:
+        """Klon-like differentiable signal chain with FF1 + FF2.
+
+        Args:
+            x: (batch, time) dry signal.
+            gain_knob: Gain knob position ∈ [0, 1], scalar or (batch,).
+                None → 9 o'clock default (≈ 0.273).
+
+        Returns:
+            (batch, time) processed signal.
+        """
+        # Resolve gain_knob to a tensor on the same device
+        if gain_knob is None:
+            gk = torch.tensor(_NINE_OCLOCK, device=x.device, dtype=x.dtype)
+        else:
+            gk = gain_knob.to(device=x.device, dtype=x.dtype)
+
         y = x
 
+        # Optional FIR pre-filter
         if self._use_pre_fir:
-            import torch.nn.functional as F
-
             n = self.pre_fir_kernel.shape[-1]
             y3d = y.unsqueeze(1)
             y3d = F.conv1d(F.pad(y3d, (n - 1, 0)), self.pre_fir_kernel)
             y = y3d.squeeze(1)
 
-        # 1. Input HPF
-        y = self._hpf(y, self.alpha_in)
-        # 2. Drive + tanh
-        y = torch.tanh(y * self.drive)
-        # 3. Post-clip HPF
-        y = self._hpf(y, self.alpha_post)
-        # 4. High shelf: y + gain * 1st-difference (boosts high frequencies)
-        shelf = torch.cat([torch.zeros_like(y[..., :1]), y[..., 1:] - y[..., :-1]], dim=-1)
-        y = y + self._shelf_gain * shelf
-        # 5. Output level
-        y = y * self.output_level
-        return y
+        # ── Clip path ──────────────────────────────────────────────────── #
+        clip = self._hpf(y, self.alpha_in)          # input HPF
+        clip = torch.tanh(clip * self.drive)         # drive + clip
+        clip = self._hpf(clip, self.alpha_post)      # post-clip HPF
+        shelf = torch.cat(                           # 1st-diff high shelf
+            [torch.zeros_like(clip[..., :1]), clip[..., 1:] - clip[..., :-1]],
+            dim=-1,
+        )
+        clip = clip + self._shelf_gain * shelf
+
+        # ── FF1: clean bass path (parallel 106 Hz LPF) ─────────────────── #
+        ff1 = self._lpf(y, self.alpha_ff1)           # (batch, time)
+
+        # ── FF2: gain-conditioned blend ─────────────────────────────────── #
+        # At low gain → mostly FF1 (transparent/clean); at high gain → mostly clip.
+        blend = torch.sigmoid(self._ff2_blend_w * gk + self._ff2_blend_b)
+        # Broadcast blend over time axis when gk has a batch dimension
+        if blend.dim() > 0:
+            blend = blend.unsqueeze(-1)              # (batch, 1)
+
+        out = blend * clip + (1 - blend) * ff1
+        return out * self.output_level
+
+    # ── Condition helpers ─────────────────────────────────────────────────── #
 
     def _expand_condition(
         self,
@@ -178,14 +260,30 @@ class KlonDDSP(nn.Module, PedalModel):
             (batch, time, N_KNOBS) float32 tensor.
         """
         if condition is None:
-            cond = torch.tensor(DEFAULT_CONDITION, device=device)  # (3,)
+            cond = torch.tensor(DEFAULT_CONDITION, device=device)
         else:
             cond = condition.to(device=device, dtype=torch.float32)
-
         if cond.dim() == 1:
-            cond = cond.unsqueeze(0)  # (1, 3)
-        # (batch, 3) → (batch, 1, 3) → (batch, time, 3)
+            cond = cond.unsqueeze(0)
         return cond.unsqueeze(1).expand(batch, time, N_KNOBS)
+
+    def _extract_gain_knob(
+        self,
+        condition: torch.Tensor | None,
+        device: torch.device,
+    ) -> torch.Tensor | None:
+        """Extract the gain knob scalar (or batch vector) from condition.
+
+        Returns None only when condition is None (caller uses _NINE_OCLOCK default).
+        """
+        if condition is None:
+            return None
+        cond = condition.to(device=device, dtype=torch.float32)
+        if cond.dim() == 1:
+            return cond[0]       # scalar tensor
+        return cond[:, 0]        # (batch,)
+
+    # ── Forward pass ─────────────────────────────────────────────────────── #
 
     def forward(
         self,
@@ -213,17 +311,29 @@ class KlonDDSP(nn.Module, PedalModel):
             x_2d = x  # (batch, time)
 
         batch, time = x_2d.shape
+        device = x_2d.device
 
-        # Stage 1: physics-inspired DDSP circuit
-        ddsp_out = self._ddsp_stage(x_2d)  # (batch, time)
+        # Stage 1: DDSP circuit (with FF1 + FF2)
+        gain_knob = self._extract_gain_knob(condition, device)
+        ddsp_out = self._ddsp_stage(x_2d, gain_knob)  # (batch, time)
 
-        # Stage 2: GRU on dry + condition
-        cond_exp = self._expand_condition(condition, batch, time, x_2d.device)
-        gru_in = torch.cat([x_2d.unsqueeze(-1), cond_exp], dim=-1)  # (batch, time, 4)
+        # Stage 2: GRU on [dry, ddsp_out.detach(), condition]
+        # Detach ddsp_out so DDSP parameters get gradients only via the direct
+        # loss → output → ddsp_out path, not through the GRU's input path.
+        cond_exp = self._expand_condition(condition, batch, time, device)
+        gru_in = torch.cat(
+            [
+                x_2d.unsqueeze(-1),                  # (batch, time, 1) dry
+                ddsp_out.detach().unsqueeze(-1),      # (batch, time, 1) context
+                cond_exp,                             # (batch, time, N_KNOBS)
+            ],
+            dim=-1,
+        )  # → (batch, time, 2 + N_KNOBS)
+
         gru_out, new_hidden = self.gru(gru_in, hidden)
-        correction = self.gru_fc(gru_out)  # (batch, time, 1)
+        correction = self.gru_fc(gru_out)            # (batch, time, 1)
 
-        output = ddsp_out.unsqueeze(-1) + correction  # (batch, time, 1)
+        output = ddsp_out.unsqueeze(-1) + correction
         return output, new_hidden
 
     # ── Inference ────────────────────────────────────────────────────────── #
@@ -239,7 +349,7 @@ class KlonDDSP(nn.Module, PedalModel):
         Args:
             x: Dry input, shape (N,), float32.
             chunk_size: Samples per chunk. Must be ≤ 32768 to stay within cuDNN's
-                sequence-length limit when running on CUDA.
+                sequence-length ceiling when running on CUDA.
             condition: Knob positions [gain, treble, volume] ∈ [0, 1], shape (3,).
                 None → 9 o'clock defaults (all ≈ 0.273).
 
@@ -275,7 +385,7 @@ class KlonDDSP(nn.Module, PedalModel):
             x: Dry input, shape (N,), float32.
 
         Returns:
-            DDSP-stage output, shape (N,), float32.
+            DDSP-stage output (including FF1 + FF2), shape (N,), float32.
         """
         self.eval()
         device = next(self.parameters()).device
@@ -293,10 +403,6 @@ class KlonDDSP(nn.Module, PedalModel):
         condition: np.ndarray | None = None,
     ) -> dict[str, float]:
         """Decompose DDSP vs. ML contribution after training.
-
-        Runs both the DDSP-only stage and the full model on *dry*, then computes
-        ESR ratios to quantify what fraction of the pedal response is captured
-        by the physics-informed circuit model vs. the GRU correction.
 
         Args:
             dry: Dry input, shape (N,), float32.

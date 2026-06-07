@@ -8,7 +8,7 @@ from ..base import PedalModel
 
 
 class _TCNBlock(nn.Module):
-    """Single dilated residual block."""
+    """Single dilated residual block with separate skip output."""
 
     def __init__(self, channels: int, kernel_size: int, dilation: int) -> None:
         super().__init__()
@@ -16,20 +16,21 @@ class _TCNBlock(nn.Module):
         self.conv = nn.Conv1d(channels, channels, kernel_size, dilation=dilation, padding=pad)
         self.norm = nn.LayerNorm(channels)
         self.act = nn.GELU()
-        self._causal_trim = pad  # remove non-causal future samples
+        self._causal_trim = pad
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """
         Args:
             x: (batch, channels, time)
 
         Returns:
-            Residual output, same shape.
+            (residual, skip) — both shape (batch, channels, time).
+            residual is passed to the next block; skip is accumulated for the output sum.
         """
         y = self.conv(x)[..., : x.shape[-1]]  # causal trim
-        # LayerNorm over channel dim: transpose to (batch, time, channels)
         y = self.norm(y.transpose(1, 2)).transpose(1, 2)
-        return self.act(y) + x
+        y = self.act(y)
+        return y + x, y  # residual, skip
 
 
 class TCNModel(nn.Module, PedalModel):
@@ -82,9 +83,11 @@ class TCNModel(nn.Module, PedalModel):
             Output, shape (batch, 1, time).
         """
         y = self.input_conv(x)
+        skip_sum = torch.zeros_like(y)
         for block in self.blocks:
-            y = block(y)
-        return self.output_conv(y)
+            y, skip = block(y)
+            skip_sum = skip_sum + skip
+        return self.output_conv(skip_sum)
 
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
         raise NotImplementedError("Use train/trainer.py to train neural models.")

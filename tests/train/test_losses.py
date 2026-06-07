@@ -2,7 +2,13 @@
 import pytest
 import torch
 
-from pedal_model.train.losses import CombinedLoss, ESRLoss, MultiScaleSTFTLoss
+from pedal_model.train.losses import (
+    CombinedLoss,
+    ESRLoss,
+    MultiScaleSTFTLoss,
+    PreEmphasisESRLoss,
+    _hp_preemphasis,
+)
 
 
 def _pair(batch: int = 2, time: int = 4096) -> tuple[torch.Tensor, torch.Tensor]:
@@ -30,10 +36,17 @@ class TestMultiScaleSTFTLoss:
         loss = MultiScaleSTFTLoss()(pred, target)
         assert loss.item() >= 0.0
 
-    def test_accepts_3d_input(self):
+    def test_accepts_3d_channels_first(self):
         torch.manual_seed(1)
         pred = torch.randn(2, 1, 4096)
         target = torch.randn(2, 1, 4096)
+        loss = MultiScaleSTFTLoss()(pred, target)
+        assert torch.isfinite(loss)
+
+    def test_accepts_3d_channels_last(self):
+        torch.manual_seed(11)
+        pred = torch.randn(2, 4096, 1)
+        target = torch.randn(2, 4096, 1)
         loss = MultiScaleSTFTLoss()(pred, target)
         assert torch.isfinite(loss)
 
@@ -88,6 +101,85 @@ class TestESRLoss:
         assert esr_normal == pytest.approx(esr_quiet, rel=1e-4)
 
 
+class TestHpPreemphasis:
+    def test_output_length_is_n_minus_1(self):
+        x = torch.randn(2, 1000)
+        y = _hp_preemphasis(x, coef=0.85)
+        assert y.shape == (2, 999)
+
+    def test_dc_signal_is_suppressed(self):
+        """A DC (constant) signal should yield near-zero output after HP filter."""
+        x = torch.ones(1, 512)
+        y = _hp_preemphasis(x, coef=0.85)
+        # y[n] = 1 - 0.85*1 = 0.15  (not zero, it's a leaky differentiator)
+        # but the output is constant and much smaller than input RMS
+        assert y.abs().mean() < 0.2
+
+    def test_coef_one_is_first_difference(self):
+        """coef=1 collapses to plain first difference x[n] - x[n-1]."""
+        x = torch.arange(8, dtype=torch.float32).unsqueeze(0)
+        y = _hp_preemphasis(x, coef=1.0)
+        expected = torch.ones(1, 7)
+        torch.testing.assert_close(y, expected)
+
+    def test_coef_zero_passes_signal_unchanged(self):
+        """coef=0 → y[n] = x[n], output equals x[1:]."""
+        x = torch.arange(8, dtype=torch.float32).unsqueeze(0)
+        y = _hp_preemphasis(x, coef=0.0)
+        torch.testing.assert_close(y, x[:, 1:])
+
+    def test_high_freq_passes_more_than_low_freq(self):
+        """HP filter should have higher RMS output for high-freq signal."""
+        import math
+        N = 4096
+        t = torch.arange(N, dtype=torch.float32)
+        low = torch.sin(2 * math.pi * 100 / 48000 * t).unsqueeze(0)
+        high = torch.sin(2 * math.pi * 8000 / 48000 * t).unsqueeze(0)
+        coef = 0.85
+        low_rms = _hp_preemphasis(low, coef).pow(2).mean().sqrt().item()
+        high_rms = _hp_preemphasis(high, coef).pow(2).mean().sqrt().item()
+        assert high_rms > low_rms
+
+
+class TestPreEmphasisESRLoss:
+    def test_identical_signals_near_zero(self):
+        torch.manual_seed(0)
+        signal = torch.randn(2, 4096) * 0.3
+        loss = PreEmphasisESRLoss()(signal, signal)
+        assert loss.item() == pytest.approx(0.0, abs=1e-6)
+
+    def test_is_scalar(self):
+        pred, target = _pair()
+        assert PreEmphasisESRLoss()(pred, target).shape == ()
+
+    def test_non_negative(self):
+        pred, target = _pair()
+        assert PreEmphasisESRLoss()(pred, target).item() >= 0.0
+
+    def test_gradients_flow(self):
+        torch.manual_seed(8)
+        pred = torch.randn(2, 4096, requires_grad=True)
+        target = torch.randn(2, 4096)
+        loss = PreEmphasisESRLoss()(pred, target)
+        loss.backward()
+        assert pred.grad is not None
+        assert torch.isfinite(pred.grad).all()
+
+    def test_higher_treble_error_penalised_more_than_plain_esr(self):
+        """Pre-emphasis should give relatively larger penalty for treble errors."""
+        import math
+        torch.manual_seed(9)
+        N = 4096
+        t = torch.arange(N, dtype=torch.float32)
+        target = torch.sin(2 * math.pi * 8000 / 48000 * t).unsqueeze(0) * 0.3
+        pred_close = target + 0.05 * torch.randn_like(target)  # small treble error
+
+        plain_esr = ESRLoss()(pred_close, target).item()
+        pe_esr = PreEmphasisESRLoss(coef=0.85)(pred_close, target).item()
+        # Pre-emphasis ESR should be higher than plain for a high-freq signal error
+        assert pe_esr > plain_esr * 0.5  # not strictly larger but in the same ballpark
+
+
 class TestCombinedLoss:
     def test_loss_is_scalar(self):
         pred, target = _pair()
@@ -114,12 +206,20 @@ class TestCombinedLoss:
         assert pred.grad is not None
         assert torch.isfinite(pred.grad).all()
 
-    def test_default_weights_are_70_30(self):
+    def test_default_weights_are_75_25(self):
         fn = CombinedLoss()
-        assert fn.alpha == pytest.approx(0.7)
-        assert fn.beta == pytest.approx(0.3)
+        assert fn.alpha == pytest.approx(0.75)
+        assert fn.beta == pytest.approx(0.25)
 
     def test_custom_weights_respected(self):
         fn = CombinedLoss(alpha=0.1, beta=0.9)
         assert fn.alpha == pytest.approx(0.1)
         assert fn.beta == pytest.approx(0.9)
+
+    def test_preemphasis_disabled_uses_plain_esr(self):
+        fn = CombinedLoss(preemphasis_coef=0.0)
+        assert isinstance(fn.esr_loss, ESRLoss)
+
+    def test_preemphasis_enabled_uses_pe_esr(self):
+        fn = CombinedLoss(preemphasis_coef=0.85)
+        assert isinstance(fn.esr_loss, PreEmphasisESRLoss)

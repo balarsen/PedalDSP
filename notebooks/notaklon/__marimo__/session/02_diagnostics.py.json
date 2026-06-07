@@ -7,7 +7,7 @@
   "cells": [
     {
       "id": "Hbol",
-      "code_hash": "40876f850d4b0cf9357fd533a1355f6d",
+      "code_hash": "86181f5bf69d2095bea05e58b8923e34",
       "outputs": [
         {
           "type": "data",
@@ -78,7 +78,7 @@
     },
     {
       "id": "Xref",
-      "code_hash": "e175a511f63ca468f7f45ef1c904b890",
+      "code_hash": "7b500a627eb14fbfd9997e4147bc3634",
       "outputs": [],
       "console": []
     },
@@ -116,12 +116,12 @@
     },
     {
       "id": "Kclp",
-      "code_hash": "6baeb1c174be620ae1cecfc006d025ba",
+      "code_hash": "c0cdb83df4c059b071932f9f5aaea8b7",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/html": "<div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-ui-element object-id='Kclp-0' random-id='3460a9bd-5a98-2adc-000c-1842c1bb6da6'><marimo-dropdown data-initial-value='[&quot;val_stepped_tone_f147_l-18&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id='Kclp-1' random-id='78842dec-f222-a3bc-5739-6e2dd5dd13fb'><marimo-multiselect data-initial-value='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModels to overlay&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-full-width='false' data-disabled='false'></marimo-multiselect></marimo-ui-element><marimo-ui-element object-id='Kclp-2' random-id='6cc41c49-aafa-beba-75cc-9ef2700d95db'><marimo-slider data-initial-value='40' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eWindow (ms)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-start='10' data-stop='200' data-step='5' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element><marimo-ui-element object-id='Kclp-3' random-id='cf22a72b-d206-d3be-3bec-205a8c97a4da'><marimo-slider data-initial-value='0' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eOffset into section (ms)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-start='0' data-stop='500' data-step='5' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element></div>"
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-ui-element object-id='Kclp-0' random-id='51bd6e75-5584-403c-5787-e49871d46579'><marimo-dropdown data-initial-value='[&quot;val_stepped_tone_f147_l-18&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id='Kclp-1' random-id='058cf033-7815-a6a1-cb58-bc30accebf91'><marimo-multiselect data-initial-value='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModels to overlay&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-full-width='false' data-disabled='false'></marimo-multiselect></marimo-ui-element><marimo-ui-element object-id='Kclp-2' random-id='7c31e889-a8bf-c65d-e177-493e6a729fb2'><marimo-slider data-initial-value='40' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eWindow (ms)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-start='10' data-stop='200' data-step='5' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element><marimo-ui-element object-id='Kclp-3' random-id='18a2f168-e8b4-5fd2-09d1-83859e613222'><marimo-slider data-initial-value='0' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eOffset into section (ms)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-start='0' data-stop='500' data-step='5' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element></div>"
           }
         }
       ],
@@ -153,7 +153,7 @@
         {
           "type": "data",
           "data": {
-            "text/html": "<marimo-ui-element object-id='nWHF-0' random-id='8a06febd-aa63-e5d4-7b2c-cad31b57eabf'><marimo-dropdown data-initial-value='[&quot;val_stepped_tone_f147_l-18&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+            "text/html": "<marimo-ui-element object-id='nWHF-0' random-id='0e0d2335-c010-f870-c07f-ca21e76f3b71'><marimo-dropdown data-initial-value='[&quot;val_stepped_tone_f147_l-18&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
           }
         }
       ],
@@ -180,12 +180,12 @@
     },
     {
       "id": "ROlb",
-      "code_hash": "8e0b93f4ef931313723aa9f09081651f",
+      "code_hash": "a89c57b86841d1dde773a854fa488210",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/html": "<div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-ui-element object-id='ROlb-0' random-id='c94bf061-fa50-3453-a47e-8af31e3e290d'><marimo-dropdown data-initial-value='[&quot;val_sweep_l-24&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id='ROlb-1' random-id='541b4f98-8ee4-3e3e-b386-c61e87cb9bbe'><marimo-multiselect data-initial-value='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModels&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-full-width='false' data-disabled='false'></marimo-multiselect></marimo-ui-element></div>"
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-ui-element object-id='ROlb-0' random-id='cc368b81-8701-f68c-eef0-bf87b0cc05e6'><marimo-dropdown data-initial-value='[&quot;val_sweep_l-24&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id='ROlb-1' random-id='91b74b3f-7902-8d76-8327-6f8e63c25e7a'><marimo-multiselect data-initial-value='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModels&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-full-width='false' data-disabled='false'></marimo-multiselect></marimo-ui-element></div>"
           }
         }
       ],
@@ -193,7 +193,7 @@
     },
     {
       "id": "qnkX",
-      "code_hash": "06c25d4394db07b83ffeae2c978e05aa",
+      "code_hash": "88859c57ddb84aa155f39edafb9c9f5c",
       "outputs": [],
       "console": []
     },
@@ -217,7 +217,7 @@
         {
           "type": "data",
           "data": {
-            "text/html": "<marimo-ui-element object-id='Vxnm-0' random-id='501b9816-8439-c2ab-1c4c-f24b7fcc1400'><marimo-dropdown data-initial-value='[&quot;val_sweep_l-24&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection for spectrogram&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+            "text/html": "<marimo-ui-element object-id='Vxnm-0' random-id='1d522da3-e231-860d-711b-d13bb48dc2c2'><marimo-dropdown data-initial-value='[&quot;val_sweep_l-24&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection for spectrogram&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
           }
         }
       ],
@@ -385,12 +385,12 @@
     },
     {
       "id": "yCnT",
-      "code_hash": "29eec881e6fc8fc4e077337f1711765e",
+      "code_hash": "05e1d021f6a9f83c8aeeb83ace83a891",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"16-timing-fittrain-time-and-predict-time\">16. Timing \u2014 fit/train time and predict time</h2></span>"
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"16-esr-vs-stft-loss-time-domain-vs-spectral-fidelity\">16. ESR vs STFT loss \u2014 time-domain vs spectral fidelity</h2></span>"
           }
         }
       ],
@@ -398,18 +398,18 @@
     },
     {
       "id": "wlCL",
-      "code_hash": "cc32d70f04e5eb91553b6fb8af1b0298",
+      "code_hash": "67ce70b46e260fa389e270090ea6a511",
       "outputs": [],
       "console": []
     },
     {
       "id": "kqZH",
-      "code_hash": "c273062554deec5d66978fb47dc26d22",
+      "code_hash": "233540e4dd95deab9827e608f225b6dc",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"17-raw-per-section-metrics-table\">17. Raw per-section metrics table</h2></span>"
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"17-thd_pattern_dist-vs-hp_sim-harmonic-shape-vs-harmonic-similarity\">17. THD_pattern_dist vs HP_sim \u2014 harmonic shape vs harmonic similarity</h2></span>"
           }
         }
       ],
@@ -417,12 +417,12 @@
     },
     {
       "id": "wAgl",
-      "code_hash": "eb33abffcef2694ce5f61963f5585ace",
+      "code_hash": "71bd50ffcc96a746605ba2b813ef02f6",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/html": "<marimo-ui-element object-id='wAgl-0' random-id='239677b1-c380-d333-0a86-fbb026a54364'><marimo-dropdown data-initial-value='[&quot;iir&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModel&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+            "text/plain": ""
           }
         }
       ],
@@ -430,12 +430,12 @@
     },
     {
       "id": "rEll",
-      "code_hash": "03bb9c417a1f36232d2809428f2f9ca8",
+      "code_hash": "8e62e7db7eee432ed05e690493d66bde",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/html": "<marimo-ui-element object-id='rEll-0' random-id='9e89b047-a7be-b618-13dc-020d6645300a'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;_marimo_row_id&#92;&quot;:0,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-24&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.8474,&#92;&quot;null_depth_dB&#92;&quot;:0.7192,&#92;&quot;STFT&#92;&quot;:6.6567,&#92;&quot;FR_err_dB&#92;&quot;:52.437,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:1,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-12&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.8229,&#92;&quot;null_depth_dB&#92;&quot;:0.8466,&#92;&quot;STFT&#92;&quot;:5.7788,&#92;&quot;FR_err_dB&#92;&quot;:66.2872,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:2,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.7486,&#92;&quot;null_depth_dB&#92;&quot;:1.2574,&#92;&quot;STFT&#92;&quot;:5.4147,&#92;&quot;FR_err_dB&#92;&quot;:68.2441,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:3,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:3.4532,&#92;&quot;null_depth_dB&#92;&quot;:-5.3822,&#92;&quot;STFT&#92;&quot;:6.0263,&#92;&quot;FR_err_dB&#92;&quot;:62.285,&#92;&quot;THD_target&#92;&quot;:9.6991,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.097,&#92;&quot;HP_sim&#92;&quot;:0.9953},{&#92;&quot;_marimo_row_id&#92;&quot;:4,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-9&#92;&quot;,&#92;&quot;ESR&#92;&quot;:3.847,&#92;&quot;null_depth_dB&#92;&quot;:-5.8512,&#92;&quot;STFT&#92;&quot;:5.2191,&#92;&quot;FR_err_dB&#92;&quot;:53.6692,&#92;&quot;THD_target&#92;&quot;:56.7278,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.5673,&#92;&quot;HP_sim&#92;&quot;:0.8698},{&#92;&quot;_marimo_row_id&#92;&quot;:5,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:4.1147,&#92;&quot;null_depth_dB&#92;&quot;:-6.1433,&#92;&quot;STFT&#92;&quot;:4.7738,&#92;&quot;FR_err_dB&#92;&quot;:47.9029,&#92;&quot;THD_target&#92;&quot;:124.7443,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:1.2474,&#92;&quot;HP_sim&#92;&quot;:0.6255},{&#92;&quot;_marimo_row_id&#92;&quot;:6,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:2.1953,&#92;&quot;null_depth_dB&#92;&quot;:-3.4149,&#92;&quot;STFT&#92;&quot;:6.1093,&#92;&quot;FR_err_dB&#92;&quot;:59.5707,&#92;&quot;THD_target&#92;&quot;:6.107,&#92;&quot;THD_pred&#92;&quot;:0.0002,&#92;&quot;THD_pattern_dist&#92;&quot;:0.0611,&#92;&quot;HP_sim&#92;&quot;:0.9981},{&#92;&quot;_marimo_row_id&#92;&quot;:7,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-9&#92;&quot;,&#92;&quot;ESR&#92;&quot;:2.5408,&#92;&quot;null_depth_dB&#92;&quot;:-4.0497,&#92;&quot;STFT&#92;&quot;:5.2872,&#92;&quot;FR_err_dB&#92;&quot;:60.5092,&#92;&quot;THD_target&#92;&quot;:35.1538,&#92;&quot;THD_pred&#92;&quot;:0.0002,&#92;&quot;THD_pattern_dist&#92;&quot;:0.3515,&#92;&quot;HP_sim&#92;&quot;:0.9434},{&#92;&quot;_marimo_row_id&#92;&quot;:8,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:3.0971,&#92;&quot;null_depth_dB&#92;&quot;:-4.9096,&#92;&quot;STFT&#92;&quot;:4.813,&#92;&quot;FR_err_dB&#92;&quot;:55.2603,&#92;&quot;THD_target&#92;&quot;:75.1802,&#92;&quot;THD_pred&#92;&quot;:0.0002,&#92;&quot;THD_pattern_dist&#92;&quot;:0.7518,&#92;&quot;HP_sim&#92;&quot;:0.7993},{&#92;&quot;_marimo_row_id&#92;&quot;:9,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f247_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.6421,&#92;&quot;null_depth_dB&#92;&quot;:-2.154,&#92;&quot;STFT&#92;&quot;:6.092,&#92;&quot;FR_err_dB&#92;&quot;:70.2494,&#92;&quot;THD_target&#92;&quot;:4.5448,&#92;&quot;THD_pred&#92;&quot;:0.0,&#92;&quot;THD_pattern_dist&#92;&quot;:0.0454,&#92;&quot;HP_sim&#92;&quot;:0.999}]&quot;' data-total-rows='38' data-size-bytes='7718' data-total-columns='9' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;section&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;ESR&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;null_depth_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;STFT&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;FR_err_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_target&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pred&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pattern_dist&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;HP_sim&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-selection='&quot;multi&quot;' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='true' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"18-esr-vs-drive-level-does-accuracy-degrade-under-harder-clipping\">18. ESR vs drive level \u2014 does accuracy degrade under harder clipping?</h2>\n<span class=\"paragraph\">The Klon's gain stage is drive-dependent: at high drive levels the circuit saturates\nharder, producing a richer harmonic spectrum that is more difficult to model.\nThis plot isolates whether model accuracy degrades in that regime.</span></span>"
           }
         }
       ],
@@ -443,25 +443,134 @@
     },
     {
       "id": "dGlV",
-      "code_hash": "7f2ad5a4f7142949b83e5ebd57c662da",
+      "code_hash": "15826d59c7a3c1b663ad8641776bfa18",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "SdmI",
+      "code_hash": "68461840cff29db93c0082acf3c39dfe",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"18-aggregated-summary-table-mean-across-sections\">18. Aggregated summary table (mean across sections)</h2></span>"
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"19-train-loss-vs-validation-esr-undertrained-vs-wrong-architecture\">19. Train loss vs validation ESR \u2014 undertrained vs wrong architecture</h2></span>"
           }
         }
       ],
       "console": []
     },
     {
-      "id": "SdmI",
+      "id": "lgWD",
+      "code_hash": "b75535a771b0e883032160bc40cb9608",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "yOPj",
+      "code_hash": "491770702cb052b86a0aa5b2782d12c3",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"20-esr-vs-fr_err_db-overall-error-vs-linear-frequency-response-error\">20. ESR vs FR_err_dB \u2014 overall error vs linear frequency response error</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "fwwy",
+      "code_hash": "984f342c71f386a22cf4bd61bc55f0e8",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "LJZf",
+      "code_hash": "4b9f9348c5637d47ffe483d6a630585f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"21-timing-fittrain-time-and-predict-time\">21. Timing \u2014 fit/train time and predict time</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "urSm",
+      "code_hash": "cc32d70f04e5eb91553b6fb8af1b0298",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "jxvo",
+      "code_hash": "e3a0f1bc803671479e954d61a3f9e3bb",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"22-raw-per-section-metrics-table\">22. Raw per-section metrics table</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "mWxS",
+      "code_hash": "eb33abffcef2694ce5f61963f5585ace",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='mWxS-0' random-id='d6868d5b-ae65-8bf7-3391-2e903189ee74'><marimo-dropdown data-initial-value='[&quot;iir&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModel&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;iir&quot;,&quot;fir&quot;,&quot;hammerstein&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "CcZR",
+      "code_hash": "03bb9c417a1f36232d2809428f2f9ca8",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='CcZR-0' random-id='e5616381-36b5-cb31-7e0f-651ecc14343c'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;_marimo_row_id&#92;&quot;:0,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-24&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.8474,&#92;&quot;null_depth_dB&#92;&quot;:0.7192,&#92;&quot;STFT&#92;&quot;:6.6567,&#92;&quot;FR_err_dB&#92;&quot;:52.437,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:1,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-12&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.8229,&#92;&quot;null_depth_dB&#92;&quot;:0.8466,&#92;&quot;STFT&#92;&quot;:5.7788,&#92;&quot;FR_err_dB&#92;&quot;:66.2872,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:2,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.7486,&#92;&quot;null_depth_dB&#92;&quot;:1.2574,&#92;&quot;STFT&#92;&quot;:5.4147,&#92;&quot;FR_err_dB&#92;&quot;:68.2441,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:3,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:3.4532,&#92;&quot;null_depth_dB&#92;&quot;:-5.3822,&#92;&quot;STFT&#92;&quot;:6.0263,&#92;&quot;FR_err_dB&#92;&quot;:62.285,&#92;&quot;THD_target&#92;&quot;:9.6991,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.097,&#92;&quot;HP_sim&#92;&quot;:0.9953},{&#92;&quot;_marimo_row_id&#92;&quot;:4,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-9&#92;&quot;,&#92;&quot;ESR&#92;&quot;:3.847,&#92;&quot;null_depth_dB&#92;&quot;:-5.8512,&#92;&quot;STFT&#92;&quot;:5.2191,&#92;&quot;FR_err_dB&#92;&quot;:53.6692,&#92;&quot;THD_target&#92;&quot;:56.7278,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.5673,&#92;&quot;HP_sim&#92;&quot;:0.8698},{&#92;&quot;_marimo_row_id&#92;&quot;:5,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:4.1147,&#92;&quot;null_depth_dB&#92;&quot;:-6.1433,&#92;&quot;STFT&#92;&quot;:4.7738,&#92;&quot;FR_err_dB&#92;&quot;:47.9029,&#92;&quot;THD_target&#92;&quot;:124.7443,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:1.2474,&#92;&quot;HP_sim&#92;&quot;:0.6255},{&#92;&quot;_marimo_row_id&#92;&quot;:6,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:2.1953,&#92;&quot;null_depth_dB&#92;&quot;:-3.4149,&#92;&quot;STFT&#92;&quot;:6.1093,&#92;&quot;FR_err_dB&#92;&quot;:59.5707,&#92;&quot;THD_target&#92;&quot;:6.107,&#92;&quot;THD_pred&#92;&quot;:0.0002,&#92;&quot;THD_pattern_dist&#92;&quot;:0.0611,&#92;&quot;HP_sim&#92;&quot;:0.9981},{&#92;&quot;_marimo_row_id&#92;&quot;:7,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-9&#92;&quot;,&#92;&quot;ESR&#92;&quot;:2.5408,&#92;&quot;null_depth_dB&#92;&quot;:-4.0497,&#92;&quot;STFT&#92;&quot;:5.2872,&#92;&quot;FR_err_dB&#92;&quot;:60.5092,&#92;&quot;THD_target&#92;&quot;:35.1538,&#92;&quot;THD_pred&#92;&quot;:0.0002,&#92;&quot;THD_pattern_dist&#92;&quot;:0.3515,&#92;&quot;HP_sim&#92;&quot;:0.9434},{&#92;&quot;_marimo_row_id&#92;&quot;:8,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:3.0971,&#92;&quot;null_depth_dB&#92;&quot;:-4.9096,&#92;&quot;STFT&#92;&quot;:4.813,&#92;&quot;FR_err_dB&#92;&quot;:55.2603,&#92;&quot;THD_target&#92;&quot;:75.1802,&#92;&quot;THD_pred&#92;&quot;:0.0002,&#92;&quot;THD_pattern_dist&#92;&quot;:0.7518,&#92;&quot;HP_sim&#92;&quot;:0.7993},{&#92;&quot;_marimo_row_id&#92;&quot;:9,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f247_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.6421,&#92;&quot;null_depth_dB&#92;&quot;:-2.154,&#92;&quot;STFT&#92;&quot;:6.092,&#92;&quot;FR_err_dB&#92;&quot;:70.2494,&#92;&quot;THD_target&#92;&quot;:4.5448,&#92;&quot;THD_pred&#92;&quot;:0.0,&#92;&quot;THD_pattern_dist&#92;&quot;:0.0454,&#92;&quot;HP_sim&#92;&quot;:0.999}]&quot;' data-total-rows='38' data-size-bytes='7718' data-total-columns='9' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;section&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;ESR&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;null_depth_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;STFT&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;FR_err_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_target&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pred&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pattern_dist&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;HP_sim&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-selection='&quot;multi&quot;' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='true' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "YWSi",
+      "code_hash": "55fc0bcf933dbbf1f1b6b20ba468f707",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"23-aggregated-summary-table-mean-across-sections\">23. Aggregated summary table (mean across sections)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "zlud",
       "code_hash": "46d5d36985f8fdc5741f51a6eb369bf6",
       "outputs": [
         {
           "type": "data",
           "data": {
-            "text/html": "<marimo-ui-element object-id='SdmI-0' random-id='5f4bb5db-0aca-4585-e666-c9144f8ad6ed'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;_marimo_row_id&#92;&quot;:0,&#92;&quot;model&#92;&quot;:&#92;&quot;iir&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.5525,&#92;&quot;null_depth_dB&#92;&quot;:-1.1657,&#92;&quot;STFT&#92;&quot;:5.7326,&#92;&quot;FR_err_dB&#92;&quot;:49.4972,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2602,&#92;&quot;HP_sim&#92;&quot;:0.9505,&#92;&quot;fit_s&#92;&quot;:0.0214,&#92;&quot;predict_s&#92;&quot;:0.3635},{&#92;&quot;_marimo_row_id&#92;&quot;:1,&#92;&quot;model&#92;&quot;:&#92;&quot;fir&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.4091,&#92;&quot;null_depth_dB&#92;&quot;:-0.8216,&#92;&quot;STFT&#92;&quot;:5.2975,&#92;&quot;FR_err_dB&#92;&quot;:23.7347,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2602,&#92;&quot;HP_sim&#92;&quot;:0.9505,&#92;&quot;fit_s&#92;&quot;:0.0191,&#92;&quot;predict_s&#92;&quot;:0.7063},{&#92;&quot;_marimo_row_id&#92;&quot;:2,&#92;&quot;model&#92;&quot;:&#92;&quot;hammerstein&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.5315,&#92;&quot;null_depth_dB&#92;&quot;:-0.9022,&#92;&quot;STFT&#92;&quot;:5.0883,&#92;&quot;FR_err_dB&#92;&quot;:22.0646,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:1.6646,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2445,&#92;&quot;HP_sim&#92;&quot;:0.9559,&#92;&quot;fit_s&#92;&quot;:0.1376,&#92;&quot;predict_s&#92;&quot;:0.9053},{&#92;&quot;_marimo_row_id&#92;&quot;:3,&#92;&quot;model&#92;&quot;:&#92;&quot;wiener_hammerstein&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.0085,&#92;&quot;null_depth_dB&#92;&quot;:-0.0358,&#92;&quot;STFT&#92;&quot;:7.6007,&#92;&quot;FR_err_dB&#92;&quot;:34.9196,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:56.4976,&#92;&quot;THD_pattern_dist&#92;&quot;:0.6223,&#92;&quot;HP_sim&#92;&quot;:0.8426,&#92;&quot;fit_s&#92;&quot;:0.1151,&#92;&quot;predict_s&#92;&quot;:1.3002},{&#92;&quot;_marimo_row_id&#92;&quot;:4,&#92;&quot;model&#92;&quot;:&#92;&quot;volterra&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.1463,&#92;&quot;null_depth_dB&#92;&quot;:-0.1964,&#92;&quot;STFT&#92;&quot;:6.0988,&#92;&quot;FR_err_dB&#92;&quot;:38.7854,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:3.3971,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2632,&#92;&quot;HP_sim&#92;&quot;:0.9498,&#92;&quot;fit_s&#92;&quot;:3.541,&#92;&quot;predict_s&#92;&quot;:17.1131},{&#92;&quot;_marimo_row_id&#92;&quot;:5,&#92;&quot;model&#92;&quot;:&#92;&quot;mlp&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.6408,&#92;&quot;null_depth_dB&#92;&quot;:-1.6554,&#92;&quot;STFT&#92;&quot;:1.6012,&#92;&quot;FR_err_dB&#92;&quot;:10.4335,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:219.2299,&#92;&quot;THD_pattern_dist&#92;&quot;:2.2288,&#92;&quot;HP_sim&#92;&quot;:0.506,&#92;&quot;fit_s&#92;&quot;:22.6617,&#92;&quot;predict_s&#92;&quot;:12.8069},{&#92;&quot;_marimo_row_id&#92;&quot;:6,&#92;&quot;model&#92;&quot;:&#92;&quot;lstm&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.8231,&#92;&quot;null_depth_dB&#92;&quot;:-1.144,&#92;&quot;STFT&#92;&quot;:5.9659,&#92;&quot;FR_err_dB&#92;&quot;:61.8405,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:1.7923,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2603,&#92;&quot;HP_sim&#92;&quot;:0.9506,&#92;&quot;fit_s&#92;&quot;:1.7777,&#92;&quot;predict_s&#92;&quot;:5.098},{&#92;&quot;_marimo_row_id&#92;&quot;:7,&#92;&quot;model&#92;&quot;:&#92;&quot;gru&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.0036,&#92;&quot;null_depth_dB&#92;&quot;:0.5087,&#92;&quot;STFT&#92;&quot;:6.0025,&#92;&quot;FR_err_dB&#92;&quot;:58.0308,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.1424,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2596,&#92;&quot;HP_sim&#92;&quot;:0.9507,&#92;&quot;fit_s&#92;&quot;:1.1962,&#92;&quot;predict_s&#92;&quot;:108.9806},{&#92;&quot;_marimo_row_id&#92;&quot;:8,&#92;&quot;model&#92;&quot;:&#92;&quot;tcn&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.1803,&#92;&quot;null_depth_dB&#92;&quot;:9.6191,&#92;&quot;STFT&#92;&quot;:3.887,&#92;&quot;FR_err_dB&#92;&quot;:11.7633,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:14.6108,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2399,&#92;&quot;HP_sim&#92;&quot;:0.9638,&#92;&quot;fit_s&#92;&quot;:4.3693,&#92;&quot;predict_s&#92;&quot;:16.4284},{&#92;&quot;_marimo_row_id&#92;&quot;:9,&#92;&quot;model&#92;&quot;:&#92;&quot;ddsp&#92;&quot;,&#92;&quot;ESR&#92;&quot;:8.3416,&#92;&quot;null_depth_dB&#92;&quot;:-1.8359,&#92;&quot;STFT&#92;&quot;:4.9729,&#92;&quot;FR_err_dB&#92;&quot;:32.0579,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:2.9765,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2444,&#92;&quot;HP_sim&#92;&quot;:0.9564,&#92;&quot;fit_s&#92;&quot;:1.6052,&#92;&quot;predict_s&#92;&quot;:1.8097}]&quot;' data-total-rows='11' data-size-bytes='2473' data-total-columns='11' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;model&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;ESR&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;null_depth_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;STFT&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;FR_err_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_target&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pred&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pattern_dist&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;HP_sim&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;fit_s&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;predict_s&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-selection='&quot;multi&quot;' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='true' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+            "text/html": "<marimo-ui-element object-id='zlud-0' random-id='6cacee46-4b9e-da5e-3456-9081c6563fa9'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;_marimo_row_id&#92;&quot;:0,&#92;&quot;model&#92;&quot;:&#92;&quot;iir&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.5525,&#92;&quot;null_depth_dB&#92;&quot;:-1.1657,&#92;&quot;STFT&#92;&quot;:5.7326,&#92;&quot;FR_err_dB&#92;&quot;:49.4972,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2602,&#92;&quot;HP_sim&#92;&quot;:0.9505,&#92;&quot;fit_s&#92;&quot;:0.0214,&#92;&quot;predict_s&#92;&quot;:0.3635},{&#92;&quot;_marimo_row_id&#92;&quot;:1,&#92;&quot;model&#92;&quot;:&#92;&quot;fir&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.4091,&#92;&quot;null_depth_dB&#92;&quot;:-0.8216,&#92;&quot;STFT&#92;&quot;:5.2975,&#92;&quot;FR_err_dB&#92;&quot;:23.7347,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2602,&#92;&quot;HP_sim&#92;&quot;:0.9505,&#92;&quot;fit_s&#92;&quot;:0.0191,&#92;&quot;predict_s&#92;&quot;:0.7063},{&#92;&quot;_marimo_row_id&#92;&quot;:2,&#92;&quot;model&#92;&quot;:&#92;&quot;hammerstein&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.5315,&#92;&quot;null_depth_dB&#92;&quot;:-0.9022,&#92;&quot;STFT&#92;&quot;:5.0883,&#92;&quot;FR_err_dB&#92;&quot;:22.0646,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:1.6646,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2445,&#92;&quot;HP_sim&#92;&quot;:0.9559,&#92;&quot;fit_s&#92;&quot;:0.1376,&#92;&quot;predict_s&#92;&quot;:0.9053},{&#92;&quot;_marimo_row_id&#92;&quot;:3,&#92;&quot;model&#92;&quot;:&#92;&quot;wiener_hammerstein&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.0085,&#92;&quot;null_depth_dB&#92;&quot;:-0.0358,&#92;&quot;STFT&#92;&quot;:7.6007,&#92;&quot;FR_err_dB&#92;&quot;:34.9196,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:56.4976,&#92;&quot;THD_pattern_dist&#92;&quot;:0.6223,&#92;&quot;HP_sim&#92;&quot;:0.8426,&#92;&quot;fit_s&#92;&quot;:0.1151,&#92;&quot;predict_s&#92;&quot;:1.3002},{&#92;&quot;_marimo_row_id&#92;&quot;:4,&#92;&quot;model&#92;&quot;:&#92;&quot;volterra&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.1463,&#92;&quot;null_depth_dB&#92;&quot;:-0.1964,&#92;&quot;STFT&#92;&quot;:6.0988,&#92;&quot;FR_err_dB&#92;&quot;:38.7854,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:3.3971,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2632,&#92;&quot;HP_sim&#92;&quot;:0.9498,&#92;&quot;fit_s&#92;&quot;:3.541,&#92;&quot;predict_s&#92;&quot;:17.1131},{&#92;&quot;_marimo_row_id&#92;&quot;:5,&#92;&quot;model&#92;&quot;:&#92;&quot;mlp&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.6408,&#92;&quot;null_depth_dB&#92;&quot;:-1.6554,&#92;&quot;STFT&#92;&quot;:1.6012,&#92;&quot;FR_err_dB&#92;&quot;:10.4335,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:219.2299,&#92;&quot;THD_pattern_dist&#92;&quot;:2.2288,&#92;&quot;HP_sim&#92;&quot;:0.506,&#92;&quot;fit_s&#92;&quot;:22.6617,&#92;&quot;predict_s&#92;&quot;:12.8069},{&#92;&quot;_marimo_row_id&#92;&quot;:6,&#92;&quot;model&#92;&quot;:&#92;&quot;lstm&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.8231,&#92;&quot;null_depth_dB&#92;&quot;:-1.144,&#92;&quot;STFT&#92;&quot;:5.9659,&#92;&quot;FR_err_dB&#92;&quot;:61.8405,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:1.7923,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2603,&#92;&quot;HP_sim&#92;&quot;:0.9506,&#92;&quot;fit_s&#92;&quot;:1.7777,&#92;&quot;predict_s&#92;&quot;:5.098},{&#92;&quot;_marimo_row_id&#92;&quot;:7,&#92;&quot;model&#92;&quot;:&#92;&quot;gru&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.0036,&#92;&quot;null_depth_dB&#92;&quot;:0.5087,&#92;&quot;STFT&#92;&quot;:6.0025,&#92;&quot;FR_err_dB&#92;&quot;:58.0308,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.1424,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2596,&#92;&quot;HP_sim&#92;&quot;:0.9507,&#92;&quot;fit_s&#92;&quot;:1.1962,&#92;&quot;predict_s&#92;&quot;:108.9806},{&#92;&quot;_marimo_row_id&#92;&quot;:8,&#92;&quot;model&#92;&quot;:&#92;&quot;tcn&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.1803,&#92;&quot;null_depth_dB&#92;&quot;:9.6191,&#92;&quot;STFT&#92;&quot;:3.887,&#92;&quot;FR_err_dB&#92;&quot;:11.7633,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:14.6108,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2399,&#92;&quot;HP_sim&#92;&quot;:0.9638,&#92;&quot;fit_s&#92;&quot;:4.3693,&#92;&quot;predict_s&#92;&quot;:16.4284},{&#92;&quot;_marimo_row_id&#92;&quot;:9,&#92;&quot;model&#92;&quot;:&#92;&quot;ddsp&#92;&quot;,&#92;&quot;ESR&#92;&quot;:8.3416,&#92;&quot;null_depth_dB&#92;&quot;:-1.8359,&#92;&quot;STFT&#92;&quot;:4.9729,&#92;&quot;FR_err_dB&#92;&quot;:32.0579,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:2.9765,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2444,&#92;&quot;HP_sim&#92;&quot;:0.9564,&#92;&quot;fit_s&#92;&quot;:1.6052,&#92;&quot;predict_s&#92;&quot;:1.8097}]&quot;' data-total-rows='11' data-size-bytes='2473' data-total-columns='11' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;model&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;ESR&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;null_depth_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;STFT&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;FR_err_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_target&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pred&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pattern_dist&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;HP_sim&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;fit_s&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;predict_s&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-selection='&quot;multi&quot;' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-has-stable-row-id='true' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
           }
         }
       ],

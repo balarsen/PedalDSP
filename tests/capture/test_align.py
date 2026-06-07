@@ -64,3 +64,25 @@ def test_align_channels_preserves_dtype():
     dry_a, wet_a = align_channels(dry, wet, SR)
     assert dry_a.dtype == np.float32
     assert wet_a.dtype == np.float32
+
+
+def test_align_channels_negative_lag_dry_delayed():
+    """lag < 0: dry is delayed behind wet — should trim dry start."""
+    wet = _noise(0, n=SR * 2)
+    delay = 50
+    # Dry is delayed: prepend zeros to dry, shift wet back
+    dry = np.concatenate([np.zeros(delay, dtype=np.float32), wet[:-delay]])
+    dry_a, wet_a = align_channels(dry, wet, SR)
+    assert len(dry_a) == len(wet_a)
+    residual = estimate_lag(dry_a, wet_a)
+    assert abs(residual) <= 5
+
+
+def test_align_channels_zero_lag_copies():
+    """lag == 0: both channels returned as copies of equal length."""
+    dry = _noise(0, n=SR)
+    wet = _noise(0, n=SR)  # same content → zero lag
+    dry_a, wet_a = align_channels(dry, wet, SR)
+    assert len(dry_a) == len(wet_a)
+    assert dry_a.dtype == np.float32
+    assert wet_a.dtype == np.float32

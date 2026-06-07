@@ -146,3 +146,59 @@ def test_roundtrip_produces_identical_output():
     sim = KlonSim(p)
     sim2 = KlonSim.from_dict(sim.to_dict())
     np.testing.assert_array_equal(sim.process(audio, SR), sim2.process(audio, SR))
+
+
+# ── KlonKnobs ────────────────────────────────────────────────────────────────
+
+from pedal_model.synthetic.pedal import KlonKnobs
+
+
+def test_knob_to_params_delta_returns_required_keys():
+    knobs = KlonKnobs()
+    delta = knobs.to_params_delta()
+    assert set(delta.keys()) == {"drive", "presence_db", "output_level"}
+
+
+def test_knob_default_drive_in_valid_range():
+    """9-o'clock gain → drive should be between 1.5 and 12.0."""
+    knobs = KlonKnobs()
+    delta = knobs.to_params_delta()
+    assert 1.5 <= delta["drive"] <= 12.0
+
+
+def test_knob_min_gain_gives_min_drive():
+    knobs = KlonKnobs(gain=0.0)
+    delta = knobs.to_params_delta()
+    assert delta["drive"] == pytest.approx(1.5, rel=0.01)
+
+
+def test_knob_max_gain_gives_max_drive():
+    knobs = KlonKnobs(gain=1.0)
+    delta = knobs.to_params_delta()
+    assert delta["drive"] == pytest.approx(12.0, rel=0.01)
+
+
+def test_knob_treble_linear_mapping():
+    """treble=0 → presence_db=-3; treble=1 → presence_db=+12."""
+    assert KlonKnobs(treble=0.0).to_params_delta()["presence_db"] == pytest.approx(-3.0, abs=1e-4)
+    assert KlonKnobs(treble=1.0).to_params_delta()["presence_db"] == pytest.approx(12.0, abs=1e-4)
+
+
+def test_knob_volume_linear_mapping():
+    """volume=0 → 0.2; volume=1 → 1.0."""
+    assert KlonKnobs(volume=0.0).to_params_delta()["output_level"] == pytest.approx(0.2, abs=1e-4)
+    assert KlonKnobs(volume=1.0).to_params_delta()["output_level"] == pytest.approx(1.0, abs=1e-4)
+
+
+def test_knob_as_tensor_shape_and_dtype():
+    knobs = KlonKnobs()
+    arr = knobs.as_tensor()
+    assert arr.shape == (3,)
+    assert arr.dtype == np.float32
+
+
+def test_knob_as_tensor_values_match_knob_positions():
+    gain, treble, volume = 0.1, 0.5, 0.8
+    knobs = KlonKnobs(gain=gain, treble=treble, volume=volume)
+    arr = knobs.as_tensor()
+    np.testing.assert_array_almost_equal(arr, [gain, treble, volume])

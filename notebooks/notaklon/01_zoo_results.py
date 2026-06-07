@@ -98,41 +98,14 @@ def _(mo):
 
 
 @app.cell
-def _(mo, plt, sns, zoo):
+def _(mo, zoo):
+    from pedal_model.utils.plotting import plot_metrics_heatmap
+
     if zoo is None:
         mo.stop(True, mo.md("*No results loaded.*"))
 
     df_all = zoo.to_dataframe()
-
-    _metric_cols = [c for c in df_all.columns if c not in ("type", "fit_s", "predict_s")]
-    _display_metrics = [
-        m for m in ["ESR", "null_depth_dB", "STFT", "FR_err_dB",
-                    "THD_err", "THD_pattern_dist", "HP_sim", "MCD"]
-        if m in _metric_cols
-    ]
-
-    if not _display_metrics:
-        mo.stop(True, mo.md("*No metric columns found in results.*"))
-
-    _df_heat = df_all[_display_metrics].copy()
-
-    # Normalise each column to [0, 1] for the heatmap colour scale
-    _df_norm = (_df_heat - _df_heat.min()) / (_df_heat.max() - _df_heat.min() + 1e-9)
-
-    fig_heat, ax_heat = plt.subplots(figsize=(max(8, len(_display_metrics) * 1.1), max(4, len(_df_heat) * 0.5)))
-    sns.heatmap(
-        _df_norm,
-        ax=ax_heat,
-        annot=_df_heat.round(3),
-        fmt=".3g",
-        cmap="RdYlGn_r",
-        linewidths=0.5,
-        cbar_kws={"label": "normalised (0=best, 1=worst)"},
-    )
-    ax_heat.set_title("Model zoo — mean metrics across all sections")
-    ax_heat.set_xlabel("")
-    ax_heat.set_ylabel("")
-    plt.tight_layout()
+    fig_heat = plot_metrics_heatmap(df_all)
     mo.mpl.interactive(fig_heat)
     return (df_all,)
 
@@ -231,6 +204,44 @@ def _(mo, model_selector, np, plt, section_selector, zoo):
 @app.cell(hide_code=True)
 def _(mo):
     mo.md("""
+    ## Spectrum comparison (log-smoothed)
+    """)
+    return
+
+
+@app.cell
+def _(mo, model_selector, plt, zoo):
+    from pedal_model.utils.plotting import compare_spectra_smooth
+
+    if zoo is None or not model_selector.value:
+        mo.stop(True, mo.md("*Select at least one model.*"))
+
+    _sr = zoo.sr
+    _start = int(2.0 * _sr)
+    _end = _start + int(0.5 * _sr)  # 500 ms window for stable spectrum
+
+    _cmap = plt.cm.tab10
+    _signals: dict = {}
+    for _i, _key in enumerate(model_selector.value):
+        if _key in zoo.models:
+            _signals[_key] = (
+                zoo.models[_key].prediction[_start:_end],
+                _cmap(_i / max(1, len(model_selector.value))),
+            )
+    _signals["target"] = (zoo.wet_val[_start:_end], "black")  # drawn last → on top
+
+    fig_spec = compare_spectra_smooth(
+        _signals, _sr, n_bins=512, f_min=20.0, floor_db=-120.0,
+        figsize=(14, 5),
+        title="Magnitude spectrum — 500 ms window (all traces: 512 log-spaced bins)",
+    )
+    mo.mpl.interactive(fig_spec)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
     ## Null-test depth (dB) — higher is better
     """)
     return
@@ -298,7 +309,9 @@ def _(mo):
 
 
 @app.cell
-def _(mo, model_selector, pd, plt, zoo):
+def _(mo, model_selector, pd, zoo):
+    from pedal_model.utils.plotting import plot_esr_scatter
+
     if zoo is None or not model_selector.value:
         mo.stop(True)
 
@@ -312,26 +325,7 @@ def _(mo, model_selector, pd, plt, zoo):
     if _df_esr.empty:
         mo.stop(True, mo.md("*No ESR data.*"))
 
-    _cmap = plt.cm.tab10
-    fig_esr, ax_esr = plt.subplots(figsize=(14, 4))
-    for _i, _key in enumerate(_selected):
-        _sub = _df_esr[_df_esr["model"] == _key]
-        ax_esr.scatter(
-            _sub["section"],
-            _sub["ESR"].clip(upper=2.0),
-            label=_key,
-            s=40,
-            alpha=0.8,
-            color=_cmap(_i / max(1, len(_selected))),
-        )
-
-    ax_esr.axhline(0.01, color="green", ls="--", lw=1, label="ESR=0.01 target")
-    ax_esr.set_xlabel("section")
-    ax_esr.set_ylabel("ESR (clipped at 2.0)")
-    ax_esr.set_title("ESR per section (lower is better)")
-    ax_esr.legend(fontsize=8)
-    plt.xticks(rotation=45, ha="right", fontsize=7)
-    plt.tight_layout()
+    fig_esr = plot_esr_scatter(_df_esr)
     mo.mpl.interactive(fig_esr)
     return
 
@@ -376,6 +370,33 @@ def _(mo, zoo):
     heavy lifting (suggesting the topology assumptions are wrong or incomplete).
     """
         )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md("""
+    ## CircuitDictionary — learned topology
+    """)
+    return
+
+
+@app.cell
+def _(mo, zoo):
+    from pedal_model.utils.plotting import plot_topology_weights
+
+    if zoo is None:
+        mo.stop(True)
+
+    _cd = zoo.models.get("circuit_dict")
+    if _cd is None or _cd.topology is None:
+        mo.md(
+            "*circuit_dict not in results or topology not stored.*\n\n"
+            "Run eval with classical models to populate this field."
+        )
+    else:
+        fig_topo = plot_topology_weights(_cd.topology)
+        mo.mpl.interactive(fig_topo)
     return
 
 

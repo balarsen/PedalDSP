@@ -187,6 +187,31 @@ def test_analyse_ddsp_fraction_in_range():
     assert result["ddsp_esr"] >= 0.0
 
 
+# ── Initialisation sanity ────────────────────────────────────────────────── #
+
+
+def test_initial_correction_is_small_relative_to_ddsp():
+    """gru_fc must be initialised with small weights so the model starts near-DDSP-only.
+
+    If gru_fc starts with large random weights (PyTorch default Kaiming-uniform),
+    the GRU correction immediately dominates over the physics stage, pushing
+    full_esr > 1.0 from epoch 0 and stalling training.
+    """
+    torch.manual_seed(0)
+    model = KlonDDSP()
+    x = _dry_t(batch=1, time=CHUNK)
+    with torch.no_grad():
+        out, _ = model(x)  # (1, CHUNK, 1)
+        ddsp_only = model._ddsp_stage(x.squeeze(-1))  # (1, CHUNK)
+        correction = out.squeeze(-1) - ddsp_only  # (1, CHUNK)
+    ddsp_rms = float(ddsp_only.pow(2).mean().sqrt())
+    correction_rms = float(correction.pow(2).mean().sqrt())
+    # Correction should be at least 100× quieter than the physics stage at init
+    assert correction_rms < ddsp_rms * 0.01, (
+        f"correction_rms={correction_rms:.4f} too large vs ddsp_rms={ddsp_rms:.4f}"
+    )
+
+
 # ── Knob defaults ─────────────────────────────────────────────────────────── #
 
 

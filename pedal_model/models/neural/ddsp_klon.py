@@ -70,6 +70,11 @@ class KlonDDSP(nn.Module, PedalModel):
         self.gru_hidden = gru_hidden
         self.gru = nn.GRU(1 + N_KNOBS, gru_hidden, batch_first=True)
         self.gru_fc = nn.Linear(gru_hidden, 1)
+        # Small init so the model starts near-DDSP-only; gradients still flow to GRU.
+        # Default Kaiming-uniform weights produce ~0.1 RMS correction noise that
+        # immediately pushes full_esr > 1, stalling training from the first step.
+        nn.init.normal_(self.gru_fc.weight, std=1e-3)
+        nn.init.zeros_(self.gru_fc.bias)
 
     # ── Derived parameters ────────────────────────────────────────────────── #
 
@@ -226,14 +231,15 @@ class KlonDDSP(nn.Module, PedalModel):
     def predict(
         self,
         x: np.ndarray,
-        chunk_size: int = 65536,
+        chunk_size: int = 16384,
         condition: np.ndarray | None = None,
     ) -> np.ndarray:
         """Chunked inference with GRU hidden state carried across chunks.
 
         Args:
             x: Dry input, shape (N,), float32.
-            chunk_size: Samples per chunk.
+            chunk_size: Samples per chunk. Must be ≤ 32768 to stay within cuDNN's
+                sequence-length limit when running on CUDA.
             condition: Knob positions [gain, treble, volume] ∈ [0, 1], shape (3,).
                 None → 9 o'clock defaults (all ≈ 0.273).
 
@@ -241,18 +247,19 @@ class KlonDDSP(nn.Module, PedalModel):
             Predicted wet signal, shape (N,), float32.
         """
         self.eval()
+        device = next(self.parameters()).device
         N = len(x)
         out = np.zeros(N, dtype=np.float32)
         hidden = None
         cond_t = (
-            torch.tensor(condition, dtype=torch.float32)
+            torch.tensor(condition, dtype=torch.float32).to(device)
             if condition is not None
             else None
         )
         with torch.no_grad():
             for start in range(0, N, chunk_size):
                 chunk = x[start : start + chunk_size]
-                t = torch.tensor(chunk, dtype=torch.float32).unsqueeze(0)  # (1, T)
+                t = torch.tensor(chunk, dtype=torch.float32).unsqueeze(0).to(device)
                 y, hidden = self(t, hidden, cond_t)
                 hidden = hidden.detach()
                 out[start : start + len(chunk)] = y.squeeze().cpu().numpy()
@@ -271,8 +278,9 @@ class KlonDDSP(nn.Module, PedalModel):
             DDSP-stage output, shape (N,), float32.
         """
         self.eval()
+        device = next(self.parameters()).device
         with torch.no_grad():
-            t = torch.tensor(x, dtype=torch.float32).unsqueeze(0)  # (1, N)
+            t = torch.tensor(x, dtype=torch.float32).unsqueeze(0).to(device)
             ddsp_out = self._ddsp_stage(t)
         return ddsp_out.squeeze(0).cpu().numpy().astype(np.float32)
 

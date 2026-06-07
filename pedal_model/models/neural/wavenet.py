@@ -89,7 +89,8 @@ class WaveNetModel(nn.Module, PedalModel):
 
     def predict(self, x: np.ndarray) -> np.ndarray:
         self.eval()
+        device = next(self.parameters()).device
         with torch.no_grad():
-            t = torch.tensor(x, dtype=torch.float32).unsqueeze(0).unsqueeze(0)
+            t = torch.tensor(x, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
             out = self(t)
         return out.squeeze().cpu().numpy().astype(np.float32)

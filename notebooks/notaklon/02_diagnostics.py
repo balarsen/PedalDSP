@@ -218,14 +218,14 @@ def _(COLOR_MAP, MODEL_NAMES, SECTION_TYPES, mo, np, pd, plt, zoo):
         ax_esr.bar(_x + _i * _w - 0.4, _vals, _w, label=_name,
                    color=COLOR_MAP[_name], alpha=0.85)
 
+    ax_esr.set_yscale("log")
     ax_esr.axhline(1.0, color="black", ls="--", lw=1, label="ESR=1 (worse than silence)")
     ax_esr.axhline(0.01, color="green", ls="--", lw=1, label="ESR=0.01 (good target)")
     ax_esr.set_xticks(_x)
     ax_esr.set_xticklabels(_types, rotation=20, ha="right")
-    ax_esr.set_ylabel("ESR (mean within type)")
+    ax_esr.set_ylabel("ESR (mean within type, log scale)")
     ax_esr.set_title("ESR per section type — lower is better")
     ax_esr.legend(fontsize=7, ncol=4)
-    ax_esr.set_ylim(bottom=0)
     plt.tight_layout()
     mo.mpl.interactive(fig_esr)
     return
@@ -292,7 +292,7 @@ def _(MODEL_NAMES, SECTION_LABELS, mo):
         label="Section",
     )
     wf_models = mo.ui.multiselect(
-        MODEL_NAMES, value=MODEL_NAMES[:4],
+        MODEL_NAMES, value=MODEL_NAMES,
         label="Models to overlay",
     )
     wf_window_ms = mo.ui.slider(10, 200, value=40, step=5, label="Window (ms)")
@@ -409,7 +409,7 @@ def _(mo):
 @app.cell
 def _(MODEL_NAMES, SECTION_LABELS, mo):
     fft_section = mo.ui.dropdown(SECTION_LABELS, value=SECTION_LABELS[0], label="Section")
-    fft_models  = mo.ui.multiselect(MODEL_NAMES, value=MODEL_NAMES[:5], label="Models")
+    fft_models  = mo.ui.multiselect(MODEL_NAMES, value=MODEL_NAMES, label="Models")
     mo.hstack([fft_section, fft_models])
     return fft_models, fft_section
 
@@ -439,13 +439,13 @@ def _(
     fig_fft, ax_fft = plt.subplots(figsize=(16, 6))
     _wet_chunk = zoo.wet_val[_s:_e]
     _f, _db = _mag_db(_wet_chunk)
-    ax_fft.semilogx(_f[1:], _db[1:], color="black", lw=1.5, label="target", zorder=5)
-
     for _name in fft_models.value:
         _pred = zoo.models[_name].prediction[_s:_e]
         _f2, _db2 = _mag_db(_pred)
         ax_fft.semilogx(_f2[1:], _db2[1:], lw=0.8, alpha=0.8,
                         color=COLOR_MAP[_name], label=_name)
+
+    ax_fft.semilogx(_f[1:], _db[1:], color="black", lw=1.5, label="target", zorder=5)
 
     ax_fft.set_xlim(20, sr // 2)
     ax_fft.set_xlabel("frequency (Hz)")

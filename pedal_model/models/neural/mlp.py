@@ -77,12 +77,13 @@ class MLPModel(nn.Module, PedalModel):
         windows = np.lib.stride_tricks.as_strided(
             padded, shape=(N, R), strides=(stride, stride)
         )
+        device = next(self.parameters()).device
         out = np.empty(N, dtype=np.float32)
         with torch.no_grad():
             for start in range(0, N, batch_size):
                 end = min(start + batch_size, N)
                 batch = torch.tensor(
                     windows[start:end].copy(), dtype=torch.float32
-                )
+                ).to(device)
                 out[start:end] = self(batch).squeeze(-1).cpu().numpy()
         return out

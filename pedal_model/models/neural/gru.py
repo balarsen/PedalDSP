@@ -58,23 +58,25 @@ class GRUModel(nn.Module, PedalModel):
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
         raise NotImplementedError("Use train/trainer.py to train neural models.")
 
-    def predict(self, x: np.ndarray, chunk_size: int = 65536) -> np.ndarray:
+    def predict(self, x: np.ndarray, chunk_size: int = 16384) -> np.ndarray:
         """Chunked inference with carried hidden state.
 
         Args:
             x: Dry input, shape (N,), float32.
-            chunk_size: Samples per chunk. Larger values reduce Python loop overhead.
+            chunk_size: Samples per chunk. Must be ≤ 32768 to stay within cuDNN's
+                sequence-length limit when running on CUDA.
 
         Returns:
             Predicted wet signal, shape (N,), float32.
         """
         self.eval()
+        device = next(self.parameters()).device
         out = np.zeros(len(x), dtype=np.float32)
         hidden = None
         with torch.no_grad():
             for start in range(0, len(x), chunk_size):
                 chunk = x[start : start + chunk_size]
-                t = torch.tensor(chunk, dtype=torch.float32).unsqueeze(0).unsqueeze(-1)
+                t = torch.tensor(chunk, dtype=torch.float32).unsqueeze(0).unsqueeze(-1).to(device)
                 y, hidden = self(t, hidden)
                 hidden = hidden.detach()
                 out[start : start + len(chunk)] = y.squeeze().cpu().numpy()

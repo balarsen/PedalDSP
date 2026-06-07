@@ -60,7 +60,7 @@ class EvalConfig:
     max_classical_samples: int | None = 200_000
     max_volterra_samples: int = 100_000
     max_train_samples: int | None = 500_000
-    neural_epochs: int = 30
+    neural_epochs: int = 300
     neural_batch_size: int = 32
     neural_chunk_size: int = 4096
     neural_lr: float = 3e-4
@@ -262,6 +262,45 @@ def fit_classical_parallel(
 # ── Neural sequential training ────────────────────────────────────────────── #
 
 
+def _select_seq_blocks(
+    dry: np.ndarray,
+    wet: np.ndarray,
+    max_samples: int,
+    block_size: int,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Build a training array from evenly-spaced contiguous blocks.
+
+    Selects ``max_samples // block_size`` non-overlapping blocks of
+    ``block_size`` samples, spaced evenly across the full signal.  Each
+    block is internally contiguous so recurrent models see valid sequential
+    dynamics within every training chunk.
+
+    Args:
+        dry: Full dry training signal, shape (N,).
+        wet: Full wet training signal, shape (N,).
+        max_samples: Target total sample count.
+        block_size: Block length in samples (should match neural_chunk_size).
+
+    Returns:
+        Tuple of concatenated ``(dry_blocks, wet_blocks)`` each of length
+        ``n_blocks * block_size``.
+    """
+    N = len(dry)
+    n_blocks = max_samples // block_size
+    if n_blocks * block_size >= N:
+        trim = (N // block_size) * block_size
+        return dry[:trim].copy(), wet[:trim].copy()
+    stride = N // n_blocks
+    dry_out = np.empty(n_blocks * block_size, dtype=np.float32)
+    wet_out = np.empty(n_blocks * block_size, dtype=np.float32)
+    for i in range(n_blocks):
+        src = i * stride
+        ds, de = i * block_size, (i + 1) * block_size
+        dry_out[ds:de] = dry[src : src + block_size]
+        wet_out[ds:de] = wet[src : src + block_size]
+    return dry_out, wet_out
+
+
 def _resolve_device(cfg: EvalConfig) -> torch.device:
     if cfg.device == "auto":
         return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -396,18 +435,28 @@ def _train_mlp(
 
 def train_neural_sequential(
     cfg: EvalConfig,
-    dry_train: np.ndarray,
-    wet_train: np.ndarray,
+    dry_train_rnd: np.ndarray,
+    wet_train_rnd: np.ndarray,
+    dry_train_seq: np.ndarray,
+    wet_train_seq: np.ndarray,
     dry_val: np.ndarray,
     wet_val: np.ndarray,
     sr: int,
 ) -> dict[str, tuple[np.ndarray, float, float, dict | None]]:
     """Train neural models one at a time on the available device.
 
+    MLP uses randomly-subsampled data (``_rnd``) to sample the full amplitude
+    range of the signal.  All sequential models (LSTM, GRU, TCN, DDSP,
+    KlonDDSP) use evenly-spaced contiguous blocks (``_seq``) so that each
+    training chunk contains coherent time-domain samples — a requirement for
+    recurrent hidden-state dynamics to be learnable.
+
     Args:
         cfg: Eval configuration.
-        dry_train: Dry training signal.
-        wet_train: Wet training signal.
+        dry_train_rnd: Randomly-subsampled dry training signal (for MLP).
+        wet_train_rnd: Randomly-subsampled wet training signal (for MLP).
+        dry_train_seq: Contiguous-block dry training signal (for recurrent/TCN).
+        wet_train_seq: Contiguous-block wet training signal (for recurrent/TCN).
         dry_val: Dry validation signal for prediction.
         wet_val: Wet validation signal (used for klon_ddsp fraction analysis).
         sr: Sample rate in Hz.
@@ -430,16 +479,17 @@ def train_neural_sequential(
 
         t0 = time.perf_counter()
         if key in ("tcn", "ddsp"):
-            # Both expect (batch, 1, time) channels-first input
-            _train_tcn(model, dry_train, wet_train, cfg, device)
+            # Channels-first (batch, 1, time); needs contiguous temporal data
+            _train_tcn(model, dry_train_seq, wet_train_seq, cfg, device)
         elif key == "mlp":
-            _train_mlp(model, dry_train, wet_train, cfg, device)
+            # Pointwise model; benefits from amplitude diversity of random samples
+            _train_mlp(model, dry_train_rnd, wet_train_rnd, cfg, device)
         else:
-            _train_recurrent(model, dry_train, wet_train, cfg, device)
+            # LSTM, GRU, klon_ddsp — recurrent; must have contiguous chunks
+            _train_recurrent(model, dry_train_seq, wet_train_seq, cfg, device)
         train_s = time.perf_counter() - t0
 
         model.eval()
-        model.cpu()
         t1 = time.perf_counter()
         pred = model.predict(dry_val)
         pred_s = time.perf_counter() - t1
@@ -528,14 +578,25 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     wet_train, _ = sf.read(str(wet_train_wav), dtype="float32", always_2d=False)
 
     if cfg.max_train_samples and len(dry_train) > cfg.max_train_samples:
+        # MLP: random subsampling for amplitude diversity across the full signal
         rng = np.random.default_rng(0)
         idx = np.sort(rng.choice(len(dry_train), cfg.max_train_samples, replace=False))
-        dry_train_neural = dry_train[idx]
-        wet_train_neural = wet_train[idx]
-        print(f"  subsampled train: {len(dry_train)} → {len(dry_train_neural)} samples")
+        dry_train_rnd = dry_train[idx]
+        wet_train_rnd = wet_train[idx]
+        # Recurrent/TCN: evenly-spaced contiguous blocks — preserves temporal coherence
+        # within each training chunk so recurrent models can learn sequential dynamics
+        dry_train_seq, wet_train_seq = _select_seq_blocks(
+            dry_train, wet_train, cfg.max_train_samples, cfg.neural_chunk_size
+        )
+        n_seq_blocks = len(dry_train_seq) // cfg.neural_chunk_size
+        print(
+            f"  train data: {len(dry_train)} total samples\n"
+            f"    MLP:       {len(dry_train_rnd)} random samples\n"
+            f"    recurrent: {len(dry_train_seq)} samples ({n_seq_blocks} contiguous blocks)"
+        )
     else:
-        dry_train_neural = dry_train
-        wet_train_neural = wet_train
+        dry_train_rnd = dry_train_seq = dry_train
+        wet_train_rnd = wet_train_seq = wet_train
 
     date_run = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     results = ZooResults(
@@ -567,7 +628,11 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     if cfg.run_neural:
         print("\nNeural models:")
         neural = train_neural_sequential(
-            cfg, dry_train_neural, wet_train_neural, dry_val, wet_val, sr
+            cfg,
+            dry_train_rnd, wet_train_rnd,
+            dry_train_seq, wet_train_seq,
+            dry_val, wet_val,
+            sr,
         )
         for key, (pred, train_s, pred_s, ddsp_analysis) in neural.items():
             metrics = _compute_metrics(wet_val, pred, dry_val, manifest, sr)

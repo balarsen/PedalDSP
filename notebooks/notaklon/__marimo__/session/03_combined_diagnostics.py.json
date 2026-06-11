@@ -1,0 +1,693 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.23.9",
+    "script_metadata_hash": "eca9fa8b487078d47d6ffbffef1b7c51"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "ff927b6c88800ecf2f537ef1188bda9f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Loaded: 12 models, 38 sections, sr=96000 Hz\nTone sections: 24, others: 14\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "9eed9eac46ce2f12f2a96d04e10a6beb",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h1 id=\"klonsim-combined-diagnostics\">KlonSim Combined Diagnostics</h1>\n<span class=\"paragraph\">Merges <code>02_diagnostics</code> with selected perceptual-error plots from\n<code>perceptual_metrics_explorer</code>.  <strong>21 plots</strong> across 7 sections.</span>\n<table>\n<thead>\n<tr>\n<th>#</th>\n<th>Plot</th>\n<th>Section</th>\n</tr>\n</thead>\n<tbody>\n<tr>\n<td>1.1</td>\n<td>RMS envelope</td>\n<td>1.0 \u2013 Signal overview</td>\n</tr>\n<tr>\n<td>1.2</td>\n<td>Summary metrics heatmap</td>\n<td>1.0</td>\n</tr>\n<tr>\n<td>1.3</td>\n<td>ESR by section type</td>\n<td>1.0</td>\n</tr>\n<tr>\n<td>2.1</td>\n<td>Waveform overlay + residual</td>\n<td>2.0 \u2013 Waveform / spectral</td>\n</tr>\n<tr>\n<td>2.2</td>\n<td>FFT spectrum comparison</td>\n<td>2.0</td>\n</tr>\n<tr>\n<td>2.3</td>\n<td>Spectrogram grid</td>\n<td>2.0</td>\n</tr>\n<tr>\n<td>3.1</td>\n<td>ESR vs null-test depth</td>\n<td>3.0 \u2013 Model ranking</td>\n</tr>\n<tr>\n<td>3.2</td>\n<td>ESR vs STFT loss</td>\n<td>3.0</td>\n</tr>\n<tr>\n<td>3.3</td>\n<td>ESR vs drive level</td>\n<td>3.0</td>\n</tr>\n<tr>\n<td>3.4</td>\n<td>ESR vs FR_err_dB</td>\n<td>3.0</td>\n</tr>\n<tr>\n<td>4.1</td>\n<td>THD analysis \u2014 tone sections</td>\n<td>4.0 \u2013 Harmonic / THD</td>\n</tr>\n<tr>\n<td>4.2</td>\n<td>THD_pattern_dist vs HP_sim scatter</td>\n<td>4.0</td>\n</tr>\n<tr>\n<td>4.3</td>\n<td>Per-harmonic amplitude comparison</td>\n<td>4.0</td>\n</tr>\n<tr>\n<td>5.1</td>\n<td>Masking threshold vs error</td>\n<td>5.0 \u2013 Perceptual error</td>\n</tr>\n<tr>\n<td>5.2</td>\n<td>A-weighted error spectrum</td>\n<td>5.0</td>\n</tr>\n<tr>\n<td>5.3</td>\n<td>Perceptual radar \u2014 5 models</td>\n<td>5.0</td>\n</tr>\n<tr>\n<td>6.1</td>\n<td>Clipping discriminator (synthetic)</td>\n<td>6.0 \u2013 Self-test</td>\n</tr>\n<tr>\n<td>7.1</td>\n<td>KlonDDSP circuit fraction</td>\n<td>7.0 \u2013 Circuit / timing</td>\n</tr>\n<tr>\n<td>7.2</td>\n<td>Timing chart (neural models)</td>\n<td>7.0</td>\n</tr>\n<tr>\n<td>7.3</td>\n<td>Raw per-section metrics table</td>\n<td>7.0</td>\n</tr>\n<tr>\n<td>7.4</td>\n<td>Aggregated summary table</td>\n<td>7.0</td>\n</tr>\n</tbody>\n</table>\n<span class=\"paragraph\">Plots 1.1\u20134.2, 7.1\u20137.4 come from <code>02_diagnostics</code>.\nPlots 4.3\u20136.1 come from <code>perceptual_metrics_explorer</code>.\nPlots 2.1, 2.2, 2.3, 7.2 have been modified (default section / neural-only filter).</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "e42e540a7f9bb9963c2cd941566a91c4",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"10-signal-and-model-overview\">1.0 \u2014 Signal and model overview</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "482a1b8c97415f4d27eb13d77b6fd1d7",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"11-rms-envelope\">1.1 \u2014 RMS envelope</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "0d81ad7c8105f76c844b7b38ba5d4470",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "492d8410c139df6045a04221c85fc47b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"12-summary-metrics-heatmap-mean-across-all-sections\">1.2 \u2014 Summary metrics heatmap (mean across all sections)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "2a0c7764500b7a6ab7d0dac705b0334d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Perceptual cache ready for 12 models\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "982d62dccfb92b2e2492159d62be4dc3",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "61686f853781cf06b9fb154882a8bc78",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"13-esr-per-section-grouped-by-section-type\">1.3 \u2014 ESR per section (grouped by section type)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "51579f0888208cb9e3fea9725ccba6db",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "6b3beb81df2eb4fc019d979a51569684",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003eViable models&#92;u003c/strong&#92;u003e (mean ESR &amp;lt; 1.0, null_depth &amp;gt; 0 dB):&#92;ntcn (ESR=0.007), fir (ESR=0.192), volterra (ESR=0.556), wiener_hammerstein (ESR=0.650)&#92;u003c/span&#92;u003e&#92;n&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003eMarginal&#92;u003c/strong&#92;u003e (mean ESR &amp;lt; 1.0, null_depth \u2264 0 dB):&#92;n&#92;u003cem&#92;u003e(none)&#92;u003c/em&#92;u003e&#92;u003c/span&#92;u003e&#92;n&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003eNot viable&#92;u003c/strong&#92;u003e (mean ESR \u2265 1.0):&#92;nhammerstein (ESR=1.106), ddsp (ESR=1.206), iir (ESR=1.598), circuit_dict (ESR=1.879), mlp (ESR=2.243), lstm (ESR=5.551), gru (ESR=8.554), klon_ddsp (ESR=12.368)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;success&quot;'></marimo-callout-output>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "678e3b7eb708a78190975e8741adb17d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"20-waveform-and-spectral-views\">2.0 \u2014 Waveform and spectral views</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "9235d644a1d16f1d3a25fef0bf8bee4c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"21-waveform-overlay\">2.1 \u2014 Waveform overlay</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "a242e76a703bf60f9c04b960bd48f069",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-ui-element object-id='nWHF-0' random-id='84ea2cb7-da8e-183b-63c6-bd4ea052dac3'><marimo-dropdown data-initial-value='[&quot;val_stepped_tone_f988_l-3&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id='nWHF-1' random-id='9ced6748-8505-9a39-8177-968f688c4009'><marimo-multiselect data-initial-value='[&quot;tcn&quot;,&quot;fir&quot;,&quot;wiener_hammerstein&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModels to overlay&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;hammerstein&quot;,&quot;iir&quot;,&quot;fir&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;circuit_dict&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-full-width='false' data-disabled='false'></marimo-multiselect></marimo-ui-element><marimo-ui-element object-id='nWHF-2' random-id='02591731-7a83-ca2b-4e60-0e2fbe657615'><marimo-slider data-initial-value='40' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eWindow (ms)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-start='10' data-stop='200' data-step='5' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element><marimo-ui-element object-id='nWHF-3' random-id='2c006c54-42ff-cb9a-6a7a-70a4b2b70ce0'><marimo-slider data-initial-value='0' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eOffset into section (ms)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-start='0' data-stop='500' data-step='5' data-steps='[]' data-debounce='false' data-disabled='false' data-orientation='&quot;horizontal&quot;' data-show-value='false' data-include-input='false' data-full-width='false'></marimo-slider></marimo-ui-element></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "f3ac00e75567b62850d8646183e6f884",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "5c071669c117b2bf70f9666dcec01441",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"22-fft-spectrum-comparison-4-section-ladder\">2.2 \u2014 FFT spectrum comparison \u2014 4-section ladder</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": "c51c516ed7ca2a44958806aef83c7cc7",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "29ddd05c199cfe1b50e1af6ee4fea33d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"23-spectrogram-target-error-best-model\">2.3 \u2014 Spectrogram: target + error (best model)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "2fc0705b4402b0c211287444bca596ca",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='TqIu-0' random-id='b75d30bb-d2c0-a15b-63d6-91b7995675b1'><marimo-dropdown data-initial-value='[&quot;val_stepped_tone_f988_l-3&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection for spectrogram&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_sweep_l-24&quot;,&quot;val_sweep_l-12&quot;,&quot;val_sweep_l-3&quot;,&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f988_l-3&quot;,&quot;val_pink_l-18&quot;,&quot;val_pink_l-6&quot;,&quot;val_two_tone_f196_f294&quot;,&quot;val_two_tone_f247_f370&quot;,&quot;val_two_tone_f392_f523&quot;,&quot;val_impulse_train&quot;,&quot;val_pluck_f147&quot;,&quot;val_pluck_f196&quot;,&quot;val_pluck_f247&quot;,&quot;val_pluck_f392&quot;,&quot;val_pluck_f659&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "013534a8ed4012957277ac830dca9a65",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "d5daef8c2490a626607abdb4d89113a3",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"30-model-ranking-and-diagnostic-scatters\">3.0 \u2014 Model ranking and diagnostic scatters</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "9a6f49a7a5f74c67b799305fdc8f5494",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"31-esr-vs-null-test-depth\">3.1 \u2014 ESR vs null-test depth</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ecfG",
+      "code_hash": "1f5a626784de5b0c3fcfebb4f4566a2b",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Pvdt",
+      "code_hash": "799edc9b332c4a04cc3724087ed77c65",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"32-esr-vs-stft-loss\">3.2 \u2014 ESR vs STFT loss</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ZBYS",
+      "code_hash": "500d10547fd2c4379aeb498a5613c737",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "aLJB",
+      "code_hash": "73b3d77de8dceab9affe39770667a7e0",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"33-esr-vs-drive-level\">3.3 \u2014 ESR vs drive level</h2>\n<span class=\"paragraph\">The Klon's gain stage is drive-dependent: at high drive levels the circuit saturates\nharder, producing a richer harmonic spectrum that is more difficult to model.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "nHfw",
+      "code_hash": "05afb0c2d42deac5237a54b105573810",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "xXTn",
+      "code_hash": "819d382f6141bf258dc670855b585d44",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"34-esr-vs-fr_err_db\">3.4 \u2014 ESR vs FR_err_dB</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "AjVT",
+      "code_hash": "78c8873ea547903212d0d38083f88c4f",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "pHFh",
+      "code_hash": "3e8009ce66441159939c417381b59ba6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"40-harmonic-and-thd-analysis\">4.0 \u2014 Harmonic and THD analysis</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "NCOB",
+      "code_hash": "66a60217824f924d5fa92c123c66014f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"41-thd-analysis-tone-sections-x-axis-sorted-by-drive-level\">4.1 \u2014 THD analysis \u2014 tone sections (x-axis sorted by drive level)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "aqbW",
+      "code_hash": "ef085d6d2da119367eba956f2cb8a6a6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TRpd",
+      "code_hash": "1e2990d6ba883b792ce7d093763aa2cc",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"42-thd_pattern_dist-vs-hp_sim\">4.2 \u2014 THD_pattern_dist vs HP_sim</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TXez",
+      "code_hash": "8532fcb2883724abbf4df752043699b0",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "dNNg",
+      "code_hash": "10a1f9954fa1476c94cf230c20be87e6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"43-per-harmonic-amplitude-comparison\">4.3 \u2014 Per-harmonic amplitude comparison</h2>\n<span class=\"paragraph\">Use the dropdowns below to select a model and a tone section.\nThe same selection drives plots 14 and 15.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "yCnT",
+      "code_hash": "095afd4b1aaa1af714f758979b5059e0",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: row;justify-content: space-between;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><marimo-ui-element object-id='yCnT-0' random-id='214363f7-33e7-da85-f102-7247af887f98'><marimo-dropdown data-initial-value='[&quot;tcn&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModel (plots 13-15)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;hammerstein&quot;,&quot;iir&quot;,&quot;fir&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;circuit_dict&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element><marimo-ui-element object-id='yCnT-1' random-id='34d08b1a-8728-42f0-2f92-5b047d04d74b'><marimo-dropdown data-initial-value='[&quot;val_stepped_tone_f988_l-3&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eSection&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;val_stepped_tone_f147_l-18&quot;,&quot;val_stepped_tone_f196_l-18&quot;,&quot;val_stepped_tone_f247_l-18&quot;,&quot;val_stepped_tone_f294_l-18&quot;,&quot;val_stepped_tone_f392_l-18&quot;,&quot;val_stepped_tone_f523_l-18&quot;,&quot;val_stepped_tone_f784_l-18&quot;,&quot;val_stepped_tone_f988_l-18&quot;,&quot;val_stepped_tone_f147_l-9&quot;,&quot;val_stepped_tone_f196_l-9&quot;,&quot;val_stepped_tone_f247_l-9&quot;,&quot;val_stepped_tone_f294_l-9&quot;,&quot;val_stepped_tone_f392_l-9&quot;,&quot;val_stepped_tone_f523_l-9&quot;,&quot;val_stepped_tone_f784_l-9&quot;,&quot;val_stepped_tone_f988_l-9&quot;,&quot;val_stepped_tone_f147_l-3&quot;,&quot;val_stepped_tone_f196_l-3&quot;,&quot;val_stepped_tone_f247_l-3&quot;,&quot;val_stepped_tone_f294_l-3&quot;,&quot;val_stepped_tone_f392_l-3&quot;,&quot;val_stepped_tone_f523_l-3&quot;,&quot;val_stepped_tone_f784_l-3&quot;,&quot;val_stepped_tone_f988_l-3&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "wlCL",
+      "code_hash": "52228d97cb477443cdb5e76e1a7f980e",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "kqZH",
+      "code_hash": "91c3effb3fcda3e3a92bb5ec138ab2f4",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "wAgl",
+      "code_hash": "823fdcc87b6498937004e90149e4c994",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"50-perceptual-error-analysis\">5.0 \u2014 Perceptual error analysis</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "rEll",
+      "code_hash": "7e7070dec01d1ed7c5f10480945f2ae6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"51-masking-threshold-vs-error\">5.1 \u2014 Masking threshold vs error</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "dGlV",
+      "code_hash": "72461c8ea81ef9e61c4636a88f7987a0",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "SdmI",
+      "code_hash": "8581d96de6feb87ae312ce651dcd48e8",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"52-a-weighted-error-spectrum\">5.2 \u2014 A-weighted error spectrum</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lgWD",
+      "code_hash": "f7876dea6394501a241ea96b36f48ad3",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "yOPj",
+      "code_hash": "bdadaac7fe6ff307a86d73947096e8b2",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"53-perceptual-radar-chart-5-models\">5.3 \u2014 Perceptual radar chart \u2014 5 models</h2>\n<span class=\"paragraph\">Models: <code>tcn</code>, <code>fir</code>, <code>wiener_hammerstein</code>, <code>lstm</code>, <code>klon_ddsp</code>\n(subset shown only; uses full 10 s of val signal).</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "fwwy",
+      "code_hash": "b9f60cc9a33f345e2a51969bb02fdbb4",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "LJZf",
+      "code_hash": "5ab7df298cc9117b090c5bba2a8b9faf",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "urSm",
+      "code_hash": "0a762669ec99818bac7f29d9a82036cc",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"60-perceptual-metric-self-test\">6.0 \u2014 Perceptual metric self-test</h2>\n<h2 id=\"61-clipping-discriminator\">6.1 \u2014 Clipping discriminator</h2>\n<span class=\"paragraph\">Validates that the metrics catch the known failure mode: a model that sounds\n<strong>too clean</strong> vs one that captures clipping character.</span>\n<span class=\"paragraph\">Two <strong>hand-built synthetic signals</strong> are compared (neither is a zoo model):</span>\n<ul>\n<li><strong><code>linear_approx</code></strong> \u2014 3 kHz low-pass linear EQ applied to dry signal, RMS-scaled to match target level</li>\n<li><strong><code>clipped</code></strong> \u2014 dry signal hard-clipped at 6\u00d7 gain (\u00b10.5), then 100 Hz high-pass filtered</li>\n</ul>\n<span class=\"paragraph\">Correct result: <code>linear_approx</code> should score <strong>worse</strong> than <code>clipped</code> on\n<code>harmonic_weighted</code>, <code>masking_weighted</code>, and <code>signal_adaptive_weighted</code>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "jxvo",
+      "code_hash": "711456b3be79d2ec47376e943890cdf5",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><strong>2/6 metrics</strong> correctly score <code>linear_approx</code> worse than <code>clipped</code>.</span></span><marimo-ui-element object-id='jxvo-0' random-id='9a312939-23a3-5efd-fd6d-dd5e12eee0a6'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;Metric&#92;&quot;:&#92;&quot;mel_axis&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;64.6162&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;60.6998&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2713&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;equal_loudness&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.0185&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.0645&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;masking&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.0248&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.0167&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2713&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;signal_adaptive&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;23.7861&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;94.4811&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;guitar_prior&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.1355&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.4698&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;harmonic&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.0432&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.1144&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;}]&quot;' data-total-rows='6' data-total-columns='4' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='false' data-page-size='10' data-selection='&quot;multi&quot;' data-show-filters='false' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-hidden-columns='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element><marimo-callout-output data-html='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003e&#92;u003cstrong&#92;u003e4 metric(s) marked \u2717&#92;u003c/strong&#92;u003e do not correctly distinguish a linear approximation from clipped audio on this signal. Treat their scores with caution until the composite weighting is validated against listening tests.&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-kind='&quot;warn&quot;'></marimo-callout-output></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "mWxS",
+      "code_hash": "90d7af98533f26e00c83d494c296e78f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"70-circuit-topology-and-timing\">7.0 \u2014 Circuit topology and timing</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "CcZR",
+      "code_hash": "42df74b5fa339e94c02980d2fa7f1343",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"71-klonddsp-circuit-vs-ml-correction-fraction\">7.1 \u2014 KlonDDSP: circuit vs ML correction fraction</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "YWSi",
+      "code_hash": "6f52afdcefa7af0df3fa79089f693c98",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "klon_ddsp.ddsp_analysis keys: ['ddsp_esr', 'full_esr', 'correction_rms_ratio', 'ddsp_fraction']\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "zlud",
+      "code_hash": "9c09cd7303524d8cb80894c4fd059bfa",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"72-timing-neural-models\">7.2 \u2014 Timing (neural models)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "tZnO",
+      "code_hash": "78b76ebef3c99cd62c1ee17934f21c81",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Neural models: ['mlp', 'lstm', 'gru', 'tcn', 'ddsp', 'klon_ddsp']\nfit times:     [1656.2154628279968, 2930.5109663049807, 3171.6916100660164, 19845.941588421003, 1716.1121559210005, 4704.073342146992]\npredict times: [14.460593688010704, 2.2074153459980153, 2.226606713986257, 1.3640113570145331, 0.040870741999242455, 2.65876046998892]\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "xvXZ",
+      "code_hash": "1a2db7cdb7d7fd5430e3070b87804770",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"73-raw-per-section-metrics-table\">7.3 \u2014 Raw per-section metrics table</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "CLip",
+      "code_hash": "eb33abffcef2694ce5f61963f5585ace",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='CLip-0' random-id='8f1917e5-baea-b115-e242-9aa14bc44493'><marimo-dropdown data-initial-value='[&quot;hammerstein&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModel&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;hammerstein&quot;,&quot;iir&quot;,&quot;fir&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;circuit_dict&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "YECM",
+      "code_hash": "3de5d3fc71e0258d19783631d53ebb0b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='YECM-0' random-id='23890e2a-4975-1c3e-e6e2-6b88d16468e3'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;_marimo_row_id&#92;&quot;:0,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-24&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.7849,&#92;&quot;null_depth_dB&#92;&quot;:1.0518,&#92;&quot;STFT&#92;&quot;:5.8246,&#92;&quot;FR_err_dB&#92;&quot;:25.3751,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:1,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-12&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.7651,&#92;&quot;null_depth_dB&#92;&quot;:1.163,&#92;&quot;STFT&#92;&quot;:5.2571,&#92;&quot;FR_err_dB&#92;&quot;:22.4876,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:2,&#92;&quot;section&#92;&quot;:&#92;&quot;val_sweep_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.7687,&#92;&quot;null_depth_dB&#92;&quot;:1.1422,&#92;&quot;STFT&#92;&quot;:4.9757,&#92;&quot;FR_err_dB&#92;&quot;:12.7706,&#92;&quot;THD_target&#92;&quot;:NaN,&#92;&quot;THD_pred&#92;&quot;:NaN,&#92;&quot;THD_pattern_dist&#92;&quot;:NaN,&#92;&quot;HP_sim&#92;&quot;:NaN},{&#92;&quot;_marimo_row_id&#92;&quot;:3,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.8055,&#92;&quot;null_depth_dB&#92;&quot;:-2.5661,&#92;&quot;STFT&#92;&quot;:5.8112,&#92;&quot;FR_err_dB&#92;&quot;:38.3329,&#92;&quot;THD_target&#92;&quot;:9.6991,&#92;&quot;THD_pred&#92;&quot;:0.1058,&#92;&quot;THD_pattern_dist&#92;&quot;:0.096,&#92;&quot;HP_sim&#92;&quot;:0.9954},{&#92;&quot;_marimo_row_id&#92;&quot;:4,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-9&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.8717,&#92;&quot;null_depth_dB&#92;&quot;:-2.7223,&#92;&quot;STFT&#92;&quot;:5.3066,&#92;&quot;FR_err_dB&#92;&quot;:34.4126,&#92;&quot;THD_target&#92;&quot;:56.7278,&#92;&quot;THD_pred&#92;&quot;:0.8312,&#92;&quot;THD_pattern_dist&#92;&quot;:0.5591,&#92;&quot;HP_sim&#92;&quot;:0.8738},{&#92;&quot;_marimo_row_id&#92;&quot;:5,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f147_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.8062,&#92;&quot;null_depth_dB&#92;&quot;:-2.5677,&#92;&quot;STFT&#92;&quot;:5.0284,&#92;&quot;FR_err_dB&#92;&quot;:31.979,&#92;&quot;THD_target&#92;&quot;:124.7443,&#92;&quot;THD_pred&#92;&quot;:3.4022,&#92;&quot;THD_pattern_dist&#92;&quot;:1.2157,&#92;&quot;HP_sim&#92;&quot;:0.6499},{&#92;&quot;_marimo_row_id&#92;&quot;:6,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.3799,&#92;&quot;null_depth_dB&#92;&quot;:-1.3985,&#92;&quot;STFT&#92;&quot;:5.9675,&#92;&quot;FR_err_dB&#92;&quot;:25.056,&#92;&quot;THD_target&#92;&quot;:6.107,&#92;&quot;THD_pred&#92;&quot;:0.1285,&#92;&quot;THD_pattern_dist&#92;&quot;:0.0598,&#92;&quot;HP_sim&#92;&quot;:0.9982},{&#92;&quot;_marimo_row_id&#92;&quot;:7,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-9&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.462,&#92;&quot;null_depth_dB&#92;&quot;:-1.6494,&#92;&quot;STFT&#92;&quot;:5.4941,&#92;&quot;FR_err_dB&#92;&quot;:52.1921,&#92;&quot;THD_target&#92;&quot;:35.1538,&#92;&quot;THD_pred&#92;&quot;:1.0204,&#92;&quot;THD_pattern_dist&#92;&quot;:0.3415,&#92;&quot;HP_sim&#92;&quot;:0.9467},{&#92;&quot;_marimo_row_id&#92;&quot;:8,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f196_l-3&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.5429,&#92;&quot;null_depth_dB&#92;&quot;:-1.8835,&#92;&quot;STFT&#92;&quot;:5.1793,&#92;&quot;FR_err_dB&#92;&quot;:47.3918,&#92;&quot;THD_target&#92;&quot;:75.1802,&#92;&quot;THD_pred&#92;&quot;:4.1816,&#92;&quot;THD_pattern_dist&#92;&quot;:0.7125,&#92;&quot;HP_sim&#92;&quot;:0.8223},{&#92;&quot;_marimo_row_id&#92;&quot;:9,&#92;&quot;section&#92;&quot;:&#92;&quot;val_stepped_tone_f247_l-18&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.2102,&#92;&quot;null_depth_dB&#92;&quot;:-0.8286,&#92;&quot;STFT&#92;&quot;:5.8918,&#92;&quot;FR_err_dB&#92;&quot;:44.2534,&#92;&quot;THD_target&#92;&quot;:4.5448,&#92;&quot;THD_pred&#92;&quot;:0.102,&#92;&quot;THD_pattern_dist&#92;&quot;:0.0445,&#92;&quot;HP_sim&#92;&quot;:0.999}]&quot;' data-total-rows='38' data-total-columns='9' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;section&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;ESR&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;null_depth_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;STFT&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;FR_err_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_target&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pred&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pattern_dist&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;HP_sim&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-selection='&quot;multi&quot;' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-hidden-columns='[]' data-has-stable-row-id='true' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "cEAS",
+      "code_hash": "65c572313c065e3466ac84d00196b19c",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"74-aggregated-summary-table\">7.4 \u2014 Aggregated summary table</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "iXej",
+      "code_hash": "46d5d36985f8fdc5741f51a6eb369bf6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='iXej-0' random-id='775de771-1915-620d-4d18-72c03d36f149'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;_marimo_row_id&#92;&quot;:0,&#92;&quot;model&#92;&quot;:&#92;&quot;hammerstein&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.1061,&#92;&quot;null_depth_dB&#92;&quot;:-0.1407,&#92;&quot;STFT&#92;&quot;:5.5318,&#92;&quot;FR_err_dB&#92;&quot;:30.5635,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:2.4705,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2379,&#92;&quot;HP_sim&#92;&quot;:0.9565,&#92;&quot;fit_s&#92;&quot;:3.7498,&#92;&quot;predict_s&#92;&quot;:1.2724},{&#92;&quot;_marimo_row_id&#92;&quot;:1,&#92;&quot;model&#92;&quot;:&#92;&quot;iir&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.5979,&#92;&quot;null_depth_dB&#92;&quot;:-0.1528,&#92;&quot;STFT&#92;&quot;:5.3365,&#92;&quot;FR_err_dB&#92;&quot;:33.5635,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.0001,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2602,&#92;&quot;HP_sim&#92;&quot;:0.9505,&#92;&quot;fit_s&#92;&quot;:18.3548,&#92;&quot;predict_s&#92;&quot;:0.3533},{&#92;&quot;_marimo_row_id&#92;&quot;:2,&#92;&quot;model&#92;&quot;:&#92;&quot;fir&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.1916,&#92;&quot;null_depth_dB&#92;&quot;:7.7923,&#92;&quot;STFT&#92;&quot;:4.5514,&#92;&quot;FR_err_dB&#92;&quot;:20.0169,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.0002,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2602,&#92;&quot;HP_sim&#92;&quot;:0.9505,&#92;&quot;fit_s&#92;&quot;:26.2168,&#92;&quot;predict_s&#92;&quot;:0.5768},{&#92;&quot;_marimo_row_id&#92;&quot;:3,&#92;&quot;model&#92;&quot;:&#92;&quot;wiener_hammerstein&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.6497,&#92;&quot;null_depth_dB&#92;&quot;:2.9538,&#92;&quot;STFT&#92;&quot;:4.4782,&#92;&quot;FR_err_dB&#92;&quot;:11.3403,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:6.4484,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2122,&#92;&quot;HP_sim&#92;&quot;:0.9623,&#92;&quot;fit_s&#92;&quot;:101.0087,&#92;&quot;predict_s&#92;&quot;:1.0911},{&#92;&quot;_marimo_row_id&#92;&quot;:4,&#92;&quot;model&#92;&quot;:&#92;&quot;volterra&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.5563,&#92;&quot;null_depth_dB&#92;&quot;:3.2408,&#92;&quot;STFT&#92;&quot;:5.4656,&#92;&quot;FR_err_dB&#92;&quot;:25.4349,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.1105,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2602,&#92;&quot;HP_sim&#92;&quot;:0.9505,&#92;&quot;fit_s&#92;&quot;:444.9586,&#92;&quot;predict_s&#92;&quot;:17.4071},{&#92;&quot;_marimo_row_id&#92;&quot;:5,&#92;&quot;model&#92;&quot;:&#92;&quot;circuit_dict&#92;&quot;,&#92;&quot;ESR&#92;&quot;:1.8789,&#92;&quot;null_depth_dB&#92;&quot;:-1.7115,&#92;&quot;STFT&#92;&quot;:2.6225,&#92;&quot;FR_err_dB&#92;&quot;:15.6629,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:11.5924,&#92;&quot;THD_pattern_dist&#92;&quot;:0.2984,&#92;&quot;HP_sim&#92;&quot;:0.9475,&#92;&quot;fit_s&#92;&quot;:592.1135,&#92;&quot;predict_s&#92;&quot;:5.3903},{&#92;&quot;_marimo_row_id&#92;&quot;:6,&#92;&quot;model&#92;&quot;:&#92;&quot;mlp&#92;&quot;,&#92;&quot;ESR&#92;&quot;:2.2434,&#92;&quot;null_depth_dB&#92;&quot;:-1.9527,&#92;&quot;STFT&#92;&quot;:2.3019,&#92;&quot;FR_err_dB&#92;&quot;:11.9747,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:195.6512,&#92;&quot;THD_pattern_dist&#92;&quot;:1.9106,&#92;&quot;HP_sim&#92;&quot;:0.6138,&#92;&quot;fit_s&#92;&quot;:1656.2155,&#92;&quot;predict_s&#92;&quot;:14.4606},{&#92;&quot;_marimo_row_id&#92;&quot;:7,&#92;&quot;model&#92;&quot;:&#92;&quot;lstm&#92;&quot;,&#92;&quot;ESR&#92;&quot;:5.5506,&#92;&quot;null_depth_dB&#92;&quot;:-6.218,&#92;&quot;STFT&#92;&quot;:0.8919,&#92;&quot;FR_err_dB&#92;&quot;:8.7422,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:5.2464,&#92;&quot;THD_pattern_dist&#92;&quot;:0.209,&#92;&quot;HP_sim&#92;&quot;:0.9665,&#92;&quot;fit_s&#92;&quot;:2930.511,&#92;&quot;predict_s&#92;&quot;:2.2074},{&#92;&quot;_marimo_row_id&#92;&quot;:8,&#92;&quot;model&#92;&quot;:&#92;&quot;gru&#92;&quot;,&#92;&quot;ESR&#92;&quot;:8.5538,&#92;&quot;null_depth_dB&#92;&quot;:-7.6058,&#92;&quot;STFT&#92;&quot;:0.8443,&#92;&quot;FR_err_dB&#92;&quot;:8.165,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:0.6896,&#92;&quot;THD_pattern_dist&#92;&quot;:0.255,&#92;&quot;HP_sim&#92;&quot;:0.9524,&#92;&quot;fit_s&#92;&quot;:3171.6916,&#92;&quot;predict_s&#92;&quot;:2.2266},{&#92;&quot;_marimo_row_id&#92;&quot;:9,&#92;&quot;model&#92;&quot;:&#92;&quot;tcn&#92;&quot;,&#92;&quot;ESR&#92;&quot;:0.0072,&#92;&quot;null_depth_dB&#92;&quot;:29.9324,&#92;&quot;STFT&#92;&quot;:0.7404,&#92;&quot;FR_err_dB&#92;&quot;:7.011,&#92;&quot;THD_target&#92;&quot;:26.0238,&#92;&quot;THD_pred&#92;&quot;:25.0786,&#92;&quot;THD_pattern_dist&#92;&quot;:0.0217,&#92;&quot;HP_sim&#92;&quot;:0.9997,&#92;&quot;fit_s&#92;&quot;:19845.9416,&#92;&quot;predict_s&#92;&quot;:1.364}]&quot;' data-total-rows='12' data-total-columns='11' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='true' data-page-size='10' data-field-types='[[&quot;model&quot;,[&quot;string&quot;,&quot;str&quot;]],[&quot;ESR&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;null_depth_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;STFT&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;FR_err_dB&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_target&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pred&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;THD_pattern_dist&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;HP_sim&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;fit_s&quot;,[&quot;number&quot;,&quot;float64&quot;]],[&quot;predict_s&quot;,[&quot;number&quot;,&quot;float64&quot;]]]' data-selection='&quot;multi&quot;' data-show-filters='true' data-show-download='true' data-show-column-summaries='true' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-hidden-columns='[]' data-has-stable-row-id='true' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    }
+  ]
+}

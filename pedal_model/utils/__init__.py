@@ -1,4 +1,4 @@
-"""Utility helpers for synthesis, analysis, and visualisation."""
+"""Utility helpers for synthesis, analysis, visualisation, and resampling."""
 from .synthesis import guitar_note, g_major_chord, white_noise_id, pure_sine
 from .analysis import (
     safe_trim,
@@ -7,6 +7,12 @@ from .analysis import (
     apply_effect,
     peak_db,
     rms_db,
+)
+from .resampling import (
+    resample_audio,
+    quantize_to_int24,
+    load_wav_to_float32,
+    write_wav_44k,
 )
 from .plotting import (
     db_spectrum,

@@ -192,3 +192,34 @@ def test_ddsp_model_forward_on_gpu():
     y = model(x)
     assert y.device.type == "cuda"
     assert torch.isfinite(y).all()
+
+
+# ── DDSPModel name / receptive_field / state_dict ────────────────────────── #
+
+
+def test_ddsp_model_name():
+    assert "DDSP" in DDSPModel(n_fir_taps=32).name
+
+
+def test_ddsp_model_receptive_field_equals_n_fir_taps():
+    assert DDSPModel(n_fir_taps=32).receptive_field == 32
+    assert DDSPModel(n_fir_taps=64).receptive_field == 64
+
+
+def test_ddsp_model_state_dict_roundtrip(tmp_path):
+    """Save weights, load into fresh model, outputs must be identical."""
+    torch.manual_seed(0)
+    model = DDSPModel(n_fir_taps=32)
+    x = torch.randn(1, 1, 128)
+    with torch.no_grad():
+        out_orig = model(x)
+
+    ckpt = tmp_path / "ddsp.pt"
+    torch.save(model.state_dict(), ckpt)
+
+    model2 = DDSPModel(n_fir_taps=32)
+    model2.load_state_dict(torch.load(ckpt, weights_only=True))
+    with torch.no_grad():
+        out_loaded = model2(x)
+
+    torch.testing.assert_close(out_orig, out_loaded, atol=0.0, rtol=0.0)

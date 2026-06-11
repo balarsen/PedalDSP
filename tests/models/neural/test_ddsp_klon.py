@@ -301,3 +301,33 @@ def test_fit_raises_not_implemented():
     model = KlonDDSP()
     with pytest.raises(NotImplementedError):
         model.fit(np.zeros(100), np.zeros(100), SR)
+
+
+# ── name / receptive_field / state_dict ──────────────────────────────────── #
+
+
+def test_name():
+    assert "Klon" in KlonDDSP().name or "DDSP" in KlonDDSP().name
+
+
+def test_receptive_field():
+    assert KlonDDSP().receptive_field == 4096
+
+
+def test_state_dict_roundtrip(tmp_path):
+    """Save weights, load into fresh model, outputs must be identical."""
+    torch.manual_seed(0)
+    model = KlonDDSP()
+    x = _dry_t(batch=1, time=CHUNK)
+    with torch.no_grad():
+        out_orig, _ = model(x)
+
+    ckpt = tmp_path / "klon.pt"
+    torch.save(model.state_dict(), ckpt)
+
+    model2 = KlonDDSP()
+    model2.load_state_dict(torch.load(ckpt, weights_only=True))
+    with torch.no_grad():
+        out_loaded, _ = model2(x)
+
+    torch.testing.assert_close(out_orig, out_loaded, atol=0.0, rtol=0.0)

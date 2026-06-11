@@ -42,3 +42,34 @@ def test_output_dtype():
     model = HammersteinModel(n_taps=64)
     model.fit(dry, wet, SR)
     assert model.predict(dry).dtype == np.float32
+
+
+def test_output_finite():
+    dry = _noise(0)
+    wet = np.tanh(dry * 2.0).astype(np.float32)
+    model = HammersteinModel(poly_order=3, n_taps=64)
+    model.fit(dry, wet, SR)
+    assert np.isfinite(model.predict(dry)).all()
+
+
+def test_apply_nl_shape_and_dtype():
+    """_apply_nl must return same shape and float32 dtype as input."""
+    dry = _noise(0)
+    wet = np.tanh(dry * 2.0).astype(np.float32)
+    model = HammersteinModel(poly_order=3, n_taps=64)
+    model.fit(dry, wet, SR)
+    out = model._apply_nl(dry)
+    assert out.shape == dry.shape
+    assert out.dtype == np.float32
+
+
+def test_hammerstein_recovers_nonlinearity():
+    """Hammerstein should fit tanh clipping with ESR < 0.5."""
+    dry = _noise(0, n=SR * 8)
+    wet = np.tanh(dry * 3.0).astype(np.float32)
+    model = HammersteinModel(poly_order=5, n_taps=128)
+    model.fit(dry, wet, SR)
+    pred = model.predict(dry)
+    n = min(len(wet), len(pred))
+    esr = float(np.sum((wet[:n] - pred[:n]) ** 2) / (np.sum(wet[:n] ** 2) + 1e-8))
+    assert esr < 0.5

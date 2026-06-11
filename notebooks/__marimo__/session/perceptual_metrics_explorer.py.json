@@ -1,0 +1,290 @@
+{
+  "version": "1",
+  "metadata": {
+    "marimo_version": "0.23.9",
+    "script_metadata_hash": "d285e913742bc0ba06419e3eff235a4c"
+  },
+  "cells": [
+    {
+      "id": "Hbol",
+      "code_hash": "e076828d7d513056f29d278805a16cf2",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/plain": ""
+          }
+        }
+      ],
+      "console": [
+        {
+          "type": "stream",
+          "name": "stdout",
+          "text": "Imports OK\n",
+          "mimetype": "text/plain"
+        }
+      ]
+    },
+    {
+      "id": "MJUe",
+      "code_hash": "8180390167c8eec5177de472fd979f99",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h1 id=\"perceptual-metrics-explorer\">Perceptual Metrics Explorer</h1>\n<span class=\"paragraph\">Six weighted spectral error metrics that catch distinct perceptual failure modes.\nEach score is <strong>lower = better</strong>. Explore model predictions vs the target signal\nand see where errors are perceptually salient.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "vblA",
+      "code_hash": "a601f54e67e099ca23278a58a4a0126f",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='vblA-0' random-id='17bea799-4f67-2ce0-2e5c-2650d6819ef3'><marimo-text data-initial-value='&quot;/mnt/d/Projects/PedalDSP/results/data/klon_sim/klon_sim_v1/results.pkl&quot;' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eZooResults pickle path (leave blank for synthetic signals)&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-placeholder='&quot;&quot;' data-kind='&quot;text&quot;' data-full-width='true' data-disabled='false' data-debounce='true'></marimo-text></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "bkHC",
+      "code_hash": "a4c2699de7b5fdf894eae32e29c76126",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><strong>Loaded:</strong> ZooResults: 12 models, sr=96000 Hz</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "lEQa",
+      "code_hash": "a4fda9a6bbd848ad9a46156c6002a77a",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<marimo-ui-element object-id='lEQa-0' random-id='2b540536-abce-492a-df51-5a5f6a87eb9b'><marimo-dropdown data-initial-value='[&quot;hammerstein&quot;]' data-label='&quot;&#92;u003cspan class=&#92;&quot;markdown prose dark:prose-invert contents&#92;&quot;&#92;u003e&#92;u003cspan class=&#92;&quot;paragraph&#92;&quot;&#92;u003eModel to inspect&#92;u003c/span&#92;u003e&#92;u003c/span&#92;u003e&quot;' data-options='[&quot;hammerstein&quot;,&quot;iir&quot;,&quot;fir&quot;,&quot;wiener_hammerstein&quot;,&quot;volterra&quot;,&quot;circuit_dict&quot;,&quot;mlp&quot;,&quot;lstm&quot;,&quot;gru&quot;,&quot;tcn&quot;,&quot;ddsp&quot;,&quot;klon_ddsp&quot;]' data-allow-select-none='false' data-searchable='false' data-full-width='false' data-disabled='false'></marimo-dropdown></marimo-ui-element>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "PKri",
+      "code_hash": "a3ed78d9157f0928c88f71fc71036438",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><strong>Active model:</strong> <code>tcn</code> | 960.0k samples @ 96000 Hz</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Xref",
+      "code_hash": "49eb275c033894a95cf38ec605c9fe35",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"section-2-all-six-metrics\">Section 2 \u2014 All six metrics</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "SFPL",
+      "code_hash": "9fb3df98c8c04adaecd9ad50dda8f4e4",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><span class=\"markdown prose dark:prose-invert contents\"><h3 id=\"summary\">Summary</h3></span><marimo-ui-element object-id='SFPL-0' random-id='2f5f6615-66ea-2de3-497a-2717d67d1f09'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;Metric&#92;&quot;:&#92;&quot;mel_axis_weighted&#92;&quot;,&#92;&quot;Score&#92;&quot;:&#92;&quot;15.5384&#92;&quot;,&#92;&quot;Unit&#92;&quot;:&#92;&quot;dB&#92;&quot;,&#92;&quot;Notes&#92;&quot;:&#92;&quot;axis warping only&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;equal_loudness_weighted&#92;&quot;,&#92;&quot;Score&#92;&quot;:&#92;&quot;0.0039&#92;&quot;,&#92;&quot;Unit&#92;&quot;:&#92;&quot;dB (A-wtd)&#92;&quot;,&#92;&quot;Notes&#92;&quot;:&#92;&quot;sensitivity weighting&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;masking_weighted&#92;&quot;,&#92;&quot;Score&#92;&quot;:&#92;&quot;0.0063&#92;&quot;,&#92;&quot;Unit&#92;&quot;:&#92;&quot;visibility&#92;&quot;,&#92;&quot;Notes&#92;&quot;:&#92;&quot;masked_fraction=100%&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;signal_adaptive_weighted&#92;&quot;,&#92;&quot;Score&#92;&quot;:&#92;&quot;1.3516&#92;&quot;,&#92;&quot;Unit&#92;&quot;:&#92;&quot;ratio&#92;&quot;,&#92;&quot;Notes&#92;&quot;:&#92;&quot;signal-energy weighted&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;guitar_prior_weighted&#92;&quot;,&#92;&quot;Score&#92;&quot;:&#92;&quot;0.0154&#92;&quot;,&#92;&quot;Unit&#92;&quot;:&#92;&quot;dB&#92;&quot;,&#92;&quot;Notes&#92;&quot;:&#92;&quot;guitar register prior&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;harmonic_weighted&#92;&quot;,&#92;&quot;Score&#92;&quot;:&#92;&quot;0.0093&#92;&quot;,&#92;&quot;Unit&#92;&quot;:&#92;&quot;dB&#92;&quot;,&#92;&quot;Notes&#92;&quot;:&#92;&quot;f0=1043.5 Hz, N=12 harmonics&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;composite&#92;&quot;,&#92;&quot;Score&#92;&quot;:&#92;&quot;0.0000&#92;&quot;,&#92;&quot;Unit&#92;&quot;:&#92;&quot;z-score&#92;&quot;,&#92;&quot;Notes&#92;&quot;:&#92;&quot;equal weights&#92;&quot;}]&quot;' data-total-rows='7' data-total-columns='4' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='false' data-page-size='10' data-selection='&quot;multi&quot;' data-show-filters='false' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-hidden-columns='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element></div>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "BYtC",
+      "code_hash": "3a72013beaed0d4dd79884cb13ebee3d",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"section-3-per-metric-visualization\">Section 3 \u2014 Per-metric visualization</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "RGSE",
+      "code_hash": "f14e7891062d85dc5dfbd03ae4fddcf0",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Kclp",
+      "code_hash": "2a6f8d32170eecbdc1cdd8d298c8e107",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "emfo",
+      "code_hash": "c5cd0c2fb11a9e8e3e96112090361be1",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "Hstk",
+      "code_hash": "7b76f802d409c3ec29ac514265e94850",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "nWHF",
+      "code_hash": "cc71e417f4cbd1409849caebaeec7d3e",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "iLit",
+      "code_hash": "d06dea07f045a75e6a49d4ebd18b8087",
+      "outputs": [],
+      "console": []
+    },
+    {
+      "id": "ZHCJ",
+      "code_hash": "9a47490be30ae1dcde642419e6a2c182",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"section-4-composite-radar-chart\">Section 4 \u2014 Composite radar chart</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ROlb",
+      "code_hash": "74edeff3d45d3d44d231621b4406057a",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'mn' was defined by another cell",
+          "traceback": []
+        },
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'scores_mn' was defined by another cell",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "qnkX",
+      "code_hash": "eb8dc1a8248b4ec3a8836fc0435008f9",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'i' was defined by another cell",
+          "traceback": []
+        },
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'mn' was defined by another cell",
+          "traceback": []
+        },
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'scores_mn' was defined by another cell",
+          "traceback": []
+        },
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'sp' was defined by another cell",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "TqIu",
+      "code_hash": "310add3aef4326c8c7da9bbe24e35ca6",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"section-5-metric-correlation-multi-model\">Section 5 \u2014 Metric correlation (multi-model)</h2></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "Vxnm",
+      "code_hash": "e96623b35e97610288b98cdfa5901318",
+      "outputs": [
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'i' was defined by another cell",
+          "traceback": []
+        },
+        {
+          "type": "error",
+          "ename": "multiple-defs",
+          "evalue": "The variable 'sp' was defined by another cell",
+          "traceback": []
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "DnEU",
+      "code_hash": "6e63c0f409c96621bd92459aa6ded31e",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/markdown": "<span class=\"markdown prose dark:prose-invert contents\"><h2 id=\"section-6-big-muff-tcn-diagnostic\">Section 6 \u2014 Big Muff / TCN diagnostic</h2>\n<span class=\"paragraph\">Validates that the metrics catch the known failure mode: a model that sounds\n<strong>too clean</strong> (linear EQ approximation) vs one that captures clipping character.</span>\n<span class=\"paragraph\">Correct result: <code>linear_approx</code> should score <strong>worse</strong> than <code>clipped</code> on\n<code>harmonic_weighted</code>, <code>masking_weighted</code>, and <code>signal_adaptive_weighted</code>.</span></span>"
+          }
+        }
+      ],
+      "console": []
+    },
+    {
+      "id": "ulZA",
+      "code_hash": "33067a48b9dce2f57f40eccf5ebb697b",
+      "outputs": [
+        {
+          "type": "data",
+          "data": {
+            "text/html": "<div style='display: flex;flex: 1;flex-direction: column;justify-content: flex-start;align-items: normal;flex-wrap: nowrap;gap: 0.5rem'><span class=\"markdown prose dark:prose-invert contents\"><span class=\"paragraph\"><strong>2/6 metrics</strong> correctly score <code>linear_approx</code> worse than <code>clipped</code>.</span></span><marimo-ui-element object-id='ulZA-0' random-id='4b7e7596-3c4a-8230-fc5c-a10ea42a9791'><marimo-table data-initial-value='[]' data-label='null' data-data='&quot;[{&#92;&quot;Metric&#92;&quot;:&#92;&quot;mel_axis&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;64.6162&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;60.6998&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2713&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;equal_loudness&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.0185&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.0645&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;masking&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.0248&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.0167&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2713&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;signal_adaptive&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;23.7861&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;94.4811&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;guitar_prior&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.1355&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.4698&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;},{&#92;&quot;Metric&#92;&quot;:&#92;&quot;harmonic&#92;&quot;,&#92;&quot;linear_approx&#92;&quot;:&#92;&quot;0.0432&#92;&quot;,&#92;&quot;clipped&#92;&quot;:&#92;&quot;0.1144&#92;&quot;,&#92;&quot;linear worse?&#92;&quot;:&#92;&quot;\u2717&#92;&quot;}]&quot;' data-total-rows='6' data-total-columns='4' data-max-columns='50' data-banner-text='&quot;&quot;' data-pagination='false' data-page-size='10' data-selection='&quot;multi&quot;' data-show-filters='false' data-show-download='true' data-show-column-summaries='false' data-show-data-types='true' data-show-page-size-selector='true' data-show-column-explorer='true' data-show-chart-builder='true' data-row-headers='[]' data-hidden-columns='[]' data-has-stable-row-id='false' data-lazy='false' data-preload='false'></marimo-table></marimo-ui-element></div>"
+          }
+        }
+      ],
+      "console": []
+    }
+  ]
+}

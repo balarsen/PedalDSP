@@ -39,12 +39,31 @@ class WienerHammersteinModel(PedalModel):
         return self.n_taps * 2
 
     def _fit_fir(self, inp: np.ndarray, out: np.ndarray) -> np.ndarray:
+        """Estimate the FIR filter h such that conv(inp, h) ≈ out.
+
+        Uses the Wiener-Hopf normal equations via FFT cross-/auto-correlation.
+        This correctly recovers DC gain even for zero-mean signals, unlike direct
+        spectral division (O/I) which gives H[0] = 0/0 when both signals have
+        zero mean.
+
+        The system solved is Toeplitz(Rxx) h = Rxy, where:
+            Rxx[k] = E[inp[n] inp[n-k]]  (autocorrelation)
+            Rxy[k] = E[inp[n-k] out[n]]  (cross-correlation)
+        """
+        from scipy.linalg import solve_toeplitz
+
         n = len(inp)
-        I = rfft(inp, n=n)
-        O = rfft(out, n=n)
-        H = O / (I + 1e-8 * np.max(np.abs(I)))
-        h = irfft(H, n=n)[: self.n_taps]
-        h *= np.hanning(self.n_taps)
+        n_fft = 2 * n  # linear (not circular) correlation
+        I = rfft(inp.astype(np.float64), n=n_fft)
+        O = rfft(out.astype(np.float64), n=n_fft)
+        Sxx = (I * np.conj(I)).real           # auto-power spectrum
+        Sxy = (np.conj(I) * O)               # cross-power spectrum
+        Rxx = irfft(Sxx, n=n_fft)[: self.n_taps]
+        Rxy = irfft(Sxy, n=n_fft)[: self.n_taps]
+        # Tikhonov regularisation: ridge = 1e-6 of peak autocorrelation
+        ridge = max(1e-10, 1e-6 * float(Rxx[0]))
+        Rxx[0] += ridge
+        h = solve_toeplitz(Rxx, Rxy)
         return h.astype(np.float32)
 
     def _apply_nl(self, x: np.ndarray) -> np.ndarray:

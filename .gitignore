@@ -71,3 +71,7 @@ dmypy.json
 
 # Ruff / linters
 .ruff_cache/
+01_zoo_results3.pdf
+02_diagnostics3.pdf
+03_combined_diagnostics.pdf
+perceptual_metrics_explorer.pdf

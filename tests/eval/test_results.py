@@ -106,3 +106,79 @@ def test_zoo_results_to_csv(tmp_path):
     content = csv_path.read_text()
     assert "fir" in content
     assert "ESR" in content
+
+
+# ── model_state persistence ───────────────────────────────────────────────────
+
+
+def test_model_result_model_state_default_is_none():
+    mr = ModelResult(
+        name="x", model_type="classical",
+        prediction=np.zeros(10, dtype=np.float32),
+        fit_time_s=0.0, predict_time_s=0.0,
+    )
+    assert mr.model_state is None
+
+
+def test_model_result_model_state_numpy_roundtrip(tmp_path):
+    kernel = np.array([1.0, 0.5, 0.25], dtype=np.float32)
+    mr = ModelResult(
+        name="fir", model_type="classical",
+        prediction=np.zeros(10, dtype=np.float32),
+        fit_time_s=1.0, predict_time_s=0.05,
+        model_state=kernel,
+    )
+    import pickle
+    pkl = tmp_path / "mr.pkl"
+    with open(pkl, "wb") as fh:
+        pickle.dump(mr, fh)
+    with open(pkl, "rb") as fh:
+        loaded = pickle.load(fh)
+    np.testing.assert_array_equal(loaded.model_state, kernel)
+
+
+def test_model_result_model_state_dict_roundtrip(tmp_path):
+    state = {
+        "layer.weight": np.ones((4, 4), dtype=np.float32),
+        "layer.bias": np.zeros(4, dtype=np.float32),
+    }
+    mr = ModelResult(
+        name="lstm", model_type="neural",
+        prediction=np.zeros(20, dtype=np.float32),
+        fit_time_s=10.0, predict_time_s=0.1,
+        model_state=state,
+    )
+    import pickle
+    pkl = tmp_path / "mr2.pkl"
+    with open(pkl, "wb") as fh:
+        pickle.dump(mr, fh)
+    with open(pkl, "rb") as fh:
+        loaded = pickle.load(fh)
+    np.testing.assert_array_equal(loaded.model_state["layer.weight"], state["layer.weight"])
+
+
+def test_model_result_setstate_backward_compat():
+    """A pickle state dict missing model_state must load cleanly via __setstate__."""
+    mr = ModelResult(
+        name="fir", model_type="classical",
+        prediction=np.zeros(50, dtype=np.float32),
+        fit_time_s=1.0, predict_time_s=0.1,
+    )
+    # Simulate an old pickle that lacks the model_state key
+    old_state = {k: v for k, v in mr.__dict__.items() if k != "model_state"}
+    restored = ModelResult.__new__(ModelResult)
+    restored.__setstate__(old_state)
+    assert restored.model_state is None
+    assert restored.name == "fir"
+    assert restored.fit_time_s == 1.0
+
+
+def test_zoo_results_roundtrip_with_model_state(tmp_path):
+    zoo = _make_zoo()
+    kernel = np.array([0.1, 0.2, 0.3], dtype=np.float32)
+    zoo.models["fir"].model_state = kernel
+    pkl = tmp_path / "zoo.pkl"
+    zoo.save(pkl)
+    loaded = ZooResults.load(pkl)
+    np.testing.assert_array_equal(loaded.models["fir"].model_state, kernel)
+    assert loaded.models["lstm"].model_state is None

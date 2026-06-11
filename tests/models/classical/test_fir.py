@@ -56,3 +56,26 @@ def test_fir_recovers_gain_change():
     n = min(len(wet), len(pred))
     esr = float(np.sum((wet[:n] - pred[:n]) ** 2) / (np.sum(wet[:n] ** 2) + 1e-8))
     assert esr < 0.05  # generous threshold for a broadband noise signal
+
+
+def test_output_finite():
+    dry = _noise(0)
+    wet = (dry * 0.8).astype(np.float32)
+    model = FIRModel(n_taps=128)
+    model.fit(dry, wet, SR)
+    assert np.isfinite(model.predict(dry)).all()
+
+
+def test_fir_recovers_lowpass_filter():
+    """FIR should attenuate high-frequency energy when the target is LP-filtered."""
+    rng = np.random.default_rng(5)
+    dry = rng.standard_normal(SR * 4).astype(np.float32) * 0.3
+    from scipy.signal import butter, sosfilt
+    sos = butter(4, 2000, btype="low", fs=SR, output="sos")
+    wet = sosfilt(sos, dry).astype(np.float32)
+    model = FIRModel(n_taps=256)
+    model.fit(dry, wet, SR)
+    pred = model.predict(dry)
+    n = min(len(wet), len(pred))
+    esr = float(np.sum((wet[:n] - pred[:n]) ** 2) / (np.sum(wet[:n] ** 2) + 1e-8))
+    assert esr < 0.1

@@ -78,10 +78,24 @@ class EvalConfig:
     run_neural: bool = True
     classical_workers: int = 0
     skip_models: list[str] = field(default_factory=list)
+    # Optional WAV path overrides — bypass the paths derived from params.json when set.
+    dry_wav: Path | None = None
+    wet_wav: Path | None = None
+    dry_val_wav: Path | None = None
+    wet_val_wav: Path | None = None
+    experiment_name: str | None = None
 
     def __post_init__(self) -> None:
         self.klon_sim_dir = Path(self.klon_sim_dir)
         self.output_dir = Path(self.output_dir)
+        if self.dry_wav is not None:
+            self.dry_wav = Path(self.dry_wav)
+        if self.wet_wav is not None:
+            self.wet_wav = Path(self.wet_wav)
+        if self.dry_val_wav is not None:
+            self.dry_val_wav = Path(self.dry_val_wav)
+        if self.wet_val_wav is not None:
+            self.wet_val_wav = Path(self.wet_val_wav)
 
 
 # ── Classical model registry ─────────────────────────────────────────────── #
@@ -296,7 +310,7 @@ def _classical_worker(args: tuple) -> tuple[str, np.ndarray, float, float]:
     if hasattr(model, "alpha_") and model.alpha_ is not None:
         topology = dict(zip(model.primitive_names, model.alpha_.tolist()))
 
-    return key, pred.astype(np.float32), float(fit_s), float(pred_s), topology
+    return key, pred.astype(np.float32), float(fit_s), float(pred_s), topology, model
 
 
 # ── Classical parallel fitting ─────────────────────────────────────────────  #
@@ -361,7 +375,7 @@ def fit_classical_parallel(
         ))
 
     n_workers = cfg.classical_workers or min(len(tasks), os.cpu_count() or 4)
-    results: dict[str, tuple[np.ndarray, float, float, dict | None]] = {}
+    results: dict[str, tuple[np.ndarray, float, float, dict | None, Any]] = {}
 
     print(f"  fitting {len(tasks)} classical model(s) with {n_workers} worker(s)…")
     with ProcessPoolExecutor(max_workers=n_workers) as pool:
@@ -369,8 +383,8 @@ def fit_classical_parallel(
         for fut in as_completed(futures):
             key_done = futures[fut]
             try:
-                key_r, pred, fit_s, pred_s, topology = fut.result()
-                results[key_r] = (pred, fit_s, pred_s, topology)
+                key_r, pred, fit_s, pred_s, topology, model = fut.result()
+                results[key_r] = (pred, fit_s, pred_s, topology, model)
                 print(f"    {key_r}: fit {fit_s:.1f}s, predict {pred_s:.1f}s")
                 if topology:
                     top_str = ", ".join(
@@ -444,25 +458,55 @@ def _train_recurrent(
     wet_train: np.ndarray,
     cfg: EvalConfig,
     device: torch.device,
+    bad_blocks: frozenset[int] | None = None,
 ) -> float:
-    """Train LSTM, GRU, or DDSP models (chunk-based TBPTT).
+    """Stateful batched TBPTT for LSTM/GRU.
 
-    Uses training-loss-minimum checkpointing: saves a deepcopy of model weights
-    whenever training loss hits a new minimum, then restores at the end.  This
-    catches catastrophic late-epoch divergence without requiring a separate val
-    pass every epoch.
+    Divides good blocks into B contiguous segments (B = neural_batch_size).
+    Each step processes one chunk from every segment simultaneously, so GPU
+    utilisation matches the old shuffled-batch approach.  Hidden state carries
+    between consecutive blocks within a segment and resets at gaps caused by
+    bad-block filtering (section boundaries, silence regions).
 
-    Models must accept (batch, time, 1) input and return either a tensor of
-    the same shape or a (tensor, hidden) tuple.
+    This matches inference (predict() carries state continuously), eliminating
+    the train–val distribution mismatch seen with shuffled stateless training.
+
+    Args:
+        dry_train: Full dry training signal (unfiltered), shape (N,), float32.
+        wet_train: Full wet training signal, same shape.
+        bad_blocks: Block indices to skip.  State resets wherever consecutive
+            good blocks are non-adjacent in the original signal.
 
     Returns:
-        Best epoch training loss.
+        Best epoch average training loss.
     """
-    from pedal_model.data.dataset import ChunkDataset
     from pedal_model.train.losses import CombinedLoss
 
-    dataset = ChunkDataset(dry_train, wet_train, chunk_size=cfg.neural_chunk_size)
-    loader = DataLoader(dataset, batch_size=cfg.neural_batch_size, shuffle=True, drop_last=True)
+    chunk_size = cfg.neural_chunk_size
+    n_blocks = len(dry_train) // chunk_size
+    bad = bad_blocks or frozenset()
+    good_blocks = [i for i in range(n_blocks) if i not in bad]
+
+    if not good_blocks:
+        raise ValueError("_train_recurrent: all blocks filtered — nothing to train on.")
+
+    # Split good_blocks into B contiguous segments for batched stateful TBPTT.
+    B = cfg.neural_batch_size
+    n_good = len(good_blocks)
+    seg_size = max(n_good // min(B, n_good), 1)
+    segments: list[list[int]] = []
+    for b in range(min(B, n_good)):
+        s0 = b * seg_size
+        s1 = (b + 1) * seg_size if b < min(B, n_good) - 1 else n_good
+        if s0 < n_good:
+            segments.append(good_blocks[s0:s1])
+    B_actual = len(segments)
+    n_steps = min(len(seg) for seg in segments)
+
+    is_lstm = hasattr(model, "lstm")
+    hid_layers: int = model.num_layers
+    hid_size: int = model.hidden_size
+
     loss_fn = CombinedLoss().to(device)
     optimiser = torch.optim.AdamW(model.parameters(), lr=cfg.neural_lr)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
@@ -470,65 +514,119 @@ def _train_recurrent(
     )
     model.to(device).train()
 
+    def _fresh_hidden() -> Any:
+        h = torch.zeros(hid_layers, B_actual, hid_size, device=device)
+        return (h, h.clone()) if is_lstm else h
+
     best_loss = float("inf")
     best_state: dict | None = None
     best_epoch = 0
     max_grad_norm_seen = 0.0
     t_loop_start = time.perf_counter()
-
-    avg = float("nan")
     total_nan_skips = 0
+
     for epoch in range(1, cfg.neural_epochs + 1):
         epoch_loss = 0.0
         n_valid = 0
-        for dry_chunk, wet_chunk in loader:
-            dry_chunk = dry_chunk.to(device)
-            wet_chunk = wet_chunk.to(device)
+        epoch_max_grad_norm = 0.0
+        hidden = _fresh_hidden()
+
+        for step in range(n_steps):
+            # Reset hidden for any segment whose next block is non-adjacent in the
+            # original signal (gap due to a filtered bad block).
+            if step > 0:
+                for b, seg in enumerate(segments):
+                    if seg[step] != seg[step - 1] + 1:
+                        if is_lstm:
+                            hidden[0][:, b, :] = 0.0
+                            hidden[1][:, b, :] = 0.0
+                        else:
+                            hidden[:, b, :] = 0.0
+
+            chunks_d = [dry_train[seg[step] * chunk_size : (seg[step] + 1) * chunk_size]
+                        for seg in segments]
+            chunks_w = [wet_train[seg[step] * chunk_size : (seg[step] + 1) * chunk_size]
+                        for seg in segments]
+            dry_t = torch.tensor(
+                np.stack(chunks_d), dtype=torch.float32
+            ).unsqueeze(-1).to(device)  # (B, T, 1)
+            wet_t = torch.tensor(
+                np.stack(chunks_w), dtype=torch.float32
+            ).unsqueeze(-1).to(device)
+
             optimiser.zero_grad()
-            out = model(dry_chunk)
-            # Models may return (output, hidden) — unwrap
+            out, new_h = model(dry_t, hidden)
+            # TBPTT: detach so gradient doesn't flow across chunk boundaries.
+            if is_lstm:
+                hidden = (new_h[0].detach(), new_h[1].detach())
+            else:
+                hidden = new_h.detach()
+
             if isinstance(out, tuple):
                 out = out[0]
-            # Handle channels-first models (batch, 1, time) → (batch, time, 1)
             if out.dim() == 3 and out.shape[1] == 1 and out.shape[2] != 1:
                 out = out.transpose(1, 2)
-            loss = loss_fn(out, wet_chunk)
+
+            loss = loss_fn(out, wet_t)
             if not loss.isfinite():
                 total_nan_skips += 1
+                hidden = _fresh_hidden()
                 continue
+
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0).item()
             if not np.isfinite(grad_norm):
-                # NaN gradient corrupted params — restore from last good checkpoint.
                 optimiser.zero_grad()
                 if best_state is not None:
                     model.load_state_dict(best_state)
+                hidden = _fresh_hidden()
                 total_nan_skips += 1
                 continue
+
+            epoch_max_grad_norm = max(epoch_max_grad_norm, grad_norm)
             max_grad_norm_seen = max(max_grad_norm_seen, grad_norm)
             optimiser.step()
             epoch_loss += loss.item()
             n_valid += 1
+
         scheduler.step()
         avg = epoch_loss / max(1, n_valid)
         if avg < best_loss:
             best_loss = avg
             best_epoch = epoch
             best_state = copy.deepcopy(model.state_dict())
-        if epoch % max(1, cfg.neural_epochs // 5) == 0:
+
+        # Print every epoch for the first 10 (early grad_norm diagnostic),
+        # then at 20% intervals with grad_norm included throughout.
+        periodic = epoch % max(1, cfg.neural_epochs // 5) == 0
+        if epoch <= 10 or periodic:
             elapsed = time.perf_counter() - t_loop_start
             eta_s = elapsed / epoch * (cfg.neural_epochs - epoch)
             eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
             skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
-            print(f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  best={best_loss:.4f}@ep{best_epoch}"
-                  f"  elapsed={elapsed:.0f}s  eta {eta_str}{skip_str}")
+            print(
+                f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  "
+                f"best={best_loss:.4f}@ep{best_epoch}  "
+                f"grad_norm={epoch_max_grad_norm:.3e}"
+                f"  elapsed={elapsed:.0f}s  eta {eta_str}{skip_str}"
+            )
 
     if best_state is not None:
         model.load_state_dict(best_state)
     weights_ok = all(torch.isfinite(p).all().item() for p in model.parameters())
     skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
-    print(f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}{skip_str}")
-    return best_loss
+    print(
+        f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  "
+        f"loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  "
+        f"weights_ok={weights_ok}{skip_str}"
+    )
+    if max_grad_norm_seen > 100.0:
+        print(
+            f"      WARNING: grad_norm_max={max_grad_norm_seen:.1f} at best checkpoint. "
+            "Consider reducing learning rate or increasing gradient clip threshold. "
+            "Training may be unstable."
+        )
+    return best_loss, {"epoch": best_epoch, "grad_norm_max": max_grad_norm_seen}
 
 
 def _train_tcn(
@@ -605,12 +703,12 @@ def _train_tcn(
                 best_metric = val_esr
                 best_epoch = epoch
                 best_state = copy.deepcopy(model.state_dict())
-            if epoch % max(1, n_ep // 5) == 0:
+            if epoch % 100 == 0 or epoch == n_ep:
                 elapsed = time.perf_counter() - t_loop_start
                 eta_s = elapsed / epoch * (n_ep - epoch)
                 eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
                 print(f"      epoch {epoch}/{n_ep}  loss={avg:.4f}  val_esr={val_esr:.4f}  best={best_metric:.4f}@ep{best_epoch}"
-                      f"  elapsed={elapsed:.0f}s  eta {eta_str}")
+                      f"  grad_norm={max_grad_norm_seen:.3e}  elapsed={elapsed:.0f}s  eta {eta_str}")
         else:
             if not use_val_esr and avg < best_metric:
                 best_metric = avg
@@ -621,7 +719,7 @@ def _train_tcn(
                 eta_s = elapsed / epoch * (n_ep - epoch)
                 eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
                 print(f"      epoch {epoch}/{n_ep}  loss={avg:.4f}  best={best_metric:.4f}@ep{best_epoch}"
-                      f"  elapsed={elapsed:.0f}s  eta {eta_str}")
+                      f"  grad_norm={max_grad_norm_seen:.3e}  elapsed={elapsed:.0f}s  eta {eta_str}")
 
     # If val-ESR checkpointing never fired (n_ep < val_check_interval),
     # run one final check so best_state is always set before restore.
@@ -641,7 +739,13 @@ def _train_tcn(
     weights_ok = all(torch.isfinite(p).all().item() for p in model.parameters())
     metric_name = "val_esr" if use_val_esr else "train_loss"
     print(f"      best checkpoint: epoch {best_epoch}/{n_ep}  {metric_name}={best_metric:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}")
-    return best_metric
+    if max_grad_norm_seen > 100.0:
+        print(
+            f"      WARNING: grad_norm_max={max_grad_norm_seen:.1f} at best checkpoint. "
+            "Consider reducing learning rate or increasing gradient clip threshold. "
+            "Training may be unstable."
+        )
+    return best_metric, {"epoch": best_epoch, "grad_norm_max": max_grad_norm_seen}
 
 
 def _train_mlp(
@@ -686,7 +790,7 @@ def _train_mlp(
             eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
             print(f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}"
                   f"  elapsed={elapsed:.0f}s  eta {eta_str}")
-    return avg
+    return avg, {"epoch": cfg.neural_epochs, "grad_norm_max": 0.0}
 
 
 def _train_klon_ddsp(
@@ -697,40 +801,52 @@ def _train_klon_ddsp(
     device: torch.device,
     ddsp_lr_scale: float = 0.1,
     aux_weight: float = 0.1,
+    bad_blocks: frozenset[int] | None = None,
 ) -> float:
-    """Train KlonDDSP with separate DDSP-circuit / GRU param groups and auxiliary circuit loss.
+    """Stateful batched TBPTT for KlonDDSP (DDSP circuit + GRU corrector).
 
-    The DDSP circuit and GRU corrector compete for gradient signal when they share a
-    single optimizer at the same lr.  Separating them prevents the GRU from dominating
-    (it has more parameters and converges faster) and keeps the physics-informed circuit
-    from collapsing.
+    Uses the same segment-based stateful TBPTT as _train_recurrent so that the
+    GRU corrector's hidden state carries between consecutive signal chunks rather
+    than being discarded at every step.  This eliminates the train–val mismatch
+    that caused ESR=13 in the stateless version.
 
-    An auxiliary loss on the DDSP circuit output alone (weight=``aux_weight``) provides
-    a direct gradient signal to the circuit parameters, preventing the common failure
-    mode where ddsp_fraction → 0% because the circuit gets no gradient once the GRU
-    correction is large enough to minimize the combined-output loss alone.
-
-    Uses training-loss-minimum checkpointing (same as _train_recurrent).
+    Keeps separate DDSP-circuit / GRU param groups (GRU dominates with shared
+    lr) and the auxiliary DDSP-stage loss (prevents DDSP collapse to zero).
 
     Args:
-        model: KlonDDSP instance.
-        dry_train: Contiguous-block training dry signal.
-        wet_train: Contiguous-block training wet signal.
+        dry_train: Full dry training signal (unfiltered), shape (N,), float32.
+        wet_train: Full wet training signal, same shape.
         cfg: Eval configuration.
         device: Compute device.
-        ddsp_lr_scale: Multiplier applied to cfg.neural_lr for DDSP circuit params.
-            Default 0.1 → DDSP at 1e-4 when base lr is 1e-3.
-        aux_weight: Weight of the auxiliary loss on the DDSP-stage output.
-            Default 0.1. Increase to 0.3 if circuit consistently collapses.
+        ddsp_lr_scale: LR multiplier for DDSP circuit params (default 0.1).
+        aux_weight: Weight of auxiliary loss on DDSP-stage output (default 0.1).
+        bad_blocks: Block indices to skip; state resets at gaps in original order.
 
     Returns:
         Best training loss (combined + auxiliary).
     """
-    from pedal_model.data.dataset import ChunkDataset
     from pedal_model.train.losses import CombinedLoss
 
-    dataset = ChunkDataset(dry_train, wet_train, chunk_size=cfg.neural_chunk_size)
-    loader = DataLoader(dataset, batch_size=cfg.neural_batch_size, shuffle=True, drop_last=True)
+    chunk_size = cfg.neural_chunk_size
+    n_blocks = len(dry_train) // chunk_size
+    bad = bad_blocks or frozenset()
+    good_blocks = [i for i in range(n_blocks) if i not in bad]
+
+    if not good_blocks:
+        raise ValueError("_train_klon_ddsp: all blocks filtered — nothing to train on.")
+
+    B = cfg.neural_batch_size
+    n_good = len(good_blocks)
+    seg_size = max(n_good // min(B, n_good), 1)
+    segments: list[list[int]] = []
+    for b in range(min(B, n_good)):
+        s0 = b * seg_size
+        s1 = (b + 1) * seg_size if b < min(B, n_good) - 1 else n_good
+        if s0 < n_good:
+            segments.append(good_blocks[s0:s1])
+    B_actual = len(segments)
+    n_steps = min(len(seg) for seg in segments)
+
     loss_fn = CombinedLoss().to(device)
 
     # Separate param groups: DDSP circuit at lower lr so GRU doesn't dominate.
@@ -747,49 +863,74 @@ def _train_klon_ddsp(
     )
     model.to(device).train()
 
+    def _fresh_hidden() -> torch.Tensor:
+        # KlonDDSP GRU: 1 layer, hidden shape (1, batch, gru_hidden)
+        return torch.zeros(1, B_actual, model.gru_hidden, device=device)
+
     best_loss = float("inf")
     best_state: dict | None = None
     best_epoch = 0
     max_grad_norm_seen = 0.0
     t_loop_start = time.perf_counter()
-
-    avg = float("nan")
     total_nan_skips = 0
+
     for epoch in range(1, cfg.neural_epochs + 1):
         epoch_loss = 0.0
         n_valid = 0
-        for dry_chunk, wet_chunk in loader:
-            dry_chunk = dry_chunk.to(device)   # (batch, time, 1)
-            wet_chunk = wet_chunk.to(device)
+        hidden = _fresh_hidden()
+
+        for step in range(n_steps):
+            # Reset GRU state at section boundaries (non-adjacent good blocks).
+            if step > 0:
+                for b, seg in enumerate(segments):
+                    if seg[step] != seg[step - 1] + 1:
+                        hidden[:, b, :] = 0.0
+
+            chunks_d = [dry_train[seg[step] * chunk_size : (seg[step] + 1) * chunk_size]
+                        for seg in segments]
+            chunks_w = [wet_train[seg[step] * chunk_size : (seg[step] + 1) * chunk_size]
+                        for seg in segments]
+            dry_t = torch.tensor(
+                np.stack(chunks_d), dtype=torch.float32
+            ).unsqueeze(-1).to(device)  # (B, T, 1)
+            wet_t = torch.tensor(
+                np.stack(chunks_w), dtype=torch.float32
+            ).unsqueeze(-1).to(device)
+
             optimiser.zero_grad()
+            out, new_h = model(dry_t, hidden)
+            # TBPTT: detach GRU state so gradient doesn't flow across chunk boundaries.
+            hidden = new_h.detach()
 
-            out, _ = model(dry_chunk)          # (batch, time, 1)
-            loss = loss_fn(out, wet_chunk)
+            loss = loss_fn(out, wet_t)
 
-            # Auxiliary loss: DDSP circuit stage alone — keeps circuit from collapsing.
-            # Detach so the aux gradient affects only DDSP params, not GRU.
+            # Auxiliary loss on DDSP stage alone — keeps DDSP from collapsing.
             if aux_weight > 0.0:
-                x_2d = dry_chunk.squeeze(-1)   # (batch, time)
-                ddsp_out = model._ddsp_stage(x_2d).unsqueeze(-1)  # (batch, time, 1)
-                aux = loss_fn(ddsp_out, wet_chunk)
+                x_2d = dry_t.squeeze(-1)   # (B, T)
+                ddsp_out = model._ddsp_stage(x_2d).unsqueeze(-1)   # (B, T, 1)
+                aux = loss_fn(ddsp_out, wet_t)
                 loss = loss + aux_weight * aux
 
             if not loss.isfinite():
                 total_nan_skips += 1
+                hidden = _fresh_hidden()
                 continue
+
             loss.backward()
             grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0).item()
             if not np.isfinite(grad_norm):
-                # NaN gradient corrupted params — restore from last good checkpoint.
                 optimiser.zero_grad()
                 if best_state is not None:
                     model.load_state_dict(best_state)
+                hidden = _fresh_hidden()
                 total_nan_skips += 1
                 continue
+
             max_grad_norm_seen = max(max_grad_norm_seen, grad_norm)
             optimiser.step()
             epoch_loss += loss.item()
             n_valid += 1
+
         scheduler.step()
         avg = epoch_loss / max(1, n_valid)
         if avg < best_loss:
@@ -801,15 +942,28 @@ def _train_klon_ddsp(
             eta_s = elapsed / epoch * (cfg.neural_epochs - epoch)
             eta_str = time.strftime("%H:%M:%S", time.localtime(time.time() + eta_s))
             skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
-            print(f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  best={best_loss:.4f}@ep{best_epoch}"
-                  f"  elapsed={elapsed:.0f}s  eta {eta_str}{skip_str}")
+            print(
+                f"      epoch {epoch}/{cfg.neural_epochs}  loss={avg:.4f}  "
+                f"best={best_loss:.4f}@ep{best_epoch}"
+                f"  elapsed={elapsed:.0f}s  eta {eta_str}{skip_str}"
+            )
 
     if best_state is not None:
         model.load_state_dict(best_state)
     weights_ok = all(torch.isfinite(p).all().item() for p in model.parameters())
     skip_str = f"  nan_skips={total_nan_skips}" if total_nan_skips else ""
-    print(f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  weights_ok={weights_ok}{skip_str}")
-    return best_loss
+    print(
+        f"      best checkpoint: epoch {best_epoch}/{cfg.neural_epochs}  "
+        f"loss={best_loss:.4f}  grad_norm_max={max_grad_norm_seen:.3f}  "
+        f"weights_ok={weights_ok}{skip_str}"
+    )
+    if max_grad_norm_seen > 100.0:
+        print(
+            f"      WARNING: grad_norm_max={max_grad_norm_seen:.1f} at best checkpoint. "
+            "Consider reducing learning rate or increasing gradient clip threshold. "
+            "Training may be unstable."
+        )
+    return best_loss, {"epoch": best_epoch, "grad_norm_max": max_grad_norm_seen}
 
 
 def train_neural_sequential(
@@ -852,13 +1006,18 @@ def train_neural_sequential(
     total_s = len(dry_train_seq)
     n_seq_blocks_raw = total_s // cfg.neural_chunk_size
 
-    # Filter bad blocks (silence, impulse_train, boundary crossings) from
-    # sequential training data before creating ChunkDataset.
+    # Keep the original (unfiltered) arrays for recurrent models, which use
+    # stateful TBPTT and need the full signal to know where section gaps are.
+    # Filtered arrays are used for TCN/DDSP where filtering is correct (no state).
+    dry_seq_orig = dry_train_seq
+    wet_seq_orig = wet_train_seq
     if bad_blocks:
         dry_train_seq, wet_train_seq = _filter_seq_blocks(
-            dry_train_seq, wet_train_seq, cfg.neural_chunk_size, bad_blocks
+            dry_seq_orig, wet_seq_orig, cfg.neural_chunk_size, bad_blocks
         )
         n_removed = n_seq_blocks_raw - len(dry_train_seq) // cfg.neural_chunk_size
+    else:
+        n_removed = 0
 
     n_seq_blocks = len(dry_train_seq) // cfg.neural_chunk_size
     seq_samples = n_seq_blocks * cfg.neural_chunk_size
@@ -892,20 +1051,27 @@ def train_neural_sequential(
             # Pass val signal so TCN uses periodic val-ESR checkpointing instead
             # of training-loss proxy (TCN loss can still descend as val-ESR degrades).
             n_ep = tcn_n_ep if key == "tcn" else cfg.neural_epochs
-            train_loss = _train_tcn(
+            train_loss, train_meta = _train_tcn(
                 model, dry_train_seq, wet_train_seq, cfg, device,
                 dry_val=dry_val, wet_val=wet_val,
                 n_epochs=n_ep,
             )
         elif key == "mlp":
             # Pointwise model; benefits from amplitude diversity of random samples
-            train_loss = _train_mlp(model, dry_train_rnd, wet_train_rnd, cfg, device)
+            train_loss, train_meta = _train_mlp(model, dry_train_rnd, wet_train_rnd, cfg, device)
         elif key == "klon_ddsp":
-            # Separate DDSP-circuit / GRU param groups + auxiliary circuit loss
-            train_loss = _train_klon_ddsp(model, dry_train_seq, wet_train_seq, cfg, device)
+            # Stateful TBPTT: GRU state carries between consecutive chunks.
+            # Uses original (unfiltered) signal so segment gaps are tracked correctly.
+            train_loss, train_meta = _train_klon_ddsp(
+                model, dry_seq_orig, wet_seq_orig, cfg, device,
+                bad_blocks=bad_blocks,
+            )
         else:
-            # LSTM, GRU — recurrent; must have contiguous chunks
-            train_loss = _train_recurrent(model, dry_train_seq, wet_train_seq, cfg, device)
+            # LSTM, GRU, conditioned_lstm — stateful TBPTT with original signal + gap tracking.
+            train_loss, train_meta = _train_recurrent(
+                model, dry_seq_orig, wet_seq_orig, cfg, device,
+                bad_blocks=bad_blocks,
+            )
         train_s = time.perf_counter() - t0
 
         model.eval()
@@ -928,7 +1094,8 @@ def train_neural_sequential(
             except Exception as exc:
                 print(f"    klon_ddsp: analyse_ddsp_fraction failed — {exc}")
 
-        results[key] = (pred.astype(np.float32), float(train_s), float(pred_s), ddsp_analysis, float(train_loss))
+        model_state = {k: v.cpu().detach().clone() for k, v in model.state_dict().items()}
+        results[key] = (pred.astype(np.float32), float(train_s), float(pred_s), ddsp_analysis, float(train_loss), model_state, train_meta)
         print(f"    {key}: train {train_s:.1f}s, predict {pred_s:.2f}s  final_loss={train_loss:.4f}")
 
     return results
@@ -984,6 +1151,20 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     dry_val_wav = dry_val_manifest_path.with_suffix(".wav")
     wet_train_wav = cfg.klon_sim_dir / params["captures"]["train"]["wet_wav"]
     wet_val_wav = cfg.klon_sim_dir / params["captures"]["val"]["wet_wav"]
+
+    # WAV path overrides: when set, use caller-supplied paths instead of params.json paths.
+    if cfg.dry_wav is not None:
+        dry_train_wav = cfg.dry_wav
+        print(f"  dry_wav override: {dry_train_wav}")
+    if cfg.wet_wav is not None:
+        wet_train_wav = cfg.wet_wav
+        print(f"  wet_wav override: {wet_train_wav}")
+    if cfg.dry_val_wav is not None:
+        dry_val_wav = cfg.dry_val_wav
+        print(f"  dry_val_wav override: {dry_val_wav}")
+    if cfg.wet_val_wav is not None:
+        wet_val_wav = cfg.wet_val_wav
+        print(f"  wet_val_wav override: {wet_val_wav}")
 
     print(f"Loading val signal ({params['captures']['val']['duration_s']:.1f}s @ {sr}Hz)…")
     dry_val, _ = sf.read(str(dry_val_wav), dtype="float32", always_2d=False)
@@ -1071,7 +1252,7 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
         classical = fit_classical_parallel(
             cfg, dry_train_wav, wet_train_wav, dry_val_wav, sr
         )
-        for key, (pred, fit_s, pred_s, topology) in classical.items():
+        for key, (pred, fit_s, pred_s, topology, model_obj) in classical.items():
             metrics = _compute_metrics(wet_val, pred, dry_val, manifest, sr)
             results.models[key] = ModelResult(
                 name=key,
@@ -1081,6 +1262,7 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
                 predict_time_s=pred_s,
                 metrics_per_section=metrics,
                 topology=topology,
+                model_state=model_obj,
             )
 
     # ── Neural models ─────────────────────────────────────────────────── #
@@ -1094,7 +1276,7 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
             sr,
             bad_blocks=bad_blocks,
         )
-        for key, (pred, train_s, pred_s, ddsp_analysis, train_loss) in neural.items():
+        for key, (pred, train_s, pred_s, ddsp_analysis, train_loss, model_state, _train_meta) in neural.items():
             metrics = _compute_metrics(wet_val, pred, dry_val, manifest, sr)
 
             results.models[key] = ModelResult(
@@ -1106,6 +1288,7 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
                 metrics_per_section=metrics,
                 train_loss=train_loss,
                 ddsp_analysis=ddsp_analysis,
+                model_state=model_state,
             )
 
     # ── Save ──────────────────────────────────────────────────────────── #

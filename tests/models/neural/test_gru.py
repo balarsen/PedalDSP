@@ -12,6 +12,10 @@ def test_name():
     assert "32" in model.name
 
 
+def test_receptive_field():
+    assert GRUModel().receptive_field == 4096
+
+
 def test_forward_output_shape():
     model = GRUModel(hidden_size=16)
     x = torch.randn(4, 128, 1)  # (batch, time, 1)
@@ -80,3 +84,51 @@ def test_forward_on_gpu():
     out, h = model(x)
     assert out.device.type == "cuda"
     assert torch.isfinite(out).all()
+
+
+# ── Regression tests ────────────────────────────────────────────────────────
+
+
+def test_state_dict_roundtrip(tmp_path):
+    """Save weights, load into fresh model, outputs must be identical."""
+    torch.manual_seed(0)
+    model = GRUModel(hidden_size=16)
+    x = torch.randn(1, 128, 1)
+    with torch.no_grad():
+        out_orig, _ = model(x)
+
+    ckpt = tmp_path / "gru.pt"
+    torch.save(model.state_dict(), ckpt)
+
+    model2 = GRUModel(hidden_size=16)
+    model2.load_state_dict(torch.load(ckpt, weights_only=True))
+    with torch.no_grad():
+        out_loaded, _ = model2(x)
+
+    torch.testing.assert_close(out_orig, out_loaded, atol=0.0, rtol=0.0)
+
+
+def test_loss_backward():
+    """Loss must be finite and gradients must flow to all parameters."""
+    torch.manual_seed(1)
+    model = GRUModel(hidden_size=8)
+    x = torch.randn(2, 64, 1)
+    target = torch.randn(2, 64, 1)
+    out, _ = model(x)
+    loss = torch.nn.functional.mse_loss(out, target)
+    assert torch.isfinite(loss)
+    loss.backward()
+    for name, param in model.named_parameters():
+        assert param.grad is not None, f"{name} has no gradient"
+        assert torch.isfinite(param.grad).all(), f"{name} gradient contains inf/nan"
+
+
+def test_forward_determinism():
+    """Same weights and input must produce identical output on repeated calls."""
+    torch.manual_seed(3)
+    model = GRUModel(hidden_size=8)
+    x = torch.randn(1, 64, 1)
+    with torch.no_grad():
+        out1, _ = model(x)
+        out2, _ = model(x)
+    torch.testing.assert_close(out1, out2, atol=0.0, rtol=0.0)

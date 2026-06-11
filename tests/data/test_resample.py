@@ -214,3 +214,101 @@ def test_prepare_for_daisy_440hz_not_silent():
     audio = _sine(440.0, SR_96K, duration=0.5)
     out = prepare_for_daisy(audio)
     assert np.max(np.abs(out)) > 1000  # well above zero
+
+
+# ── Upsampling ────────────────────────────────────────────────────────────────
+
+
+def test_resample_upsample_output_length():
+    """48k → 96k should produce ~2× the input length."""
+    audio = _sine(440.0, SR_48K, duration=1.0)
+    out = resample(audio, SR_48K, SR_96K)
+    assert abs(len(out) - SR_96K) <= 2
+
+
+def test_resample_upsample_dtype_float32():
+    audio = _sine(440.0, SR_48K)
+    out = resample(audio, SR_48K, SR_96K)
+    assert out.dtype == np.float32
+
+
+def test_resample_upsample_preserves_low_freq():
+    """440 Hz must pass through 48k→96k essentially unattenuated."""
+    tone = _sine(440.0, SR_48K, duration=0.5)
+    out = resample(tone, SR_48K, SR_96K)
+    in_rms = float(np.sqrt(np.mean(tone ** 2)))
+    out_rms = float(np.sqrt(np.mean(out ** 2)))
+    assert out_rms > in_rms * 0.89
+
+
+def test_resample_upsample_no_imaging_above_input_nyquist():
+    """Upsampling must not introduce spectral images above the input Nyquist (24 kHz).
+
+    A 10 kHz tone upsampled 48k→96k should have negligible energy at 38 kHz
+    (its first image: 48k − 10k = 38k). A >20 dB rejection is expected.
+    """
+    f0 = 10_000.0
+    tone = _sine(f0, SR_48K, duration=0.5)
+    out = resample(tone, SR_48K, SR_96K)
+
+    N = len(out)
+    spectrum = np.abs(np.fft.rfft(out * np.hanning(N)))
+    freqs = np.fft.rfftfreq(N, 1.0 / SR_96K)
+
+    fund_bin = int(round(f0 * N / SR_96K))
+    fund_energy = float(spectrum[fund_bin] ** 2)
+
+    # First image of 10 kHz at 48k→96k is at 48k − 10k = 38 kHz
+    image_f = 38_000.0
+    image_bin = int(round(image_f * N / SR_96K))
+    image_energy = float(spectrum[image_bin] ** 2)
+
+    ratio_db = 10.0 * np.log10(image_energy / (fund_energy + 1e-30) + 1e-30)
+    assert ratio_db < -20.0, f"Image at {image_f} Hz is only {ratio_db:.1f} dB below fundamental"
+
+
+def test_resample_non_power_of_2_ratio():
+    """44.1k → 48k (non-trivial rational ratio) must produce the correct length."""
+    SR_441 = 44_100
+    audio = _sine(440.0, SR_441, duration=1.0)
+    out = resample(audio, SR_441, SR_48K)
+    expected = int(round(len(audio) * SR_48K / SR_441))
+    assert abs(len(out) - expected) <= 2
+
+
+# ── Additional float32_to_int16 coverage ─────────────────────────────────────
+
+
+def test_float32_to_int16_small_signal_not_zeroed():
+    """A -60 dBFS tone must survive 16-bit quantization without being zeroed."""
+    amp = 10.0 ** (-60.0 / 20.0)
+    audio = (_sine(440.0, SR_48K, duration=0.1) * amp).astype(np.float32)
+    out = float32_to_int16(audio)
+    assert np.max(np.abs(out)) > 0
+
+
+def test_float32_to_int16_quantization_error():
+    """Peak quantization error must be ≤ 1 LSB (1/32767 ≈ 3e-5)."""
+    audio = _sine(440.0, SR_48K, duration=0.1)
+    out = float32_to_int16(audio)
+    reconstructed = out.astype(np.float32) / 32767.0
+    max_err = float(np.max(np.abs(reconstructed - audio)))
+    assert max_err <= 1.0 / 32767.0 + 1e-7
+
+
+# ── Additional prepare_for_daisy coverage ────────────────────────────────────
+
+
+def test_prepare_for_daisy_custom_sr_in():
+    """prepare_for_daisy with sr_in=44100 must produce length ≈48000 for 1s input."""
+    SR_441 = 44_100
+    audio = _sine(440.0, SR_441, duration=1.0)
+    out = prepare_for_daisy(audio, sr_in=SR_441)
+    assert out.dtype == np.int16
+    assert abs(len(out) - SR_48K) <= 2
+
+
+def test_prepare_for_daisy_silence_stays_silent():
+    audio = np.zeros(SR_96K, dtype=np.float32)
+    out = prepare_for_daisy(audio)
+    assert np.all(out == 0)

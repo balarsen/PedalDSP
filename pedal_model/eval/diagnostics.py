@@ -32,8 +32,78 @@ C_PRED   = "#FF6B6B"
 C_DRY    = "#4FC3F7"
 C_ERR    = "#FFD700"
 
+# ── Dark-background notebook palette (sections 4–6 of 03_combined_diagnostics) ──
+BG        = "#1a1a2e"
+C_ERROR   = C_ERR      # gold — same colour, notebook alias
+C_EVEN    = C_DRY      # blue — same colour, notebook alias for even harmonics
+C_ODD     = C_PRED     # coral — same colour, notebook alias for odd harmonics
+C_NEUTRAL = "#888888"
+
 _STYLE = "dark_background"
 _LOG_TICKS = [50, 100, 200, 500, 1_000, 2_000, 5_000, 10_000, 20_000]
+
+# ── Drive-level extraction ────────────────────────────────────────────────────
+
+import re as _re
+
+_DRIVE_RE = _re.compile(r"_l(-?\d+)")
+
+
+def extract_drive_level(label: str) -> int | None:
+    """Extract the dB drive level embedded in a section label.
+
+    Args:
+        label: Section label string, e.g. ``'val_stepped_tone_f220_l-12'``.
+
+    Returns:
+        Integer drive level (may be negative), or ``None`` if not found.
+    """
+    m = _DRIVE_RE.search(label)
+    return int(m.group(1)) if m else None
+
+
+# ── Dark-background figure helpers ───────────────────────────────────────────
+
+
+def dark_fig(
+    nrows: int = 1,
+    ncols: int = 1,
+    figsize: tuple[float, float] | None = None,
+) -> tuple:
+    """Create a figure with dark-background styling applied to all axes.
+
+    Args:
+        nrows: Number of subplot rows.
+        ncols: Number of subplot columns.
+        figsize: Figure size ``(width, height)`` in inches.
+
+    Returns:
+        ``(fig, axes)`` as returned by ``plt.subplots``.
+    """
+    fig, axes = plt.subplots(nrows, ncols, figsize=figsize or (12, 4 * nrows))
+    fig.patch.set_facecolor(BG)
+    for ax in (axes.flat if hasattr(axes, "flat") else [axes]):
+        dark_ax(ax)
+    return fig, axes
+
+
+def dark_ax(ax: plt.Axes) -> plt.Axes:
+    """Apply dark-background style to an existing ``Axes``.
+
+    Args:
+        ax: The axes to style in-place.
+
+    Returns:
+        The same axes, mutated.
+    """
+    ax.set_facecolor(BG)
+    ax.tick_params(colors="white")
+    ax.xaxis.label.set_color("white")
+    ax.yaxis.label.set_color("white")
+    ax.title.set_color("white")
+    for spine in ax.spines.values():
+        spine.set_edgecolor("#555555")
+    return ax
 
 
 # ── Private helpers ───────────────────────────────────────────────────────────
@@ -2422,6 +2492,250 @@ def run_all_diagnostics(
     print(f"{'─' * 67}")
     print(f"  Generated {len(results)}/{len(tasks)} plots → {out}/\n")
     return results
+
+
+# ── Zoo-level notebook helpers ────────────────────────────────────────────────
+# These functions operate on a ZooResults object and are used by
+# notebooks/notaklon/03_combined_diagnostics.py.
+# They intentionally avoid circular imports — no ZooResults type annotation.
+
+
+def compute_viable_models(
+    zoo,
+    model_names: list[str],
+    esr_threshold: float = 1.0,
+    null_depth_threshold: float = 0.0,
+) -> dict[str, list[tuple[str, float, float]]]:
+    """Classify models into viable / marginal / not_viable tiers.
+
+    A model is **viable** if its mean ESR across all sections is below
+    ``esr_threshold`` AND its mean null_depth_dB is above
+    ``null_depth_threshold``.  A model is **marginal** if its mean ESR is
+    below threshold but null depth is at or below threshold.  All others
+    are **not_viable**.
+
+    Args:
+        zoo: ZooResults instance.
+        model_names: Ordered list of model name strings.
+        esr_threshold: Mean-ESR cutoff (default 1.0).
+        null_depth_threshold: Mean null_depth_dB floor (default 0.0 dB).
+
+    Returns:
+        Dict with keys ``'viable'``, ``'marginal'``, ``'not_viable'``.
+        Each value is a list of ``(name, mean_esr, mean_null_depth)`` tuples,
+        sorted ascending by mean_esr.
+    """
+    viable, marginal, not_viable = [], [], []
+    for name in model_names:
+        esrs, nds = [], []
+        for m in zoo.models[name].metrics_per_section.values():
+            e = m.get("ESR", float("nan"))
+            n = m.get("null_depth_dB", float("nan"))
+            if np.isfinite(e):
+                esrs.append(e)
+            if np.isfinite(n):
+                nds.append(n)
+        mean_esr = float(np.mean(esrs)) if esrs else float("nan")
+        mean_nd  = float(np.mean(nds))  if nds  else float("nan")
+        entry = (name, mean_esr, mean_nd)
+        if mean_esr < esr_threshold:
+            if np.isfinite(mean_nd) and mean_nd > null_depth_threshold:
+                viable.append(entry)
+            else:
+                marginal.append(entry)
+        else:
+            not_viable.append(entry)
+    return {
+        "viable":     sorted(viable,     key=lambda x: x[1]),
+        "marginal":   sorted(marginal,   key=lambda x: x[1]),
+        "not_viable": sorted(not_viable, key=lambda x: x[1]),
+    }
+
+
+def plot_esr_null_scatter(
+    zoo,
+    model_names: list[str],
+    color_map: dict[str, tuple] | None = None,
+    viable_models: list[str] | None = None,
+) -> plt.Figure:
+    """ESR vs null-test depth scatter — dots per section, diamonds = mean.
+
+    Args:
+        zoo: ZooResults instance.
+        model_names: Models to include.
+        color_map: Dict mapping model name → matplotlib colour.
+        viable_models: If provided, viable model names are annotated with a
+            star suffix in the legend.
+
+    Returns:
+        matplotlib Figure (10×7 inches, light background).
+    """
+    if color_map is None:
+        cmap = plt.cm.tab20
+        color_map = {n: cmap(i / max(len(model_names) - 1, 1))
+                     for i, n in enumerate(model_names)}
+    viable_set = set(viable_models or [])
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    for name in model_names:
+        esrs, nds = [], []
+        for m in zoo.models[name].metrics_per_section.values():
+            e = m.get("ESR", float("nan"))
+            n = m.get("null_depth_dB", float("nan"))
+            if np.isfinite(e) and np.isfinite(n):
+                esrs.append(min(e, 5.0))
+                nds.append(np.clip(n, -30, 80))
+        label = f"{name} ★" if name in viable_set else name
+        ax.scatter(esrs, nds, s=20, alpha=0.6, color=color_map[name], label=label)
+        if esrs:
+            ax.scatter([float(np.mean(esrs))], [float(np.mean(nds))],
+                       s=120, marker="D", color=color_map[name],
+                       edgecolors="black", lw=1, zorder=5)
+
+    ax.axvline(1.0, color="gray", ls="--", lw=0.8, label="ESR=1 (worse than silence)")
+    ax.axhline(10, color="orange", ls="--", lw=0.8, label="10 dB — likely audible")
+    ax.axhline(20, color="green",  ls="--", lw=0.8, label="20 dB — likely inaudible")
+    ax.fill_between([0, 5], 20, 80, color="green", alpha=0.05, label="target zone")
+    ax.set_xlabel("ESR (clipped at 5)  ←  better")
+    ax.set_ylabel("null-test depth (dB)  ↑  better")
+    ax.set_title("ESR vs null-test depth — dots=sections, diamonds=mean")
+    ax.legend(fontsize=7)
+    fig.tight_layout()
+    return fig
+
+
+def plot_esr_stft_scatter(
+    zoo,
+    model_names: list[str],
+    color_map: dict[str, tuple] | None = None,
+) -> plt.Figure:
+    """ESR vs STFT loss scatter — dots per section, diamonds = mean.
+
+    Args:
+        zoo: ZooResults instance.
+        model_names: Models to include.
+        color_map: Dict mapping model name → matplotlib colour.
+
+    Returns:
+        matplotlib Figure (10×7 inches, light background).
+    """
+    if color_map is None:
+        cmap = plt.cm.tab20
+        color_map = {n: cmap(i / max(len(model_names) - 1, 1))
+                     for i, n in enumerate(model_names)}
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    for name in model_names:
+        esrs, stfts = [], []
+        for m in zoo.models[name].metrics_per_section.values():
+            e = m.get("ESR", float("nan"))
+            s = m.get("STFT", float("nan"))
+            if np.isfinite(e) and np.isfinite(s):
+                esrs.append(min(e, 5.0))
+                stfts.append(s)
+        ax.scatter(esrs, stfts, s=20, alpha=0.6, color=color_map[name], label=name)
+        if esrs:
+            ax.scatter([float(np.mean(esrs))], [float(np.mean(stfts))],
+                       s=120, marker="D", color=color_map[name],
+                       edgecolors="black", lw=1, zorder=5)
+    ax.axvline(1.0, color="gray", ls="--", lw=0.8, label="ESR=1 (worse than silence)")
+    ax.set_xlabel("ESR (clipped at 5)  ← better")
+    ax.set_ylabel("STFT loss  ← better")
+    ax.set_title(
+        "ESR vs STFT — time-domain vs spectral fidelity\n"
+        "bottom-left = good both; right = high ESR (time-domain mismatch); "
+        "top = high STFT (spectral mismatch)"
+    )
+    ax.legend(fontsize=7)
+    fig.tight_layout()
+    return fig
+
+
+def plot_timing_chart(
+    zoo,
+    neural_names: list[str],
+    color_map: dict[str, tuple] | None = None,
+) -> plt.Figure | None:
+    """Horizontal bar chart: fit/train time vs predict time for neural models.
+
+    Args:
+        zoo: ZooResults instance.
+        neural_names: Names of neural models to display.
+        color_map: Dict mapping model name → matplotlib colour.
+
+    Returns:
+        matplotlib Figure, or ``None`` if ``neural_names`` is empty.
+    """
+    if not neural_names:
+        return None
+    if color_map is None:
+        cmap = plt.cm.tab20
+        color_map = {n: cmap(i / max(len(neural_names) - 1, 1))
+                     for i, n in enumerate(neural_names)}
+
+    fit_s  = [zoo.models[n].fit_time_s     or 0.0 for n in neural_names]
+    pred_s = [zoo.models[n].predict_time_s or 0.0 for n in neural_names]
+    print(f"Neural models: {neural_names}")
+    print(f"fit times:     {fit_s}")
+    print(f"predict times: {pred_s}")
+
+    y   = np.arange(len(neural_names))
+    h   = 0.35
+    fig, ax = plt.subplots(figsize=(12, max(4, len(neural_names) * 0.6 + 2)))
+    ax.barh(y + h / 2, fit_s,  h, label="fit / train (s)",
+            color=[color_map[n] for n in neural_names], alpha=0.9)
+    ax.barh(y - h / 2, pred_s, h, label="predict (s)",
+            color=[color_map[n] for n in neural_names], alpha=0.5, hatch="//")
+    ax.set_yticks(y)
+    ax.set_yticklabels(neural_names)
+    ax.set_xscale("log")
+    ax.set_xlabel("seconds (log scale)")
+    ax.set_title("Fit/train and predict time — neural models")
+    ax.legend()
+    fig.tight_layout()
+    return fig
+
+
+def build_perceptual_heatmap_df(
+    zoo,
+    model_names: list[str],
+    perc_cache: dict[str, dict[str, float]],
+    display_metrics: list[str],
+):
+    """Build the DataFrame consumed by plot_metrics_heatmap.
+
+    Merges per-section means for standard metrics (ESR, etc.) with pre-computed
+    perceptual scores from ``perc_cache``.
+
+    Args:
+        zoo: ZooResults instance.
+        model_names: Models to include (rows).
+        perc_cache: Dict ``{model_name: {metric_short_name: score}}``.
+        display_metrics: Ordered list of column names (standard + perceptual).
+
+    Returns:
+        ``pd.DataFrame`` with models as rows and ``display_metrics`` as columns.
+    """
+    import pandas as pd
+
+    # Determine which metrics come from zoo sections vs perc_cache
+    perc_keys: set[str] = set()
+    for scores in perc_cache.values():
+        perc_keys.update(scores.keys())
+
+    rows: dict[str, dict] = {}
+    for name in model_names:
+        secs = zoo.models[name].metrics_per_section
+        row: dict = {}
+        for m in display_metrics:
+            if m in perc_keys:
+                row[m] = perc_cache.get(name, {}).get(m, float("nan"))
+            else:
+                vals = [v[m] for v in secs.values()
+                        if m in v and np.isfinite(v[m])]
+                row[m] = float(np.mean(vals)) if vals else float("nan")
+        rows[name] = row
+    return pd.DataFrame(rows).T
 
 
 # ── __main__ smoke test ───────────────────────────────────────────────────────

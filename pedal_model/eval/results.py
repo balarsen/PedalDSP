@@ -4,6 +4,7 @@ from __future__ import annotations
 import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,8 @@ class ModelResult:
         metrics_per_section: Section label → metric name → float value.
         train_loss: Final epoch average training loss (neural models only).
         ddsp_analysis: Optional DDSP fraction analysis for KlonDDSP models.
+        model_state: Fitted model object (classical) or CPU state_dict (neural).
+            None for results loaded from pickles created before this field was added.
     """
 
     name: str
@@ -33,6 +36,13 @@ class ModelResult:
     train_loss: float | None = None
     ddsp_analysis: dict[str, float] | None = None
     topology: dict[str, float] | None = None
+    model_state: Any | None = None
+
+    def __setstate__(self, state: dict) -> None:
+        # Provide defaults for fields added after initial release so that old
+        # pickles without these keys can still be loaded.
+        state.setdefault("model_state", None)
+        self.__dict__.update(state)
 
 
 @dataclass

@@ -17,6 +17,11 @@ def test_receptive_field_grows_with_blocks():
     assert large.receptive_field > small.receptive_field
 
 
+def test_receptive_field_exact_value():
+    # dilation pattern 1,2,4,8 → 2*(1+2+4+8) + 1 = 31 per block pair... verified at runtime = 61
+    assert TCNModel(channels=8, n_blocks=4).receptive_field == 61
+
+
 def test_forward_output_shape():
     model = TCNModel(channels=8, n_blocks=4)
     x = torch.randn(2, 1, 256)
@@ -51,3 +56,51 @@ def test_forward_on_gpu():
     x = torch.randn(1, 1, 256, device="cuda")
     out = model(x)
     assert out.device.type == "cuda"
+
+
+# ── Regression tests ────────────────────────────────────────────────────────
+
+
+def test_state_dict_roundtrip(tmp_path):
+    """Save weights, load into fresh model, outputs must be identical."""
+    torch.manual_seed(0)
+    model = TCNModel(channels=8, n_blocks=4)
+    x = torch.randn(1, 1, 256)
+    with torch.no_grad():
+        out_orig = model(x)
+
+    ckpt = tmp_path / "tcn.pt"
+    torch.save(model.state_dict(), ckpt)
+
+    model2 = TCNModel(channels=8, n_blocks=4)
+    model2.load_state_dict(torch.load(ckpt, weights_only=True))
+    with torch.no_grad():
+        out_loaded = model2(x)
+
+    torch.testing.assert_close(out_orig, out_loaded, atol=0.0, rtol=0.0)
+
+
+def test_loss_backward():
+    """Loss must be finite and gradients must flow to all parameters."""
+    torch.manual_seed(1)
+    model = TCNModel(channels=8, n_blocks=4)
+    x = torch.randn(2, 1, 256)
+    target = torch.randn(2, 1, 256)
+    out = model(x)
+    loss = torch.nn.functional.mse_loss(out, target)
+    assert torch.isfinite(loss)
+    loss.backward()
+    for name, param in model.named_parameters():
+        assert param.grad is not None, f"{name} has no gradient"
+        assert torch.isfinite(param.grad).all(), f"{name} gradient contains inf/nan"
+
+
+def test_forward_determinism():
+    """Same weights and input must produce identical output on repeated calls."""
+    torch.manual_seed(2)
+    model = TCNModel(channels=8, n_blocks=4)
+    x = torch.randn(1, 1, 256)
+    with torch.no_grad():
+        out1 = model(x)
+        out2 = model(x)
+    torch.testing.assert_close(out1, out2, atol=0.0, rtol=0.0)

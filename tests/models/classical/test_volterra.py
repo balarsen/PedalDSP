@@ -60,3 +60,34 @@ def test_too_short_signal_raises():
     model = VolterraModel(memory=50)
     with pytest.raises(ValueError):
         model._build_features(np.zeros(10, dtype=np.float64))
+
+
+def test_output_finite():
+    dry = _noise(0)
+    wet = (dry * 0.5).astype(np.float32)
+    model = VolterraModel(memory=10)
+    model.fit(dry, wet, SR)
+    assert np.isfinite(model.predict(dry)).all()
+
+
+def test_predict_chunk_size_consistency():
+    """Predict with different chunk_size values must give identical results."""
+    dry = _noise(1, n=SR * 2)
+    wet = (0.4 * dry + 0.1 * dry ** 2).astype(np.float32)
+    model = VolterraModel(memory=5)
+    model.fit(dry, wet, SR)
+    out_default = model.predict(dry)
+    out_small = model.predict(dry, chunk_size=5_000)
+    np.testing.assert_allclose(out_default, out_small, rtol=1e-5)
+
+
+def test_volterra_recovers_weak_nonlinearity():
+    """Volterra should fit y = 0.5*x + 0.2*x^2 to low ESR."""
+    dry = _noise(0, n=SR * 4)
+    wet = (0.5 * dry + 0.2 * dry ** 2).astype(np.float32)
+    model = VolterraModel(memory=5)
+    model.fit(dry, wet, SR)
+    pred = model.predict(dry)
+    n = min(len(wet), len(pred))
+    esr = float(np.sum((wet[:n] - pred[:n]) ** 2) / (np.sum(wet[:n] ** 2) + 1e-8))
+    assert esr < 0.05

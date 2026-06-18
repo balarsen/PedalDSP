@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "all_up",
+    "description": "All bands and level at +12/+6 \u2014 stress test / maximum gain",
+    "sliders": {
+        "hz_100": 12.0,
+        "hz_200": 12.0,
+        "hz_400": 12.0,
+        "hz_800": 12.0,
+        "hz_1600": 12.0,
+        "hz_3200": 12.0,
+        "hz_6400": 12.0,
+        "level": 15.0
+    },
+    "notes": ""
+}

@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "frown",
+    "description": "Inverted smile \u2014 boost mids, cut lows + highs",
+    "sliders": {
+        "hz_100": -6.0,
+        "hz_200": -2.0,
+        "hz_400": 6.0,
+        "hz_800": 8.0,
+        "hz_1600": 6.0,
+        "hz_3200": -2.0,
+        "hz_6400": -6.0,
+        "level": 0.0
+    },
+    "notes": ""
+}

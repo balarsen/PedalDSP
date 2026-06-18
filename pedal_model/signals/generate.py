@@ -31,7 +31,7 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import butter, sosfilt
 
-GENERATOR_VERSION = "0.1.0"
+GENERATOR_VERSION = "0.2.0"
 SCHEMA_VERSION = "1.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -44,8 +44,7 @@ class TrainParams:
     """Full parameter set for train_signal_v1 (~13 min at 96 kHz).
 
     Amplitude conventions:
-        deterministic signals (sweeps, tones): amplitude_dbfs = peak level
-        stochastic signals (pink/white noise):  amplitude_dbfs = RMS level
+        all signals: amplitude_dbfs = peak level
     """
 
     sample_rate: int = 96_000
@@ -241,24 +240,24 @@ def _sine(n: int, sr: int, freq: float) -> np.ndarray:
 
 
 def _pink_noise(n: int, rng: np.random.Generator) -> np.ndarray:
-    """Unit-RMS pink (1/f) noise via spectral shaping of white noise."""
+    """Unit-peak pink (1/f) noise via spectral shaping of white noise."""
     white = rng.standard_normal(n)
     freqs = np.fft.rfftfreq(n)
     freqs[0] = 1.0  # avoid DC singularity
     scale = 1.0 / np.sqrt(freqs)
     scale[0] = 0.0  # zero DC component
     pink = np.fft.irfft(np.fft.rfft(white) * scale, n=n)
-    return (pink / (float(np.std(pink)) + 1e-10)).astype(np.float32)
+    return (pink / (float(np.max(np.abs(pink))) + 1e-10)).astype(np.float32)
 
 
 def _white_noise(n: int, rng: np.random.Generator, bandlimit: bool = False,
                  low_hz: float = 80.0, high_hz: float = 8_000.0, sr: int = 96_000) -> np.ndarray:
-    """Unit-RMS white noise, optionally bandlimited (4th-order Butterworth)."""
+    """Unit-peak white noise, optionally bandlimited (4th-order Butterworth)."""
     sig = rng.standard_normal(n).astype(np.float64)
     if bandlimit and low_hz < high_hz:
         sos = butter(4, [low_hz, high_hz], btype="band", fs=sr, output="sos")
         sig = sosfilt(sos, sig)
-    return (sig / (float(np.std(sig)) + 1e-10)).astype(np.float32)
+    return (sig / (float(np.max(np.abs(sig))) + 1e-10)).astype(np.float32)
 
 
 def _amp_ramp(n: int, sr: int, freq: float, start_dbfs: float, end_dbfs: float) -> np.ndarray:
@@ -434,7 +433,7 @@ def _build_train(p: TrainParams, rng: np.random.Generator) -> tuple[np.ndarray, 
         audio = _dbfs(amp) * _pink_noise(n, rng)
         b.add(audio, f"pink_noise_l{int(round(amp))}", "pink_noise", amp, {
             "duration_s": p.pink_duration_s,
-            "amplitude_convention": "rms_dbfs",
+            "amplitude_convention": "peak_dbfs",
         }, apply_fade=False, gap_before=gap if first else 0.0)
         first = False
 
@@ -445,7 +444,7 @@ def _build_train(p: TrainParams, rng: np.random.Generator) -> tuple[np.ndarray, 
         audio = _dbfs(amp) * _white_noise(n, rng, sr=sr)
         b.add(audio, f"white_noise_l{int(round(amp))}", "white_noise", amp, {
             "duration_s": p.white_duration_s,
-            "amplitude_convention": "rms_dbfs",
+            "amplitude_convention": "peak_dbfs",
         }, apply_fade=False, gap_before=gap if first else 0.0)
         first = False
 

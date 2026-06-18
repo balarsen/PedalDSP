@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "bright",
+    "description": "Presence and air boost \u2014 Strat-style sparkle",
+    "sliders": {
+        "hz_100": 0.0,
+        "hz_200": 0.0,
+        "hz_400": 0.0,
+        "hz_800": 2.0,
+        "hz_1600": 6.0,
+        "hz_3200": 10.0,
+        "hz_6400": 12.0,
+        "level": 0.0
+    },
+    "notes": ""
+}

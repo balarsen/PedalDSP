@@ -4,6 +4,11 @@ Spectrograms and waveforms use ``librosa.display.specshow`` /
 ``librosa.display.waveshow`` for axis labelling (time, mel, Hz) and
 proper aspect handling. Primitive helpers (spectrum, IR, freq response)
 use plain matplotlib so they have no librosa dependency.
+
+Multi-signal comparison functions (``compare_*``) take a ``signals`` dict
+of ``{label: array}`` and a ``ref_key`` string identifying the reference
+signal. They return a ``plt.Figure`` ready to save. All comparison functions
+use only numpy/scipy so they have no librosa dependency.
 """
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import librosa
 import librosa.display
+from scipy import signal as scipy_signal
 from scipy.fft import rfft, rfftfreq
 
 
@@ -1155,5 +1161,661 @@ def plot_topology_weights(
                 label=f"uniform prior ({uniform_prior:.2f})")
     ax.legend(fontsize=8)
     ax.invert_yaxis()
+    fig.tight_layout()
+    return fig
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Multi-signal comparison panels
+# ──────────────────────────────────────────────────────────────────────────────
+# All ``compare_*`` functions accept:
+#   signals : dict[str, np.ndarray]   — ordered, label → audio array
+#   ref_key : str                     — key of the reference signal in signals
+# They return a plt.Figure ready to savefig().
+# ──────────────────────────────────────────────────────────────────────────────
+
+_CMP_COLORS = ["steelblue", "darkorange", "forestgreen", "crimson"]
+
+
+def _avg_magnitude(sig: np.ndarray, n_fft: int = 4096) -> np.ndarray:
+    """Average magnitude spectrum across non-overlapping Hann-windowed frames."""
+    win = np.hanning(n_fft)
+    n_frames = len(sig) // n_fft
+    if n_frames == 0:
+        return np.abs(np.fft.rfft(sig * np.hanning(len(sig)), n=n_fft))
+    frames = sig[: n_frames * n_fft].reshape(n_frames, n_fft) * win
+    return np.mean(np.abs(np.fft.rfft(frames, axis=1)), axis=0)
+
+
+def _cross_H(dry: np.ndarray, sig: np.ndarray, n_fft: int = 4096) -> np.ndarray:
+    """Averaged transfer function H(f) = sig/dry via Welch cross-spectrum estimate."""
+    win = np.hanning(n_fft)
+    N = min(len(dry), len(sig))
+    n_frames = N // n_fft
+    H = np.zeros(n_fft // 2 + 1, dtype=complex)
+    for i in range(n_frames):
+        s, e = i * n_fft, (i + 1) * n_fft
+        X = np.fft.rfft(dry[s:e] * win)
+        Y = np.fft.rfft(sig[s:e] * win)
+        H += Y * np.conj(X) / (np.abs(X) ** 2 + 1e-10)
+    return H / max(n_frames, 1)
+
+
+def _mel_fb(sr: int, n_fft: int, n_mels: int = 80) -> np.ndarray:
+    """Mel filterbank matrix, shape (n_mels, n_fft//2+1)."""
+    def hz2mel(f: float) -> float:
+        return 2595.0 * np.log10(1.0 + f / 700.0)
+
+    def mel2hz(m: float) -> float:
+        return 700.0 * (10.0 ** (m / 2595.0) - 1.0)
+
+    mel_pts = np.linspace(hz2mel(20.0), hz2mel(sr / 2.0), n_mels + 2)
+    bins = np.clip(
+        np.floor((n_fft + 1) * np.array([mel2hz(m) for m in mel_pts]) / sr).astype(int),
+        0, n_fft // 2,
+    )
+    fb = np.zeros((n_mels, n_fft // 2 + 1))
+    for m in range(n_mels):
+        lo, ctr, hi = bins[m], bins[m + 1], bins[m + 2]
+        if ctr > lo:
+            fb[m, lo:ctr] = np.linspace(0.0, 1.0, ctr - lo)
+        if hi > ctr:
+            fb[m, ctr:hi] = np.linspace(1.0, 0.0, hi - ctr)
+    return fb
+
+
+def _smooth1d(x: np.ndarray, w: int) -> np.ndarray:
+    return np.convolve(x, np.ones(w) / w, mode="same")
+
+
+def _energetic_start(sig: np.ndarray, sr: int, window_s: float) -> int:
+    """Return the start sample of the most energetic non-overlapping window."""
+    n = int(window_s * sr)
+    rms = np.array([
+        float(np.sqrt(np.mean(sig[i: i + n] ** 2)))
+        for i in range(0, min(len(sig) - n, sr * 10), n)
+    ])
+    return int(np.argmax(rms)) * n
+
+
+def compare_waveform_error_panel(
+    dry: np.ndarray,
+    signals: dict[str, np.ndarray],
+    ref_key: str,
+    sr: int,
+    window_s: float = 0.1,
+) -> plt.Figure:
+    """Multi-panel waveform comparison with per-signal error traces.
+
+    Layout (rows):
+      0  : dry signal
+      1  : all signals overlaid on the same axes
+      2+ : for each predicted signal — left: signal vs ref overlay;
+           right: error (ref − pred)
+
+    Args:
+        dry: Dry input signal.
+        signals: Ordered dict of label → audio array.
+        ref_key: Key of the reference signal in ``signals``.
+        sr: Sample rate in Hz.
+        window_s: Time window to display in seconds.
+
+    Returns:
+        matplotlib Figure.
+    """
+    ref = signals[ref_key]
+    preds = {k: v for k, v in signals.items() if k != ref_key}
+    n = int(window_s * sr)
+    start = _energetic_start(dry, sr, window_s)
+    t_ms = np.arange(n) * 1000.0 / sr
+
+    n_pred = len(preds)
+    n_rows = 2 + n_pred
+    fig = plt.figure(figsize=(16, 3 * n_rows))
+    gs = gridspec.GridSpec(n_rows, 2, figure=fig, hspace=0.5)
+
+    # Row 0: dry (spans both columns)
+    ax_dry = fig.add_subplot(gs[0, :])
+    ax_dry.plot(t_ms, dry[start: start + n], lw=0.8, color="gray")
+    ax_dry.set_title("Dry input")
+    ax_dry.set_ylabel("Amplitude")
+    ax_dry.grid(True, alpha=0.3)
+
+    # Row 1: all signals overlaid (spans both columns)
+    ax_all = fig.add_subplot(gs[1, :])
+    for (label, sig), color in zip(signals.items(), _CMP_COLORS):
+        ax_all.plot(t_ms, sig[start: start + n], lw=0.9, color=color,
+                    label=label, alpha=0.85)
+    ax_all.set_title("All signals overlaid")
+    ax_all.set_ylabel("Amplitude")
+    ax_all.legend(fontsize=8, loc="upper right")
+    ax_all.grid(True, alpha=0.3)
+
+    # Rows 2+: per-prediction — left: overlay with ref; right: error
+    for row, ((label, pred), color) in enumerate(zip(preds.items(), _CMP_COLORS[1:]), start=2):
+        N = min(len(ref), len(pred))
+        ax_l = fig.add_subplot(gs[row, 0])
+        ax_l.plot(t_ms, ref[start: start + n], lw=1.0, color=_CMP_COLORS[0],
+                  label=ref_key, alpha=0.9)
+        ax_l.plot(t_ms, pred[start: start + n], lw=0.8, color=color,
+                  label=label, alpha=0.85, linestyle="--")
+        ax_l.set_title(f"{ref_key} vs {label}")
+        ax_l.set_ylabel("Amplitude")
+        ax_l.legend(fontsize=8)
+        ax_l.grid(True, alpha=0.3)
+
+        ax_r = fig.add_subplot(gs[row, 1])
+        err = ref[start: start + n].astype(np.float64) - pred[start: start + n].astype(np.float64)
+        rms_err = float(np.sqrt(np.mean(
+            (ref[:N].astype(np.float64) - pred[:N].astype(np.float64)) ** 2
+        )))
+        ax_r.plot(t_ms, err, lw=0.8, color=color)
+        ax_r.axhline(0, color="black", lw=0.5, alpha=0.5)
+        ax_r.set_title(f"{ref_key} − {label}  (full-length RMS = {rms_err:.5f})")
+        ax_r.set_ylabel("Error")
+        ax_r.grid(True, alpha=0.3)
+
+    for ax in fig.axes:
+        ax.set_xlabel("Time (ms)")
+
+    fig.suptitle(f"Waveform & Error Comparison ({window_s*1000:.0f} ms excerpt)", fontsize=13)
+    fig.tight_layout()
+    return fig
+
+
+def compare_spectrum_analysis_panel(
+    dry: np.ndarray,
+    signals: dict[str, np.ndarray],
+    ref_key: str,
+    sr: int,
+    n_fft: int = 4096,
+) -> plt.Figure:
+    """3-column panel: averaged spectrum | transfer function | coherence.
+
+    Args:
+        dry: Dry input signal.
+        signals: label → audio array.
+        ref_key: Reference signal key.
+        sr: Sample rate in Hz.
+        n_fft: FFT size.
+
+    Returns:
+        matplotlib Figure.
+    """
+    ref = signals[ref_key]
+    preds = {k: v for k, v in signals.items() if k != ref_key}
+    freqs = np.fft.rfftfreq(n_fft, d=1.0 / sr)
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
+
+    # Column 0: averaged magnitude spectra
+    ax = axes[0]
+    for (label, sig), color in zip(signals.items(), _CMP_COLORS):
+        mag = _avg_magnitude(sig, n_fft)
+        ax.semilogx(freqs[1:], 20 * np.log10(mag[1:] + 1e-12),
+                    label=label, color=color, lw=1.2, alpha=0.85)
+    ax.set_xlim(20, sr / 2)
+    ax.set_xlabel("Frequency (Hz)")
+    ax.set_ylabel("Magnitude (dB)")
+    ax.set_title("Averaged Magnitude Spectrum")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    # Column 1: transfer function |H(f)| = wet/dry
+    ax = axes[1]
+    for (label, sig), color in zip(signals.items(), _CMP_COLORS):
+        H = _cross_H(dry, sig, n_fft)
+        ax.semilogx(freqs[1:], 20 * np.log10(np.abs(H[1:]) + 1e-12),
+                    label=label, color=color, lw=1.2, alpha=0.85)
+    ax.set_xlim(20, sr / 2)
+    ax.set_xlabel("Frequency (Hz)")
+    ax.set_ylabel("Magnitude (dB)")
+    ax.set_title("Transfer Function |H(f)| = wet/dry")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    # Column 2: coherence of each pred vs ref
+    ax = axes[2]
+    for (label, pred), color in zip(preds.items(), _CMP_COLORS[1:]):
+        N = min(len(ref), len(pred))
+        f_coh, cxy = scipy_signal.coherence(ref[:N], pred[:N], fs=sr, nperseg=n_fft)
+        ax.semilogx(f_coh[1:], cxy[1:], label=label, color=color, lw=1.2)
+    ax.set_xlim(20, sr / 2)
+    ax.set_ylim(0, 1.05)
+    ax.axhline(1.0, color="gray", lw=0.5, ls="--", alpha=0.5)
+    ax.set_xlabel("Frequency (Hz)")
+    ax.set_ylabel("Coherence")
+    ax.set_title(f"Coherence vs {ref_key} (1.0 = perfect)")
+    ax.legend(fontsize=8)
+    ax.grid(True, alpha=0.3)
+
+    fig.suptitle("Spectral Analysis", fontsize=13)
+    fig.tight_layout()
+    return fig
+
+
+def compare_phase_analysis_panel(
+    dry: np.ndarray,
+    signals: dict[str, np.ndarray],
+    ref_key: str,
+    sr: int,
+    n_fft: int = 8192,
+) -> plt.Figure:
+    """2-column panel: transfer function phase | group delay.
+
+    Args:
+        dry: Dry input signal.
+        signals: label → audio array.
+        ref_key: Reference signal key.
+        sr: Sample rate in Hz.
+        n_fft: FFT size (larger = smoother group delay).
+
+    Returns:
+        matplotlib Figure.
+    """
+    freqs = np.fft.rfftfreq(n_fft, d=1.0 / sr)
+    omega = 2 * np.pi * freqs
+
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    for (label, sig), color in zip(signals.items(), _CMP_COLORS):
+        H = _cross_H(dry, sig, n_fft)
+        phase = np.unwrap(np.angle(H))
+
+        axes[0].semilogx(freqs[2:], np.degrees(phase[2:]),
+                         label=label, color=color, lw=1.0, alpha=0.85)
+
+        gd_ms = -np.gradient(phase, omega) * 1000.0
+        gd_ms = _smooth1d(gd_ms, 40)
+        axes[1].semilogx(freqs[2:], gd_ms[2:],
+                         label=label, color=color, lw=1.2, alpha=0.85)
+
+    for ax, (title, ylabel) in zip(axes, [
+        ("Transfer Function Phase (wet/dry)", "Phase (degrees)"),
+        ("Group Delay (smoothed)", "Group delay (ms)"),
+    ]):
+        ax.set_xlim(20, sr / 2)
+        ax.set_xlabel("Frequency (Hz)")
+        ax.set_ylabel(ylabel)
+        ax.set_title(title)
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+    axes[1].set_ylim(-20, 150)
+    fig.suptitle("Phase Analysis", fontsize=13)
+    fig.tight_layout()
+    return fig
+
+
+def compare_rms_envelopes(
+    signals: dict[str, np.ndarray],
+    sr: int,
+    window_ms: float = 50.0,
+) -> plt.Figure:
+    """Rolling RMS envelope for all signals on a single axes.
+
+    Args:
+        signals: label → audio array.
+        sr: Sample rate in Hz.
+        window_ms: RMS window length in milliseconds.
+
+    Returns:
+        matplotlib Figure.
+    """
+    window = int(window_ms * sr / 1000)
+    hop = window // 2
+    fig, ax = plt.subplots(figsize=(16, 5))
+    for (label, sig), color in zip(signals.items(), _CMP_COLORS):
+        n_frames = (len(sig) - window) // hop
+        if n_frames < 1:
+            continue
+        t = np.arange(n_frames) * hop / sr
+        rms = np.array([
+            float(np.sqrt(np.mean(sig[i * hop: i * hop + window] ** 2)))
+            for i in range(n_frames)
+        ])
+        ax.plot(t, 20 * np.log10(rms + 1e-10), label=label, color=color,
+                lw=0.8, alpha=0.85)
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("RMS level (dBFS)")
+    ax.set_title(f"RMS Envelope ({window_ms:.0f} ms window)")
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    return fig
+
+
+def compare_mel_spectrograms(
+    signals: dict[str, np.ndarray],
+    sr: int,
+    n_fft: int = 2048,
+    hop: int = 512,
+    n_mels: int = 80,
+) -> plt.Figure:
+    """Side-by-side mel spectrograms on a shared colour scale.
+
+    Args:
+        signals: label → audio array.
+        sr: Sample rate in Hz.
+        n_fft: STFT window size.
+        hop: STFT hop in samples.
+        n_mels: Number of mel bands.
+
+    Returns:
+        matplotlib Figure.
+    """
+    fb = _mel_fb(sr, n_fft, n_mels)
+    win = np.hanning(n_fft)
+    mel_specs: dict[str, np.ndarray] = {}
+    for label, sig in signals.items():
+        n_frames = (len(sig) - n_fft) // hop
+        if n_frames < 1:
+            continue
+        mag = np.stack([
+            np.abs(np.fft.rfft(sig[i * hop: i * hop + n_fft] * win))
+            for i in range(n_frames)
+        ], axis=1)
+        mel_specs[label] = 20 * np.log10(fb @ mag + 1e-10)
+
+    if not mel_specs:
+        return plt.figure()
+
+    vmax = max(m.max() for m in mel_specs.values())
+    vmin = vmax - 80.0
+    n_sigs = len(mel_specs)
+    fig, axes = plt.subplots(1, n_sigs, figsize=(8 * n_sigs, 5),
+                              sharey=True, squeeze=False)
+    axes = axes[0]
+    for ax, (label, mel_db) in zip(axes, mel_specs.items()):
+        duration = len(signals[label]) / sr
+        im = ax.imshow(mel_db, aspect="auto", origin="lower",
+                       extent=[0, duration, 0, n_mels],
+                       vmin=vmin, vmax=vmax, cmap="magma")
+        ax.set_title(label)
+        ax.set_xlabel("Time (s)")
+    axes[0].set_ylabel("Mel band index")
+    plt.colorbar(im, ax=axes[-1], label="dB")
+    fig.suptitle("Mel Spectrogram Comparison", fontsize=13)
+    fig.tight_layout()
+    return fig
+
+
+def compare_phase_portraits(
+    signals: dict[str, np.ndarray],
+    ref_key: str,
+) -> plt.Figure:
+    """Lissajous phase portrait for each predicted signal vs reference.
+
+    A perfect match lies on the 45° diagonal. Deviations reveal amplitude
+    or nonlinear error. Points are density-coloured (log count).
+
+    Args:
+        signals: label → audio array.
+        ref_key: Key of the reference signal.
+
+    Returns:
+        matplotlib Figure.
+    """
+    ref = signals[ref_key]
+    preds = {k: v for k, v in signals.items() if k != ref_key}
+    if not preds:
+        return plt.figure()
+
+    n_pred = len(preds)
+    fig, axes = plt.subplots(1, n_pred, figsize=(6 * n_pred, 6), squeeze=False)
+    axes = axes[0]
+    for ax, (label, pred) in zip(axes, preds.items()):
+        N = min(len(ref), len(pred))
+        r = ref[:N].astype(np.float64)
+        p = pred[:N].astype(np.float64)
+        counts, xedges, yedges = np.histogram2d(r, p, bins=300)
+        ax.imshow(
+            np.log1p(counts).T, origin="lower", aspect="equal",
+            extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+            cmap="hot", interpolation="bilinear",
+        )
+        lim = max(float(np.abs(r).max()), float(np.abs(p).max())) * 1.05
+        ax.plot([-lim, lim], [-lim, lim], "w--", lw=1.2, alpha=0.7, label="ideal (45°)")
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_xlabel(f"{ref_key} amplitude")
+        ax.set_ylabel(f"{label} amplitude")
+        ax.set_title(f"Phase portrait: {ref_key} vs {label}")
+        ax.set_aspect("equal")
+        ax.legend(fontsize=8, loc="upper left")
+    fig.suptitle("Lissajous Phase Portrait (density coloured, ideal = diagonal)", fontsize=13)
+    fig.tight_layout()
+    return fig
+
+
+def compare_error_distributions(
+    signals: dict[str, np.ndarray],
+    ref_key: str,
+) -> plt.Figure:
+    """2-row panel: error histogram (top) + scatter density (bottom) per predicted signal.
+
+    Args:
+        signals: label → audio array.
+        ref_key: Key of the reference signal.
+
+    Returns:
+        matplotlib Figure.
+    """
+    ref = signals[ref_key]
+    preds = {k: v for k, v in signals.items() if k != ref_key}
+    if not preds:
+        return plt.figure()
+
+    n_pred = len(preds)
+    fig, axes = plt.subplots(2, n_pred, figsize=(6 * n_pred, 10), squeeze=False)
+
+    for col, (label, pred) in enumerate(preds.items()):
+        color = _CMP_COLORS[(col + 1) % len(_CMP_COLORS)]
+        N = min(len(ref), len(pred))
+        r = ref[:N].astype(np.float64)
+        p = pred[:N].astype(np.float64)
+        err = r - p
+
+        # Top: histogram + Gaussian fit
+        ax = axes[0, col]
+        ax.hist(err, bins=400, density=True, alpha=0.55, color=color, label=label)
+        std = float(np.std(err))
+        x = np.linspace(-5 * std, 5 * std, 600)
+        gauss = np.exp(-x ** 2 / (2 * std ** 2)) / (std * np.sqrt(2 * np.pi))
+        ax.plot(x, gauss, color=color, lw=2.0, ls="--",
+                label=f"Gaussian (σ={std:.5f})")
+        ax.set_xlabel(f"ref − {label}")
+        ax.set_ylabel("Density")
+        ax.set_title(f"Error distribution: {ref_key} − {label}")
+        ax.legend(fontsize=8)
+        ax.grid(True, alpha=0.3)
+
+        # Bottom: 2D density scatter
+        ax = axes[1, col]
+        counts, xedges, yedges = np.histogram2d(r, p, bins=256)
+        im = ax.imshow(
+            np.log1p(counts).T, origin="lower", aspect="equal",
+            extent=[xedges[0], xedges[-1], yedges[0], yedges[-1]],
+            cmap="viridis", interpolation="bilinear",
+        )
+        plt.colorbar(im, ax=ax, label="log(count+1)")
+        lim = max(float(np.abs(r).max()), float(np.abs(p).max())) * 1.05
+        ax.plot([-lim, lim], [-lim, lim], "r--", lw=1.5, alpha=0.8, label="ideal")
+        ax.set_xlim(-lim, lim)
+        ax.set_ylim(-lim, lim)
+        ax.set_xlabel(f"{ref_key}")
+        ax.set_ylabel(label)
+        ax.set_title(f"Scatter density: {ref_key} vs {label}")
+        ax.legend(fontsize=8)
+
+    fig.suptitle("Error Distribution Analysis", fontsize=13)
+    fig.tight_layout()
+    return fig
+
+
+def compare_harmonic_fingerprint(
+    dry: np.ndarray,
+    signals: dict[str, np.ndarray],
+    sr: int,
+) -> plt.Figure:
+    """Relative harmonic energy H1–H5 for each signal.
+
+    Detects the dominant fundamental frequency from the dry signal
+    (guitar range 80–500 Hz), then measures spectral energy at H1–H5
+    in each wet signal. All values are normalised to H1 = 0 dB.
+
+    Args:
+        dry: Dry input signal.
+        signals: label → audio array.
+        sr: Sample rate in Hz.
+
+    Returns:
+        matplotlib Figure.
+    """
+    n_fft = max(4096, min(65536, 2 ** int(np.log2(max(len(dry) // 2, 4096)))))
+    win = np.hanning(n_fft)
+    n_frames = len(dry) // n_fft
+
+    mag_dry = np.zeros(n_fft // 2 + 1)
+    for i in range(min(n_frames, 16)):
+        frame = dry[i * n_fft: (i + 1) * n_fft]
+        if len(frame) < n_fft:
+            frame = np.pad(frame, (0, n_fft - len(frame)))
+        mag_dry += np.abs(np.fft.rfft(frame * win))
+    mag_dry /= max(min(n_frames, 16), 1)
+
+    freqs = np.fft.rfftfreq(n_fft, d=1.0 / sr)
+    guitar_mask = (freqs >= 80) & (freqs <= 500)
+    f0 = float(freqs[guitar_mask][np.argmax(mag_dry[guitar_mask])])
+    harmonics = [f0 * h for h in range(1, 6)]
+    bw = f0 * 0.08
+
+    x = np.arange(5)
+    width = 0.8 / len(signals)
+    fig, ax = plt.subplots(figsize=(11, 5))
+
+    for i, (label, sig) in enumerate(signals.items()):
+        n_frames2 = len(sig) // n_fft
+        mag_sig = np.zeros(n_fft // 2 + 1)
+        for j in range(min(n_frames2, 16)):
+            frame = sig[j * n_fft: (j + 1) * n_fft]
+            if len(frame) < n_fft:
+                frame = np.pad(frame, (0, n_fft - len(frame)))
+            mag_sig += np.abs(np.fft.rfft(frame * win))
+        mag_sig /= max(min(n_frames2, 16), 1)
+
+        h_energy = []
+        for hf in harmonics:
+            band = (freqs >= hf - bw) & (freqs <= hf + bw) & (freqs < sr / 2)
+            h_energy.append(float(np.mean(mag_sig[band])) if band.any() else 0.0)
+
+        h1 = h_energy[0] if h_energy[0] > 0 else 1.0
+        h_db = [20 * np.log10(e / h1 + 1e-12) for e in h_energy]
+        ax.bar(x + i * width, h_db, width, label=label,
+               color=_CMP_COLORS[i % len(_CMP_COLORS)], alpha=0.85)
+
+    ax.set_xticks(x + width * (len(signals) - 1) / 2)
+    ax.set_xticklabels([f"H{h} ({harmonics[h-1]:.0f} Hz)" for h in range(1, 6)], rotation=10)
+    ax.set_ylabel("Level relative to H1 (dB)")
+    ax.set_title(f"Harmonic Fingerprint  (f₀ ≈ {f0:.0f} Hz detected from dry)")
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3, axis="y")
+    fig.tight_layout()
+    return fig
+
+
+def compare_radar_chart(
+    results: dict[str, dict[str, float]],
+    higher_is_better: frozenset[str] = frozenset({"HP_sim", "null_depth_dB"}),
+) -> plt.Figure:
+    """Radar (spider) chart of normalised key metrics — smaller polygon = better.
+
+    Args:
+        results: {pair_label: {metric_name: value}} as returned by compute_all_metrics.
+        higher_is_better: Metrics where a larger value is preferred (they are
+            inverted so the radar axis is always "lower = better").
+
+    Returns:
+        matplotlib Figure.
+    """
+    keys = ["ESR", "STFT", "FR_err_dB", "THD_err", "HP_sim", "MCD"]
+    axis_labels = ["ESR", "STFT", "FR err\n(dB)", "THD err", "1−HP_sim", "MCD"]
+
+    normalized: dict[str, dict[str, float]] = {}
+    for key in keys:
+        raw = {pair: results[pair].get(key, float("nan")) for pair in results}
+        vals = [v for v in raw.values() if not np.isnan(v)]
+        mn, mx = (min(vals), max(vals)) if vals else (0.0, 1.0)
+        span = mx - mn if mx != mn else 1.0
+        if key in higher_is_better:
+            normalized[key] = {p: (mx - raw[p]) / span for p in results}
+        else:
+            normalized[key] = {p: (raw[p] - mn) / span for p in results}
+
+    N = len(keys)
+    angles = [n / N * 2 * np.pi for n in range(N)] + [0]
+
+    fig, ax = plt.subplots(figsize=(7, 7), subplot_kw=dict(polar=True))
+    for (pair, _), color in zip(results.items(), _CMP_COLORS):
+        vals = [normalized[k][pair] for k in keys] + [normalized[keys[0]][pair]]
+        ax.plot(angles, vals, color=color, lw=2, label=pair)
+        ax.fill(angles, vals, color=color, alpha=0.08)
+
+    ax.set_xticks(angles[:-1])
+    ax.set_xticklabels(axis_labels, size=10)
+    ax.set_ylim(0, 1)
+    ax.set_yticks([0.25, 0.5, 0.75, 1.0])
+    ax.set_yticklabels(["25%", "50%", "75%", "worst"], size=8)
+    ax.set_title("Normalised Metrics Radar\n(smaller polygon = better match)", pad=20)
+    ax.legend(loc="upper right", bbox_to_anchor=(1.4, 1.15), fontsize=9)
+    fig.tight_layout()
+    return fig
+
+
+def compare_sliding_esr(
+    signals: dict[str, np.ndarray],
+    ref_key: str,
+    sr: int,
+    window_s: float = 1.0,
+) -> plt.Figure:
+    """ESR computed in sliding windows — reveals where the model struggles.
+
+    Args:
+        signals: label → audio array.
+        ref_key: Key of the reference signal.
+        sr: Sample rate in Hz.
+        window_s: Window length in seconds (50% overlap).
+
+    Returns:
+        matplotlib Figure.
+    """
+    ref = signals[ref_key]
+    preds = {k: v for k, v in signals.items() if k != ref_key}
+    window = int(window_s * sr)
+    hop = window // 2
+
+    fig, ax = plt.subplots(figsize=(16, 5))
+    for (label, pred), color in zip(preds.items(), _CMP_COLORS[1:]):
+        N = min(len(ref), len(pred))
+        n_windows = (N - window) // hop
+        if n_windows < 1:
+            continue
+        t = np.arange(n_windows) * hop / sr
+        esr = np.array([
+            float(
+                np.sum((ref[i * hop: i * hop + window] - pred[i * hop: i * hop + window]) ** 2)
+                / (np.sum(ref[i * hop: i * hop + window] ** 2) + 1e-10)
+            )
+            for i in range(n_windows)
+        ])
+        ax.plot(t, 10 * np.log10(esr + 1e-10), label=label, color=color, lw=0.9)
+
+    ax.axhline(-20, color="gray", lw=1.0, ls="--", alpha=0.7,
+               label="ESR=0.01 (PASS threshold)")
+    ax.set_xlabel("Time (s)")
+    ax.set_ylabel("ESR (dB)")
+    ax.set_title(f"Sliding ESR — {window_s:.0f} s window, 50% overlap  (lower = better)")
+    ax.legend(fontsize=9)
+    ax.grid(True, alpha=0.3)
     fig.tight_layout()
     return fig

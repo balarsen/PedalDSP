@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0",
+  "date_created": "2026-06-13T19:19:17Z",
+  "source": "synthetic",
+  "pedal": "boss_ge7",
+  "pedal_class": "linear_eq",
+  "pedal_version": "1.0",
+  "fit_hints": {
+    "recommended_models": [
+      "FIR",
+      "IIR"
+    ],
+    "skip_models": [
+      "WienerHammerstein",
+      "Volterra",
+      "Hammerstein"
+    ],
+    "fir_length_ms": 100,
+    "iir_order": 14
+  },
+  "sliders": {
+    "hz_100": 0.0,
+    "hz_200": 0.0,
+    "hz_400": 0.0,
+    "hz_800": 0.0,
+    "hz_1600": 0.0,
+    "hz_3200": 0.0,
+    "hz_6400": 0.0,
+    "level": 0.0
+  },
+  "band_q": 1.4,
+  "preset_description": "All sliders at centre \u2014 baseline and null test",
+  "captures": {
+    "train": {
+      "dry_signal": "train_signal_v2",
+      "dry_manifest": "../../../signals/train_signal_v2_48k.json",
+      "wet_wav": "GE7-Flat2 - flat 2.wav",
+      "sample_rate": 48000,
+      "n_samples": 30840000,
+      "duration_s": 642.5
+    },
+    "val": {
+      "dry_signal": "train_signal_v2",
+      "dry_manifest": "../../../signals/train_signal_v2_48k.json",
+      "wet_wav": "GE7-Flat2 - flat 2.wav",
+      "sample_rate": 48000,
+      "n_samples": 30840000,
+      "duration_s": 642.5
+    }
+  }
+}

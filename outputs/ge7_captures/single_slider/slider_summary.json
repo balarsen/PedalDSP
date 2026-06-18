@@ -1,0 +1,65 @@
+{
+  "bands": [
+    {
+      "fc_nominal_hz": 100,
+      "fc_actual_hz": 87.1,
+      "cent_error": -239.1,
+      "measured_peak_db": 9.69,
+      "expected_peak_db": 10.0
+    },
+    {
+      "fc_nominal_hz": 200,
+      "fc_actual_hz": 189.8,
+      "cent_error": -90.6,
+      "measured_peak_db": 8.61,
+      "expected_peak_db": 10.0
+    },
+    {
+      "fc_nominal_hz": 400,
+      "fc_actual_hz": 383.1,
+      "cent_error": -74.7,
+      "measured_peak_db": 7.18,
+      "expected_peak_db": 10.0
+    },
+    {
+      "fc_nominal_hz": 800,
+      "fc_actual_hz": 792.0,
+      "cent_error": -17.4,
+      "measured_peak_db": 7.52,
+      "expected_peak_db": 10.0
+    },
+    {
+      "fc_nominal_hz": 1600,
+      "fc_actual_hz": 1599.1,
+      "cent_error": -1.0,
+      "measured_peak_db": 7.41,
+      "expected_peak_db": 10.0
+    },
+    {
+      "fc_nominal_hz": 3200,
+      "fc_actual_hz": 3379.9,
+      "cent_error": 94.7,
+      "measured_peak_db": 8.42,
+      "expected_peak_db": 10.0
+    },
+    {
+      "fc_nominal_hz": 6400,
+      "fc_actual_hz": 13203.0,
+      "cent_error": 1253.7,
+      "measured_peak_db": 7.17,
+      "expected_peak_db": 10.0
+    }
+  ],
+  "level": [
+    {
+      "label": "LEVEL +10 dB",
+      "gain_set_db": 10.0,
+      "gain_measured_db": 12.09
+    },
+    {
+      "label": "LEVEL -10 dB",
+      "gain_set_db": -10.0,
+      "gain_measured_db": -14.39
+    }
+  ]
+}

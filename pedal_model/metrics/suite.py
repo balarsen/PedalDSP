@@ -110,6 +110,9 @@ def compute_per_section(
         tgt_s = target[a:b]
         pred_s = predicted[a:b]
 
+        if len(dry_s) == 0 or len(tgt_s) == 0 or len(pred_s) == 0:
+            continue
+
         row: dict[str, float] = {
             "ESR": compute_esr(tgt_s, pred_s),
             "null_depth_dB": compute_null_depth(tgt_s, pred_s),

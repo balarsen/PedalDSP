@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "high_cut",
+    "description": "Roll off highs \u2014 telephone / muffled / vintage",
+    "sliders": {
+        "hz_100": 0.0,
+        "hz_200": 0.0,
+        "hz_400": 0.0,
+        "hz_800": 0.0,
+        "hz_1600": -6.0,
+        "hz_3200": -10.0,
+        "hz_6400": -14.0,
+        "level": 0.0
+    },
+    "notes": ""
+}

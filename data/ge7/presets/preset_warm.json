@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "warm",
+    "description": "Warm and dark \u2014 old amp / jazz feel",
+    "sliders": {
+        "hz_100": 6.0,
+        "hz_200": 4.0,
+        "hz_400": 2.0,
+        "hz_800": 0.0,
+        "hz_1600": -4.0,
+        "hz_3200": -8.0,
+        "hz_6400": -10.0,
+        "level": 0.0
+    },
+    "notes": ""
+}

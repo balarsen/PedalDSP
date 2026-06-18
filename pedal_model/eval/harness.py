@@ -1169,6 +1169,9 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     print(f"Loading val signal ({params['captures']['val']['duration_s']:.1f}s @ {sr}Hz)…")
     dry_val, _ = sf.read(str(dry_val_wav), dtype="float32", always_2d=False)
     wet_val, _ = sf.read(str(wet_val_wav), dtype="float32", always_2d=False)
+    # Clip to matching length — DAW recordings can differ by a handful of frames.
+    _min_val = min(len(dry_val), len(wet_val))
+    dry_val, wet_val = dry_val[:_min_val], wet_val[:_min_val]
 
     manifest = Manifest(dry_val_manifest_path)
     train_manifest = Manifest(dry_manifest_path)
@@ -1177,6 +1180,8 @@ def run_zoo(cfg: EvalConfig) -> "ZooResults":  # noqa: F821
     print("Loading train signal…")
     dry_train, _ = sf.read(str(dry_train_wav), dtype="float32", always_2d=False)
     wet_train, _ = sf.read(str(wet_train_wav), dtype="float32", always_2d=False)
+    _min_train = min(len(dry_train), len(wet_train))
+    dry_train, wet_train = dry_train[:_min_train], wet_train[:_min_train]
     total_s = len(dry_train)
 
     # Sequential models (LSTM, GRU, TCN, DDSP, KlonDDSP) get the full signal.

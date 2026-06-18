@@ -1,0 +1,13 @@
+parameter,ground_truth,recovered,error,error_pct,within_tolerance
+fc1_hz,80.0,80.025,0.025,0.03,PASS
+fc2_hz,350.0,350.0231,0.0231,0.01,PASS
+shelf_freq_hz,3000.0,3005.5907,5.5907,0.19,PASS
+shelf_gain_db,2.0,1.9982,0.0018,0.09,PASS
+drive,4.0,4.2816,0.2816,7.04,PASS
+output_level,0.7,0.644,0.056,7.99,PASS
+nl_r2,1.0,0.998764,0.001236,0.1236,FAIL
+esr,0.0,0.001304,0.001304,-,PASS
+generalization_esr_val_pink_l-18,-,3e-06,-,-,PASS
+generalization_esr_val_pink_l-6,-,0.005956,-,-,PASS
+generalization_esr_val_impulse_train,-,0.001446,-,-,PASS
+generalization_esr_val_two_tone_all,-,2e-06,-,-,PASS

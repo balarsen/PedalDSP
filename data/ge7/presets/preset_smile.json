@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "smile",
+    "description": "Classic V-shape \u2014 boost lows + highs, scoop mids",
+    "sliders": {
+        "hz_100": 8.0,
+        "hz_200": 4.0,
+        "hz_400": -2.0,
+        "hz_800": -6.0,
+        "hz_1600": -6.0,
+        "hz_3200": 4.0,
+        "hz_6400": 8.0,
+        "level": 0.0
+    },
+    "notes": ""
+}

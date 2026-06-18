@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "low_cut",
+    "description": "High-pass approximation \u2014 thin out bass",
+    "sliders": {
+        "hz_100": -14.0,
+        "hz_200": -10.0,
+        "hz_400": -6.0,
+        "hz_800": 0.0,
+        "hz_1600": 0.0,
+        "hz_3200": 0.0,
+        "hz_6400": 0.0,
+        "level": 0.0
+    },
+    "notes": ""
+}

@@ -92,18 +92,30 @@ class TCNModel(nn.Module, PedalModel):
     def fit(self, dry: np.ndarray, wet: np.ndarray, sr: int) -> None:
         raise NotImplementedError("Use train/trainer.py to train neural models.")
 
-    def predict(self, x: np.ndarray) -> np.ndarray:
-        """Full-signal inference (causal — no look-ahead).
+    def predict(self, x: np.ndarray, chunk_size: int = 131072) -> np.ndarray:
+        """Chunked inference to avoid OOM on long signals.
+
+        Each chunk is prefixed with receptive_field samples of context so the
+        causal convolutions see the correct history at every position.
 
         Args:
             x: Dry input, shape (N,), float32.
+            chunk_size: Samples per chunk (excluding context prefix).
 
         Returns:
             Predicted wet signal, shape (N,), float32.
         """
         self.eval()
         device = next(self.parameters()).device
+        rf = self.receptive_field
+        out = np.zeros(len(x), dtype=np.float32)
         with torch.no_grad():
-            t = torch.tensor(x, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
-            out = self(t)
-        return out.squeeze().cpu().numpy().astype(np.float32)
+            for start in range(0, len(x), chunk_size):
+                ctx_start = max(0, start - rf)
+                chunk = x[ctx_start : start + chunk_size]
+                t = torch.tensor(chunk, dtype=torch.float32).unsqueeze(0).unsqueeze(0).to(device)
+                pred = self(t).squeeze().cpu().numpy().astype(np.float32)
+                # Discard the context prefix from the output
+                offset = start - ctx_start
+                out[start : start + chunk_size] = pred[offset : offset + chunk_size]
+        return out

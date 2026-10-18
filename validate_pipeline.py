@@ -168,7 +168,7 @@ def test_klon_wh() -> bool:
     print("Test 2: WH streaming on klon_sim real capture")
     print("=" * 60)
 
-    klon_dir = PROJECT_ROOT / "data" / "klon_sim" / "klon_sim_v1"
+    klon_dir = PROJECT_ROOT / "recordings" / "data" / "klon_sim" / "klon_sim_v1"
     params_path = klon_dir / "params.json"
     if not params_path.exists():
         print(f"  SKIP — {params_path} not found")

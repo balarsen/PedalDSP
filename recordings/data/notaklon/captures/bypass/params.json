@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "date_created": "2026-06-19T22:36:03.968415+00:00",
+  "pedal": "jhs_notaklon",
+  "capture_type": "bypass_reamp",
+  "knobs": null,
+  "klonsim_approx": null,
+  "dry_signal": {
+    "file": "recordings/data/signals/train_signal_v2_48k.wav",
+    "sample_rate": 48000,
+    "n_samples": 30840000,
+    "duration_s": 642.5
+  },
+  "wet_signal": {
+    "file": "recordings/data/notaklon/captures/bypass/wet_train_signal_v2_48k.wav",
+    "sample_rate": 48000,
+    "n_samples": 30960000,
+    "duration_s": 645.0,
+    "lag_samples": 45,
+    "lag_ms": 0.938,
+    "peak_dbfs": -14.1,
+    "rms_dbfs": -26.6,
+    "clipped_samples": 0,
+    "extra_tail_samples": 120000,
+    "extra_tail_s": 2.5,
+    "note_alignment": "Hardware lag 45 smp (0.938 ms) measured via xcorr on sweep_low (0.5\u201320 s, \u221224 dBFS, linear regime). All captures in this session share nominally the same ADC lag (45\u201348 smp)."
+  },
+  "capture_notes": "DAW fader 0 dB, Radial ProRMP reamp box, \u221214 dBFS at pedal input. Notaklon footswitch set to BYPASS \u2014 reamp chain only, no pedal processing."
+}

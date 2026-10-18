@@ -23,11 +23,11 @@ from scipy.signal import correlate, freqz, resample_poly
 
 ROOT = Path(__file__).resolve().parent.parent
 
-DRY_WAV      = ROOT / "data/signals/train_signal_v2.wav"
-DRY_MANIFEST = ROOT / "data/signals/train_signal_v2.json"
-DRY_CACHE    = ROOT / "data/signals/train_signal_v2_48k.npy"
-FLAT_WAV     = ROOT / "data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav"
-SLIDER_DIR   = ROOT / "data/ge7/captures/single_slider"
+DRY_WAV      = ROOT / "recordings/data/signals/train_signal_v2.wav"
+DRY_MANIFEST = ROOT / "recordings/data/signals/train_signal_v2.json"
+DRY_CACHE    = ROOT / "recordings/data/signals/train_signal_v2_48k.npy"
+FLAT_WAV     = ROOT / "recordings/data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav"
+SLIDER_DIR   = ROOT / "recordings/data/ge7/captures/single_slider"
 OUT_DIR      = ROOT / "outputs/ge7_captures/single_slider"
 
 SR_WET = 48_000

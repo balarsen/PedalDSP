@@ -29,7 +29,7 @@ from scipy.signal import correlate, hilbert
 
 # ─── Paths & constants ────────────────────────────────────────────────────────
 ROOT     = Path(__file__).resolve().parent.parent
-JSON_PATH = ROOT / "data/signals/train_signal_v1.json"
+JSON_PATH = ROOT / "recordings/data/signals/train_signal_v1.json"
 OUTDIR   = ROOT / "outputs/train_signal_daisy_test"
 PLOT_DIR = OUTDIR / "section_analysis"
 PLOT_DIR.mkdir(parents=True, exist_ok=True)

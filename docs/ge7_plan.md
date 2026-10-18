@@ -32,7 +32,7 @@ worth measuring.
 Mirrors the KlonSim layout exactly. One subdirectory per named preset.
 
 ```
-data/ge7/
+recordings/data/ge7/
     presets/                          ← master preset definitions (JSON)
         preset_flat.json
         preset_smile.json
@@ -96,7 +96,7 @@ warm          +6   +4   +2    0    -4    -8   -10      0    ← warm/dark, old a
 
 ## Preset JSON Format
 
-`data/ge7/presets/preset_smile.json`:
+`recordings/data/ge7/presets/preset_smile.json`:
 
 ```json
 {
@@ -146,7 +146,7 @@ pedal is set, then prints the DAW instructions. One preset per run. No guessing.
   
   DAW: Fader at −10 dB → Arm track → Record → play train_signal_v2.wav into pedal
   Save wet recording as:
-    data/ge7/captures/preset_smile/wet_train_signal_v2.wav
+    recordings/data/ge7/captures/preset_smile/wet_train_signal_v2.wav
   
   Done with TRAIN? Press ENTER, then repeat for VAL.
 ```
@@ -171,12 +171,12 @@ so adding +6 to +12 dB of return gain is fine if desired.
 
 ### Session steps (per preset)
 
-1. Open `data/signals/train_signal_v2.wav` in DAW, set playback track fader to **−10 dB**
+1. Open `recordings/data/signals/train_signal_v2.wav` in DAW, set playback track fader to **−10 dB**
 2. Route playback into GE-7 via reamp box, arm return track
 3. Run: `uv run python scripts/capture_ge7_checklist.py --preset preset_smile`
 4. Set sliders exactly as shown on screen
 5. Press ENTER — record the train signal through the pedal → save wet WAV as
-   `data/ge7/captures/preset_smile/wet_train_signal_v2.wav`
+   `recordings/data/ge7/captures/preset_smile/wet_train_signal_v2.wav`
 6. Record val signal at same −10 dB fader → save as `wet_val_signal_v2.wav`
 7. Press ENTER to confirm — script validates file existence and prints the next
    preset
@@ -226,7 +226,7 @@ uv run python scripts/fit_ge7_per_preset.py  # trains IIR model on each
 | File | What | Priority |
 |---|---|---|
 | `pedal_model/synthetic/ge7.py` | `Ge7Params`, `Ge7Sliders`, `Ge7Sim` | **1 — needed before anything else** |
-| `data/ge7/presets/*.json` | 12 preset definition files | **1** |
+| `recordings/data/ge7/presets/*.json` | 12 preset definition files | **1** |
 | `scripts/make_ge7_captures.py` | synthetic wet generation (like `make_klon_sim.py`) | **2** |
 | `scripts/capture_ge7_checklist.py` | interactive recording guide | **2** |
 | `scripts/fit_ge7_per_preset.py` | train IIR model per preset (reuses `fit_models.py` logic) | **3** |
@@ -239,8 +239,8 @@ uv run python scripts/fit_ge7_per_preset.py  # trains IIR model on each
 
 | File | Why it just works |
 |---|---|
-| `data/signals/train_signal_v1.wav` | Same input signal — GE-7 is linear so the same sweep/tone coverage works |
-| `data/signals/val_signal_v1.wav` | Same |
+| `recordings/data/signals/train_signal_v1.wav` | Same input signal — GE-7 is linear so the same sweep/tone coverage works |
+| `recordings/data/signals/val_signal_v1.wav` | Same |
 | `pedal_model/capture/align.py` | Cross-correlation alignment is pedal-agnostic |
 | `pedal_model/capture/verify.py` | Level + DC checks are pedal-agnostic |
 | `pedal_model/metrics/` | All metrics (ESR, STFT, FR, THD, MCD) reusable unchanged |
@@ -303,8 +303,8 @@ fix it before recording any hardware.
 One command trains any pedal. No `--pedal-type` flag. No separate scripts per pedal.
 
 ```bash
-uv run python scripts/fit_pedal.py --capture-dir data/ge7/captures/preset_smile
-uv run python scripts/fit_pedal.py --capture-dir data/klon_sim/klon_sim_v1
+uv run python scripts/fit_pedal.py --capture-dir recordings/data/ge7/captures/preset_smile
+uv run python scripts/fit_pedal.py --capture-dir recordings/data/klon_sim/klon_sim_v1
 ```
 
 ### How it works
@@ -342,7 +342,7 @@ uv run python scripts/fit_pedal.py --capture-dir data/klon_sim/klon_sim_v1
 
 ### KlonSim params.json update
 
-Add to `data/klon_sim/klon_sim_v1/params.json`:
+Add to `recordings/data/klon_sim/klon_sim_v1/params.json`:
 ```json
 {
   "pedal_class": "nonlinear_wh",
@@ -362,7 +362,7 @@ This is backward-compatible — existing code that ignores `fit_hints` keeps wor
 
 ```
 [✓] pedal_model/synthetic/ge7.py       — Ge7Sim, Ge7Sliders, Ge7Params
-[✓] data/ge7/presets/*.json            — 12 preset files
+[✓] recordings/data/ge7/presets/*.json            — 12 preset files
 [✓] scripts/make_ge7_captures.py       — synthetic wet gen; all 12 presets generated
 [✓] scripts/capture_ge7_checklist.py   — interactive recording session guide
 [ ] scripts/verify_ge7_captures.py     — post-capture alignment + level QC
@@ -372,5 +372,5 @@ This is backward-compatible — existing code that ignores `fit_hints` keeps wor
 Ready to record hardware.  Workflow:
   uv run python scripts/capture_ge7_checklist.py --all
   uv run python scripts/verify_ge7_captures.py
-  uv run python scripts/fit_pedal.py --capture-dir data/ge7/captures/preset_flat
+  uv run python scripts/fit_pedal.py --capture-dir recordings/data/ge7/captures/preset_flat
 ```

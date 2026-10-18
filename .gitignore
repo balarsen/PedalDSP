@@ -25,10 +25,13 @@ ENV/
 *.ipynb_checkpoints
 *.ipynb
 
-# PyTorch / model checkpoints
+# PyTorch / model checkpoints and large numeric caches
 *.pt
 *.pth
 checkpoints/
+*.pkl
+*.npy
+*.npz
 
 # Audio data (large files — never commit WAV/MP3/FLAC/AIFF)
 # Regenerate signals from their JSON manifests (seed + all params recorded there).
@@ -37,12 +40,13 @@ checkpoints/
 *.mp3
 *.flac
 *.aiff
+*.aif
 *.ogg
-data/raw/
-data/signals/*.wav
-data/signals/legacy/*.wav
-data/captures/**/*.wav
-data/stems/**/*.wav
+recordings/data/raw/
+recordings/data/signals/*.wav
+recordings/data/signals/legacy/*.wav
+recordings/data/captures/**/*.wav
+recordings/data/stems/**/*.wav
 capture_sweep.wav
 capture_check.png
 
@@ -75,3 +79,20 @@ dmypy.json
 02_diagnostics3.pdf
 03_combined_diagnostics.pdf
 perceptual_metrics_explorer.pdf
+
+# Studio One session caches and autosaves (sessions live under recordings/)
+Cache/
+History/
+*.peak
+*.autosave
+
+# Daisy firmware build output
+daisy/build/
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# Windows
+desktop.ini

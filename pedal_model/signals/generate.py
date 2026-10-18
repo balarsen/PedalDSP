@@ -7,14 +7,14 @@ plucks, multitone stacks and layered sections, and wraps everything in a
 structured JSON manifest so any section can be queried by label.
 
 Usage (CLI):
-    python -m pedal_model.signals.generate --signal train --output data/signals/
-    python -m pedal_model.signals.generate --signal val   --output data/signals/
-    python -m pedal_model.signals.generate --signal both  --output data/signals/
-    python -m pedal_model.signals.generate --from-manifest data/signals/train_signal_v1.json
+    python -m pedal_model.signals.generate --signal train --output recordings/data/signals/
+    python -m pedal_model.signals.generate --signal val   --output recordings/data/signals/
+    python -m pedal_model.signals.generate --signal both  --output recordings/data/signals/
+    python -m pedal_model.signals.generate --from-manifest recordings/data/signals/train_signal_v1.json
 
 Usage (library):
     from pedal_model.signals import generate, TrainParams
-    wav, js = generate("train", "data/signals/", train_params=TrainParams(seed=99))
+    wav, js = generate("train", "recordings/data/signals/", train_params=TrainParams(seed=99))
 """
 
 from __future__ import annotations
@@ -848,7 +848,7 @@ def main(argv: list[str] | None = None) -> None:
         "--signal", choices=["train", "val", "both"], default="both",
         help="Which signal(s) to generate.",
     )
-    parser.add_argument("--output", default=None, help="Output directory. Defaults to data/signals, or the manifest's own directory when --from-manifest is used.")
+    parser.add_argument("--output", default=None, help="Output directory. Defaults to recordings/data/signals, or the manifest's own directory when --from-manifest is used.")
     parser.add_argument("--name", default=None, metavar="STEM", help="Output filename stem (no extension). E.g. --name my_signal writes my_signal.wav + my_signal.json.")
     parser.add_argument("--sr", type=int, default=96_000, help="Sample rate in Hz.")
     parser.add_argument("--seed-train", type=int, default=1234, help="RNG seed for train signal.")
@@ -867,7 +867,7 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
 
-    out_dir = args.output or "data/signals"
+    out_dir = args.output or "recordings/data/signals"
     signals = ["train", "val"] if args.signal == "both" else [args.signal]
     for sig in signals:
         if sig == "train":

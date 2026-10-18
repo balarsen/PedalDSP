@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.song binary
+*.wav  binary
+*.png  binary
+*.pdf  binary
+*.pkl  binary
+*.npy  binary

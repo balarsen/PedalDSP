@@ -36,7 +36,7 @@ def _():
     import soundfile as sf
     import marimo as mo
 
-    PROJECT_ROOT = Path("/mnt/d/Projects/PedalDSP")
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 

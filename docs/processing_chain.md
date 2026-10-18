@@ -50,7 +50,7 @@ Guitar → DI box (parallel split)
 
 ### Training signal
 
-Play the `data/klon_sim/klon_sim_v1/train_signal_v1.wav` file through your DI rig:
+Play the `recordings/data/klon_sim/klon_sim_v1/train_signal_v1.wav` file through your DI rig:
 
 ```
 [DAW or audio player] → DI rig → interface → record stereo (dry=L, wet=R)
@@ -77,12 +77,12 @@ Use a separate, shorter signal (15–30 seconds of guitar playing or the
 ### Directory structure
 
 ```
-data/captures/<pedal_name>/
+recordings/data/captures/<pedal_name>/
     train_dry.wav          ← dry channel from training recording
     train_wet.wav          ← wet channel from training recording
     val_dry.wav            ← dry channel from validation recording
     val_wet.wav            ← wet channel from validation recording
-    train_signal_v1.json   ← signal manifest (copy from data/klon_sim/)
+    train_signal_v1.json   ← signal manifest (copy from recordings/data/klon_sim/)
     params.json            ← config file (create manually — see below)
 ```
 
@@ -122,8 +122,8 @@ Before fitting, verify that the dry and wet channels are aligned:
 ```bash
 uv run python -c "
 import soundfile as sf, numpy as np
-dry, sr = sf.read('data/captures/mypedal/train_dry.wav', dtype='float32')
-wet, sr = sf.read('data/captures/mypedal/train_wet.wav', dtype='float32')
+dry, sr = sf.read('recordings/data/captures/mypedal/train_dry.wav', dtype='float32')
+wet, sr = sf.read('recordings/data/captures/mypedal/train_wet.wav', dtype='float32')
 corr = np.correlate(wet[:sr], dry[:sr], mode='full')
 lag = np.argmax(corr) - sr + 1
 print(f'Lag: {lag} samples ({lag/sr*1000:.2f} ms)')
@@ -141,18 +141,18 @@ The `pedal_model.capture.align` module can auto-correct small lags.
 ```bash
 # Full run — classical + neural, auto-detect CUDA
 uv run python scripts/fit_models.py \
-    --klon-sim-dir data/captures/mypedal \
+    --klon-sim-dir recordings/data/captures/mypedal \
     --name mypedal_v1
 
 # Classical-only first (fast, ~5 min) to check data quality
 uv run python scripts/fit_models.py \
-    --klon-sim-dir data/captures/mypedal \
+    --klon-sim-dir recordings/data/captures/mypedal \
     --name mypedal_v1 \
     --classical-only --skip volterra
 
 # Then add neural with more epochs
 uv run python scripts/fit_models.py \
-    --klon-sim-dir data/captures/mypedal \
+    --klon-sim-dir recordings/data/captures/mypedal \
     --name mypedal_v1 \
     --neural-only --epochs 200 --device cuda
 ```

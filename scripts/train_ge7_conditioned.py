@@ -32,14 +32,15 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from pedal_model.metrics.time_domain import compute_esr
 from pedal_model.models.neural.conditioned_lstm import ConditionedLSTMModel
+from pedal_model.models.neural.conditioned_tcn import ConditionedTCNModel
 from pedal_model.train.losses import CombinedLoss
 
 # ── Constants ─────────────────────────────────────────────────────────────── #
 
 ROOT = PROJECT_ROOT
-DRY_WAV = ROOT / "data/signals/train_signal_v2_48k.wav"
-PRESETS_DIR = ROOT / "data/ge7/presets"
-CAPTURES_DIR = ROOT / "data/ge7/captures"
+DRY_WAV = ROOT / "recordings/data/signals/train_signal_v2_48k.wav"
+PRESETS_DIR = ROOT / "recordings/data/ge7/presets"
+CAPTURES_DIR = ROOT / "recordings/data/ge7/captures"
 
 SLIDER_KEYS: list[str] = [
     "hz_100", "hz_200", "hz_400", "hz_800",
@@ -58,7 +59,7 @@ def _find_wet_wav(capture_dir: Path) -> Path:
     """Return the wet WAV in a capture dir (canonical name, or the only WAV).
 
     Args:
-        capture_dir: Directory under data/ge7/captures/preset_<name>/.
+        capture_dir: Directory under recordings/data/ge7/captures/preset_<name>/.
 
     Returns:
         Path to the wet WAV file.
@@ -175,9 +176,8 @@ class ConditionedChunkDataset(Dataset):
 
 # ── Validation ────────────────────────────────────────────────────────────── #
 
-@torch.no_grad()
 def eval_preset_esr(
-    model: ConditionedLSTMModel,
+    model: ConditionedLSTMModel | ConditionedTCNModel,
     dry_val: np.ndarray,
     wet_val: np.ndarray,
     knobs: np.ndarray,
@@ -186,30 +186,22 @@ def eval_preset_esr(
 ) -> float:
     """ESR for one preset on the validation split.
 
-    Runs the LSTM sequentially with carried hidden state so temporal
-    context is preserved across the full validation signal.
+    Delegates to each model's own predict() method, which handles the
+    correct context strategy — LSTM carries hidden state between chunks,
+    TCN prefixes each chunk with receptive_field context samples.
 
     Args:
-        model: Model in eval mode.
+        model: Trained model.
         dry_val: Dry validation signal, shape (N,), float32.
         wet_val: Wet ground truth, same shape.
         knobs: Normalised knob vector, shape (n_knobs,), float32.
-        device: Torch device.
-        chunk_size: Inference chunk size.
+        device: Torch device (unused — model uses its own parameter device).
+        chunk_size: Unused — each model selects its own optimal chunk size.
 
     Returns:
         ESR in [0, ∞).
     """
-    model.eval()
-    pred = np.zeros(len(dry_val), dtype=np.float32)
-    k = torch.from_numpy(knobs).unsqueeze(0).to(device)  # (1, n_knobs)
-    hidden = None
-    for start in range(0, len(dry_val), chunk_size):
-        chunk = dry_val[start : start + chunk_size]
-        x = torch.from_numpy(chunk).unsqueeze(0).unsqueeze(-1).to(device)
-        y, hidden = model(x, k, hidden)
-        hidden = (hidden[0].detach(), hidden[1].detach())
-        pred[start : start + len(chunk)] = y.squeeze().cpu().numpy()
+    pred = model.predict(dry_val, knobs)
     return compute_esr(wet_val, pred)
 
 
@@ -225,13 +217,14 @@ def train(
     device_str: str = "auto",
     exclude: frozenset[str] = DEFAULT_EXCLUDE,
     only: list[str] | None = None,
+    model_type: str = "lstm",
     checkpoint_dir: Path = ROOT / "checkpoints" / "ge7_conditioned",
 ) -> None:
-    """Train the conditioned LSTM on all usable GE-7 preset captures.
+    """Train a conditioned model on all usable GE-7 preset captures.
 
     Args:
         n_epochs: Training epochs.
-        hidden_size: LSTM hidden units per layer (2 layers).
+        hidden_size: LSTM hidden units (lstm) or conv channels (tcn).
         chunk_size: TBPTT chunk length in samples at 48 kHz.
         batch_size: Items per gradient step.
         lr: Initial AdamW learning rate (cosine-annealed to lr/100).
@@ -239,6 +232,7 @@ def train(
         device_str: 'auto', 'cuda', or 'cpu'.
         exclude: Preset names to skip.
         only: If set, train on only these presets.
+        model_type: 'lstm' or 'tcn'.
         checkpoint_dir: Root directory for checkpoint subdirectories.
     """
     if device_str == "auto":
@@ -303,14 +297,22 @@ def train(
     )
 
     # ── Model ─────────────────────────────────────────────────────────────── #
-    model = ConditionedLSTMModel(
-        n_knobs=len(SLIDER_KEYS),
-        knob_embedding_dim=16,
-        hidden_size=hidden_size,
-        num_layers=2,
-    ).to(device)
+    if model_type == "tcn":
+        model: nn.Module = ConditionedTCNModel(
+            n_knobs=len(SLIDER_KEYS),
+            channels=hidden_size,
+            n_blocks=10,
+            film_hidden=64,
+        ).to(device)
+    else:
+        model = ConditionedLSTMModel(
+            n_knobs=len(SLIDER_KEYS),
+            knob_embedding_dim=16,
+            hidden_size=hidden_size,
+            num_layers=2,
+        ).to(device)
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"Model: {model.name} (2-layer)  params={n_params:,}")
+    print(f"Model: {model.name}  params={n_params:,}")
 
     # ── Optimiser ─────────────────────────────────────────────────────────── #
     optimiser = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
@@ -416,6 +418,8 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=1e-3,
                         help="Initial AdamW learning rate.")
     parser.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"])
+    parser.add_argument("--model", default="lstm", choices=["lstm", "tcn"],
+                        help="Model architecture: lstm or tcn.")
     parser.add_argument("--exclude", nargs="*", default=list(DEFAULT_EXCLUDE),
                         metavar="NAME",
                         help="Preset names to exclude from training.")
@@ -433,6 +437,7 @@ def main() -> None:
         device_str=args.device,
         exclude=frozenset(args.exclude),
         only=args.presets,
+        model_type=args.model,
     )
 
 

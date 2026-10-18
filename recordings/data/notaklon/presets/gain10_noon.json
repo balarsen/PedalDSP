@@ -1,0 +1,24 @@
+{
+  "schema_version": "2.2",
+  "pedal": "jhs_notaklon",
+  "preset_name": "gain10_noon",
+  "description": "Mid-gain \u2014 Gain 10 o'clock, Treble noon, Volume noon",
+  "knobs": {
+    "gain_oclock": 10.0,
+    "treble_oclock": 12.0,
+    "volume_oclock": 12.0,
+    "shamrock": false
+  },
+  "klonsim_approx": {
+    "drive": 2.7019,
+    "clean_blend": 0.59,
+    "treble_db": 0.0,
+    "output_level": 0.9112,
+    "clip_asymmetry": 0.15,
+    "shamrock": false
+  },
+  "songs": [
+    "The Thrill Is Gone"
+  ],
+  "notes": ""
+}

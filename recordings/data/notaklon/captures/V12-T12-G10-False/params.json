@@ -1,0 +1,47 @@
+{
+  "schema_version": "1.0",
+  "date_created": "2026-06-18T15:37:50.192292+00:00",
+  "pedal": "jhs_notaklon",
+  "capture_type": "hardware",
+  "knobs": {
+    "volume_oclock": 12,
+    "treble_oclock": 12,
+    "gain_oclock": 10,
+    "shamrock": false
+  },
+  "klonsim_approx": {
+    "drive": 2.7019,
+    "input_hpf_hz": 80.0,
+    "clip_hpf_hz": 350.0,
+    "presence_hz": 3000.0,
+    "presence_db": 2.0,
+    "output_level": 0.9112,
+    "clean_blend": 0.59,
+    "treble_db": 0.0,
+    "clip_asymmetry": 0.15,
+    "shamrock": false,
+    "noise_floor_dbfs": -70.0,
+    "noise_seed": 42
+  },
+  "dry_signal": {
+    "file": "recordings/data/signals/train_signal_v2_48k.wav",
+    "sample_rate": 48000,
+    "n_samples": 30840000,
+    "duration_s": 642.5
+  },
+  "wet_signal": {
+    "file": "recordings/data/notaklon/captures/V12-T12-G10-False/wet_train_signal_v2_48k.wav",
+    "sample_rate": 48000,
+    "n_samples": 30916140,
+    "duration_s": 644.09,
+    "lag_samples": 47,
+    "lag_ms": 0.979,
+    "peak_dbfs": -16.9,
+    "rms_dbfs": -22.3,
+    "clipped_samples": 0,
+    "extra_tail_samples": 76140,
+    "extra_tail_s": 1.586,
+    "note_alignment": "Tail-only overshoot: wet[:dry_n_samples] is aligned with dry. Hardware lag 47 smp (0.979 ms) measured via xcorr on sweep_low (0.5-20 s, -24 dBFS, linear regime). All three captures share the same lag (audio interface buffer, not pedal setting)."
+  },
+  "capture_notes": "DAW fader 0 dB, Radial ProRMP reamp box, -14 dBFS at pedal input."
+}

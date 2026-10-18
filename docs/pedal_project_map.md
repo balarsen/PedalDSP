@@ -54,7 +54,7 @@ PedalDSP/
 │       ├── losses.py                  # CombinedLoss (time + multi-scale STFT)
 │       └── scheduler.py              # LR scheduling
 │
-├── data/
+├── recordings/data/
 │   ├── signals/
 │   │   ├── train_signal_v1.wav        # 642.5s generated training signal (96k/float32)
 │   │   ├── train_signal_v1.json       # Manifest: 84 sections, seed=1234
@@ -135,7 +135,7 @@ Step 2  ✓  Parameterized signal generator + JSON manifests
 Step 3  ✓  Manifest reader (pedal_model/signals/manifest.py)
 Step 4  ✓  Generator + manifest test suite (tests/signals/)
 Step 5  ✓  Generate train_signal_v1 (642.5 s) + val_signal_v1 (65 s)
-           (data/signals/*.wav + *.json committed)
+           (recordings/data/signals/*.wav + *.json committed)
 Step 6  ✗  Capture utilities — BLOCKED (DI boxes in transit)
            latency measurement, alignment, level calibration, dry/wet pairing
 Step 7  ✓  96k→48k resampler + manifest-aware dataset loaders

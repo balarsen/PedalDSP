@@ -17,9 +17,9 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PRESETS_DIR = PROJECT_ROOT / "data" / "ge7" / "presets"
-CAPTURES_DIR = PROJECT_ROOT / "data" / "ge7" / "captures"
-SIGNALS_DIR = PROJECT_ROOT / "data" / "signals"
+PRESETS_DIR = PROJECT_ROOT / "recordings" / "data" / "ge7" / "presets"
+CAPTURES_DIR = PROJECT_ROOT / "recordings" / "data" / "ge7" / "captures"
+SIGNALS_DIR = PROJECT_ROOT / "recordings" / "data" / "signals"
 
 _BANDS = [
     ("100Hz",  "hz_100"),

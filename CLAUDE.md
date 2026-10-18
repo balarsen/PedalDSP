@@ -1,146 +1,131 @@
-# PedalDSP — Claude Code Guidelines
+# CLAUDE.md: PedalDSP, learning to build digital guitar pedals on the Hothouse
 
-## Project Overview
+Read `PROJECT_MAP.md` for the repo layout and what every recording is. This file holds the working rules.
+Deeper docs live in `docs/`. Start with `docs/architecture.md`, `docs/processing_chain.md` and
+`docs/daisy_programming.md`.
 
-Guitar pedal modeling project: capture dry/wet audio pairs, fit classical DSP models (FIR, IIR, Hammerstein, Volterra), train neural models (LSTM, TCN, WaveNet, DDSP), and compare them on a metrics suite (ESR, STFT loss, THD, MCD).
+## What this project is
 
-Stack: Python 3.11+, PyTorch, torchaudio, NumPy, SciPy, soundfile, seaborn. Runs on WSL2 with CUDA.
+The owner is learning to design digital guitar pedals for the **Cleveland Music Co. Hothouse**, a DIY pedal
+platform built around the Electrosmith **Daisy Seed** (STM32H750, ARM Cortex-M7 @ 480 MHz, 24-bit codec).
+The Hothouse gives 6 knobs, 3 three-position toggles, 2 footswitches, 2 LEDs, mono in / mono out.
 
----
+The method is **capture, model, compare**:
 
-## Environment Setup
+1. Play a designed training signal (`recordings/data/signals/`, reproducible from its JSON manifest) or a guitar DI
+   through a real pedal, and record dry/wet pairs.
+2. Fit models to the pairs in Python (`pedal_model/`): classical (FIR, IIR, Hammerstein, Wiener-Hammerstein,
+   Volterra), neural (LSTM, GRU, TCN, WaveNet, DDSP, knob-conditioned variants) and ODE/physics models
+   (`pedal_model/ode/`, shared with PedalODE). Score them on the metrics suite (ESR, STFT loss, THD, MCD).
+3. Export the winning model to the Daisy (`daisy/`, `scripts/export_daisy_coeffs.py`), flash the Hothouse,
+   re-record it, and compare the hardware output with the model and the analog pedal.
 
-This is a **uv project**. The virtualenv lives at `.venv` in the project root.
+Pedals so far: **KlonSim** (a synthetic Klon used to validate the pipeline; it also runs on the Daisy),
+**Boss GE-7** (7-band graphic EQ, the linear target), **JHS Notaklon** (Klon-style overdrive, the nonlinear
+target), and an early Pi Muff stem pair.
 
-- **Activate venv:** `source .venv/bin/activate`
-- **Run commands in venv without activating:** `uv run <command>` or `.venv/bin/python <script>`
-- **Add dependencies:** `uv add <package>`
-- **Install all deps:** `uv sync`
-- **Python version:** 3.12 (`.venv/bin/python --version`)
-- Never use bare `pip install` — always go through `uv add` so `pyproject.toml` stays in sync.
+## How to work with the owner
 
----
-
-## Code Style
-
-- Follow PEP 8. Use `ruff` for linting (`ruff check .`).
-- Type-annotate all function signatures. No `Any` unless unavoidable.
-- Prefer `np.ndarray` and `torch.Tensor` over bare arrays in signatures — be explicit about shapes in docstrings.
-- Use `pathlib.Path` for all file paths, never raw strings.
-- Constants in `UPPER_SNAKE_CASE` at module level.
-
----
-
-## Documentation Rules
-
-**Functions**: every public function gets a one-line summary and a `Args` / `Returns` block. Skip obvious parameters (no `x: float  # the float x`). Document units (`sr: int  # sample rate in Hz`), valid ranges, and non-obvious defaults.
-
-```python
-def compute_esr(target: np.ndarray, predicted: np.ndarray) -> float:
-    """Error-to-Signal Ratio: lower is better, 0 = perfect.
-
-    Args:
-        target: Reference audio, shape (N,), float32, range [-1, 1].
-        predicted: Model output, same shape as target.
-
-    Returns:
-        ESR in [0, ∞). Values > 1 indicate the model is worse than silence.
-    """
-```
-
-**Inline comments**: only when the WHY is non-obvious — a hidden constraint, a workaround for a known numerical issue, a DSP identity that would surprise a reader. No comments that restate what the code already says.
-
-**Modules**: each module gets a one-line module docstring naming its responsibility. No paragraph essays.
-
-**No comments for**:
-- What a loop does when the variable names are clear
-- Closing braces or blocks
-- Removed or future code
-
----
-
-## Testing Rules
-
-Every module in `capture/`, `models/`, `metrics/`, and `train/` must have a corresponding test file at `tests/test_<module>.py`.
-
-### What to test
-
-**Pure functions** (metrics, alignment, signal generation):
-- Test on synthetic inputs where the expected output is known analytically.
-- Test edge cases: empty array, single sample, all-zeros signal, perfect prediction.
-- Assert numerical precision with `np.testing.assert_allclose(rtol=1e-5)` — not `==`.
-
-**Model forward passes**:
-- Test that output shape matches expected shape for a batch of random inputs.
-- Test that forward pass runs on CPU. If CUDA is available, add a GPU variant with `pytest.mark.skipif`.
-- Test that loss is finite and > 0 on random inputs.
-
-**Data pipeline** (`data/dataset.py`):
-- Test with a short synthetic WAV (generated in the test, not from disk).
-- Test that windows don't exceed audio length.
-- Test that dry/wet alignment is preserved through slicing.
-
-### Structure
-
-```python
-import pytest
-import numpy as np
-from metrics.time_domain import compute_esr
-
-def test_esr_perfect_prediction():
-    signal = np.random.randn(1000).astype(np.float32)
-    assert compute_esr(signal, signal) == pytest.approx(0.0, abs=1e-7)
-
-def test_esr_zero_prediction():
-    signal = np.ones(100, dtype=np.float32)
-    assert compute_esr(signal, np.zeros(100, dtype=np.float32)) == pytest.approx(1.0)
-```
-
-- Use `pytest`. No `unittest.TestCase`.
-- No mocking of NumPy, SciPy, or PyTorch internals.
-- No file I/O in tests — generate synthetic data inline or use `tmp_path`.
-- Tests must be deterministic: set `np.random.seed` and `torch.manual_seed` at the top of any test that uses random data.
-- Tests must pass on CPU-only. GPU is optional / skipped.
-
-### Running tests
-
-```bash
-pytest tests/ -v
-pytest tests/ -v --tb=short   # shorter tracebacks
-```
-
----
-
-## Model Implementation Rules
-
-- All models inherit from `models/base.py`. Implement `forward()` and `receptive_field` property.
-- Classical models (FIR, IIR, etc.) must be runnable without PyTorch — NumPy/SciPy only.
-- Neural models must support `torch.no_grad()` inference.
-- Never hard-code sample rate; always pass `sr: int` as a parameter.
-- No global mutable state. Models are stateless between calls unless they explicitly carry hidden state (LSTM, GRU).
-
----
-
-## Training Rules
-
-- Checkpoints go in `checkpoints/<model_name>/<timestamp>/`.
-- Always log: epoch, train loss, val loss, ESR on val set.
-- Never overwrite a checkpoint without a new timestamp.
-- Training scripts must be runnable from the CLI with a config YAML: `python train/trainer.py --config configs/experiment.yaml`.
-
----
-
-## Metrics Rules
-
-- All metrics return a single `float` (not a tensor).
-- All metrics are detached from the compute graph before return.
-- `metrics/suite.py` is the only place that calls all metrics together. Individual metric modules have no cross-imports.
-
----
+- **Be skeptical.** If a result, number or request does not make sense, say so plainly. Question your own tests too.
+- **Say when you are guessing.** Mark assumptions ("I assume ...", "my guess is ..."). Ask when the answer changes
+  what you build.
+- **Number every question** (1., 2., 3. ...) so the owner can answer by number.
+- The owner is a scientist (space physics) and a hobbyist guitarist. They are comfortable with C++ but don't enjoy
+  it, and they want to learn. **Explain non-obvious DSP choices** briefly, in comments and in replies.
+- Commit only when the owner asks.
 
 ## Environment
 
-- Python 3.11+, CUDA 12.1, PyTorch ≥ 2.2.
-- All dependencies in `requirements.txt`. Pin major versions.
-- WSL2 Ubuntu. Use `pathlib.Path` — never Windows-style backslash paths.
-- Audio files: 48kHz, 24-bit, float32 in memory after load.
+- **Python runs in WSL2 Ubuntu**, as a **uv project** with Python 3.12 (CUDA 12.1, PyTorch ≥ 2.2 for the
+  neural models). The repo is at `/mnt/c/Users/Brian/Documents/GitHub/PedalDSP` from WSL.
+- The `.venv` is not in git. Create it with `uv sync` in WSL from the repo root. The old venv at
+  `/mnt/d/Projects/PedalDSP/.venv` still works for a quick run (`.../.venv/bin/python -m pytest tests`).
+- Run things with `uv run <command>`. Add dependencies with `uv add <package>`, never bare `pip install`, so
+  `pyproject.toml` and `uv.lock` stay in sync.
+- Windows-side Python (3.13) has no numpy/scipy. Don't use it for this project.
+- Use `pathlib.Path` everywhere and never hard-code absolute paths. Scripts use
+  `Path(__file__).resolve().parent.parent`, and notebooks use `Path(__file__).resolve().parents[n]`.
+
+## Recordings and data
+
+- **All audio lives under `recordings/`:**
+  - `recordings/<session>/`: Studio One sessions (`.song` plus `Media/*.wav`). Treat them as read-only.
+  - `recordings/data/`: the pipeline's audio and metadata. That includes training signals and manifests
+    (`signals/`), GE-7 captures (`ge7/`), Notaklon captures and training sets (`notaklon/`), KlonSim
+    (`klon_sim/`) and stems (`stems/`).
+- **A WAV sits next to its JSON.** Signal manifests find their audio with `manifest.path.with_suffix(".wav")`, and
+  capture folders pair `wet_*.wav` with `params.json`. Move or rename them together, never separately.
+- Paths in `params.json` are project-relative (`recordings/data/...`) or relative to the file (`../../signals/...`).
+- Generated audio (model renders, comparisons) goes to `outputs/` and `results/`, not `recordings/`.
+- **Studio One sessions:** don't edit `.song` files or rename a single `Media/` WAV, because the session finds
+  its media by name. Moving a whole session folder is fine. `Cache/` and `History/` are regenerated, so ignore them.
+- **Check every file's sample rate and format.** They vary: 44.1/48/96 kHz, and 16-bit, 24-bit or float32.
+  The Daisy target is 48 kHz. Resample deliberately with `pedal_model/data/resample.py`, and state it.
+- Dry/wet pairs carry hardware round-trip latency. **Align before you compare** (`pedal_model/capture/align.py`,
+  `hardware_delay.py`), and report the lag you found.
+- Capture rig: PreSonus "Studio USB" ASIO interface (20 in / 18 out), Studio One, sessions at 48 kHz.
+
+## Git
+
+- Audio and big binaries are **never** committed: `*.wav`, `*.pkl`, `*.npy`, `*.pt`, `checkpoints/`, the Studio
+  One `Cache/` and `History/` folders, and firmware build output are ignored. GitHub rejects files over 100 MB.
+  On 2026-10-17, multi-GB `results.pkl` files were stripped from unpushed history.
+- Plots (`*.png`) and small JSON/CSV results in `outputs/` and `results/` are tracked.
+- Line endings are LF (`.gitattributes`: `* text=auto eol=lf`), because the code runs in WSL.
+
+## Firmware (Daisy / Hothouse)
+
+- The source is in `daisy/` (`klonsim_pedal.cpp`, `klonsim_params.h`, `Makefile`). `scripts/export_daisy_coeffs.py`
+  writes the params header and copies the sources into `results/pedalode/klonsim_v1/daisy/`, a complete
+  build folder.
+- The libraries are standalone clones at `D:\Projects\{libDaisy,DaisySP,HothouseExamples}` (`/mnt/d/projects/...`
+  in WSL). The Makefile defaults point there.
+- Toolchain (WSL): `arm-none-eabi-gcc` 13.2, `make`, `dfu-util`. Build and flash from WSL with `make` and
+  `make program-dfu`.
+- **DFU:** hold **both** footswitches for 2 s (the firmware must already be running), or hold BOOT on the Seed
+  and tap RESET. USB reaches WSL through `usbipd attach --wsl --busid <id>`. Full steps are in
+  `docs/daisy_programming.md`.
+- Embedded rules: the audio callback is hard real-time, so **no allocation, no locks, no `printf`** in it. Use
+  `float`, not `double` (the FPU is single-precision). Smooth knob values to avoid zipper noise. Watch CPU load,
+  and keep large buffers in SDRAM (`DSY_SDRAM_BSS`). Test a model offline in Python before porting it.
+
+## Code style
+
+- PEP 8, `ruff check .` (line length 100). Type-annotate every function signature, with no `Any` unless unavoidable.
+- Prefer `np.ndarray` and `torch.Tensor` in signatures, and give shapes in docstrings. Constants are
+  `UPPER_SNAKE_CASE` at module level.
+- **Functions:** every public function gets a one-line summary plus `Args` / `Returns`. Document units
+  (`sr: int  # sample rate in Hz`), valid ranges and non-obvious defaults. Skip obvious parameters.
+- **Inline comments** only for a non-obvious why: a hidden constraint, a numerical workaround, a DSP identity.
+  No comments that restate the code.
+- **Modules** get a one-line docstring naming their responsibility.
+
+## Testing
+
+- Every module in `capture/`, `models/`, `metrics/` and `train/` has a matching `tests/test_<module>.py`. Use
+  `pytest`, not `unittest.TestCase`, and run `uv run pytest tests/`.
+- Test pure functions on synthetic inputs with known answers, plus edge cases (empty input, one sample, all zeros,
+  perfect prediction). Compare with `np.testing.assert_allclose(rtol=1e-5)`, not `==`.
+- Model tests check the output shape, that the forward pass runs on CPU (GPU variants use `pytest.mark.skipif`),
+  and that the loss is finite and > 0.
+- Data pipeline tests use short synthetic WAVs made in the test. Windows must stay inside the audio, and dry/wet
+  alignment must survive slicing.
+- No file I/O beyond `tmp_path`, and no mocking of NumPy, SciPy or PyTorch internals. Seed `np.random` and
+  `torch` in every test that uses randomness. Tests must pass on CPU only.
+
+## Models, training, metrics
+
+- All models inherit from `pedal_model/models/base.py` and implement `forward()` and `receptive_field`.
+- Classical models run with NumPy and SciPy only, no PyTorch. Neural models support `torch.no_grad()` inference.
+- Never hard-code a sample rate; pass `sr: int`. No global mutable state.
+- Checkpoints go in `checkpoints/<model_name>/<timestamp>/` and are never overwritten. Log the epoch, train
+  loss, val loss and val ESR. Training scripts take a config YAML (`configs/`).
+- Metrics return a plain `float`, detached from the graph. `metrics/suite.py` is the only place that calls them
+  all together, and metric modules don't import each other.
+
+## Related projects
+
+- **PedalODE**: physics-grounded ODE circuit-topology discovery and parameter fitting. It uses these GE-7 and
+  Notaklon captures as its rungs (`docs/pedalode_klonsim_spec.md`, `pedal_model/ode/`).
+- **BrianAudioLab** (local folder `../BrianEQ`): JUCE analyzer plug-ins for Studio One. Its planned `brianpedal`
+  analyzer overlaps with this work.

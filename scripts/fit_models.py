@@ -7,8 +7,8 @@ CircuitDictionary) and trains neural models (LSTM, GRU, TCN, MLP, DDSP,
 KlonDDSP) against a dry/wet capture pair, then saves results.pkl + results.csv.
 
 Processing chain:
-    1.  Capture dry/wet audio → data/captures/<pedal>/
-    2.  Create params.json → data/captures/<pedal>/params.json
+    1.  Capture dry/wet audio → recordings/data/captures/<pedal>/
+    2.  Create params.json → recordings/data/captures/<pedal>/params.json
     3.  **Run this script** → results/<name>/results.pkl + results.csv
     4.  Inspect results → notebooks/notaklon/01_zoo_results.py
     5.  Render to DAW → scripts/render_to_daw.py
@@ -16,7 +16,7 @@ Processing chain:
 
 Usage:
     uv run python scripts/fit_models.py \\
-        --klon-sim-dir data/klon_sim/klon_sim_v1 \\
+        --klon-sim-dir recordings/data/klon_sim/klon_sim_v1 \\
         --name klon_v1
 
     # Classical-only quick run:
@@ -27,9 +27,9 @@ Usage:
 
     # Override training WAVs with custom files:
     uv run python scripts/fit_models.py \\
-        --klon-sim-dir data/klon_sim/klon_sim_v1 \\
-        --dry-wav data/captures/Medley_mono.wav \\
-        --wet-wav data/captures/Medley_wet.wav \\
+        --klon-sim-dir recordings/data/klon_sim/klon_sim_v1 \\
+        --dry-wav recordings/data/captures/Medley_mono.wav \\
+        --wet-wav recordings/data/captures/Medley_wet.wav \\
         --name medley_v1
 
 Epoch guidance (full 61.68 M-sample signal at 96 kHz):
@@ -56,7 +56,7 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument(
         "--klon-sim-dir",
         type=Path,
-        default=Path("data/klon_sim/klon_sim_v1"),
+        default=Path("recordings/data/klon_sim/klon_sim_v1"),
         metavar="DIR",
         help="Directory with params.json and WAV files.",
     )
@@ -192,9 +192,11 @@ def main(argv: list[str] | None = None) -> None:
     elif args.dry_wav is not None:
         out_dir = PROJECT_ROOT / "results" / args.dry_wav.resolve().stem
     else:
+        # Relative to recordings/ so results/data/<...> keeps the layout it had before data/ moved.
+        recordings_root = PROJECT_ROOT / "recordings"
         rel = (
-            klon_dir.relative_to(PROJECT_ROOT)
-            if klon_dir.is_relative_to(PROJECT_ROOT)
+            klon_dir.relative_to(recordings_root)
+            if klon_dir.is_relative_to(recordings_root)
             else klon_dir.name
         )
         out_dir = PROJECT_ROOT / "results" / rel

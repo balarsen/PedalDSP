@@ -1,9 +1,9 @@
 # Signal Design Rationale
 
-**Files:** `data/signals/train_signal_v1.{wav,json}` · `data/signals/val_signal_v1.{wav,json}`
+**Files:** `recordings/data/signals/train_signal_v1.{wav,json}` · `recordings/data/signals/val_signal_v1.{wav,json}`
 **Rate:** 96 kHz, 32-bit float
 **Generator:** `pedal_model/signals/generate.py` · CLI: `python generate_signal.py --signal both`
-**Reproduce exactly:** `python generate_signal.py --from-manifest data/signals/train_signal_v1.json`
+**Reproduce exactly:** `python generate_signal.py --from-manifest recordings/data/signals/train_signal_v1.json`
 
 ---
 
@@ -348,7 +348,7 @@ The JSON manifest records every section's exact sample range. No hardcoded offse
 ```python
 from pedal_model.signals.manifest import Manifest
 
-m = Manifest("data/signals/val_signal_v1.json")
+m = Manifest("recordings/data/signals/val_signal_v1.json")
 
 # Get metadata for one section
 sec = m.get_section("val_sweep_l-3")
@@ -373,8 +373,8 @@ The WAV files are gitignored (too large). The JSON manifests are committed and c
 
 ```bash
 # Regenerate both from their committed manifests (bit-for-bit identical)
-python generate_signal.py --from-manifest data/signals/train_signal_v1.json
-python generate_signal.py --from-manifest data/signals/val_signal_v1.json
+python generate_signal.py --from-manifest recordings/data/signals/train_signal_v1.json
+python generate_signal.py --from-manifest recordings/data/signals/val_signal_v1.json
 
 # Or generate fresh with defaults
 python generate_signal.py --signal both

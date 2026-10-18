@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Generate synthetic GE-7 wet captures for all preset JSON files.
 
-Reads each preset from data/ge7/presets/, applies Ge7Sim to the shared
+Reads each preset from recordings/data/ge7/presets/, applies Ge7Sim to the shared
 train/val dry signals, and writes wet WAVs + params.json to
-data/ge7/captures/<preset_name>/.
+recordings/data/ge7/captures/<preset_name>/.
 
 Use this to test the full pipeline before any hardware is recorded.
 
 Usage:
     uv run python scripts/make_ge7_captures.py
     uv run python scripts/make_ge7_captures.py --preset preset_smile
-    uv run python scripts/make_ge7_captures.py --presets-dir data/ge7/presets
+    uv run python scripts/make_ge7_captures.py --presets-dir recordings/data/ge7/presets
 """
 from __future__ import annotations
 
@@ -25,9 +25,9 @@ import soundfile as sf
 from pedal_model.synthetic.ge7 import Ge7Sim, Ge7Sliders
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SIGNALS_DIR = PROJECT_ROOT / "data" / "signals"
-PRESETS_DIR = PROJECT_ROOT / "data" / "ge7" / "presets"
-CAPTURES_DIR = PROJECT_ROOT / "data" / "ge7" / "captures"
+SIGNALS_DIR = PROJECT_ROOT / "recordings" / "data" / "signals"
+PRESETS_DIR = PROJECT_ROOT / "recordings" / "data" / "ge7" / "presets"
+CAPTURES_DIR = PROJECT_ROOT / "recordings" / "data" / "ge7" / "captures"
 
 _SIGNAL_NAMES = {
     "train": "train_signal_v1",

@@ -46,7 +46,7 @@ DEFAULT_PARAMS = (
     / "stage3_params.json"
 )
 DEFAULT_SIM_PARAMS = (
-    PROJECT_ROOT / "data" / "klon_sim" / "klon_sim_v1" / "params.json"
+    PROJECT_ROOT / "recordings" / "data" / "klon_sim" / "klon_sim_v1" / "params.json"
 )
 DEFAULT_OUT = (
     PROJECT_ROOT / "outputs" / "2026-06-09_medley_mono"

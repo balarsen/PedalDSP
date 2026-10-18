@@ -9,7 +9,7 @@ to the dry signal manifest and both WAV files.
 
 Usage (typically via run_eval.py):
     from pedal_model.eval.harness import EvalConfig, run_zoo
-    cfg = EvalConfig(klon_sim_dir=Path("data/klon_sim/klon_sim_v1"))
+    cfg = EvalConfig(klon_sim_dir=Path("recordings/data/klon_sim/klon_sim_v1"))
     results = run_zoo(cfg)
 """
 from __future__ import annotations
@@ -62,7 +62,7 @@ class EvalConfig:
         skip_models: Model names to exclude (e.g. ['volterra'] to skip slow fit).
     """
 
-    klon_sim_dir: Path = Path("data/klon_sim/klon_sim_v1")
+    klon_sim_dir: Path = Path("recordings/data/klon_sim/klon_sim_v1")
     output_dir: Path = Path("results/klon_sim/klon_sim_v1")
     max_hammerstein_samples: int = 5_000_000
     max_mlp_samples: int = 5_000_000

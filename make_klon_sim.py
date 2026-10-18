@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """make_klon_sim.py — generate KlonSim synthetic dry/wet pairs.
 
-Reads dry signals from data/signals/, applies KlonSim, writes wet WAVs and a
-params.json to data/klon_sim/klon_sim_v1/ (or --output-dir).
+Reads dry signals from recordings/data/signals/, applies KlonSim, writes wet WAVs and a
+params.json to recordings/data/klon_sim/klon_sim_v1/ (or --output-dir).
 
 Usage:
     python make_klon_sim.py                    # process both train and val
@@ -23,8 +23,8 @@ import soundfile as sf
 from pedal_model.synthetic.pedal import KlonSim, KlonSimParams
 
 PROJECT_ROOT = Path(__file__).resolve().parent
-SIGNALS_DIR = PROJECT_ROOT / "data" / "signals"
-DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "data" / "klon_sim" / "klon_sim_v1"
+SIGNALS_DIR = PROJECT_ROOT / "recordings" / "data" / "signals"
+DEFAULT_OUTPUT_DIR = PROJECT_ROOT / "recordings" / "data" / "klon_sim" / "klon_sim_v1"
 
 _SIGNAL_NAMES = {
     "train": "train_signal_v1",

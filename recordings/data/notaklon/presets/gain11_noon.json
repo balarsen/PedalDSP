@@ -1,0 +1,27 @@
+{
+  "schema_version": "2.2",
+  "pedal": "jhs_notaklon",
+  "preset_name": "gain11_noon",
+  "description": "Sweet spot \u2014 Gain 11 o'clock, Treble noon, Volume noon",
+  "knobs": {
+    "gain_oclock": 11.0,
+    "treble_oclock": 12.0,
+    "volume_oclock": 12.0,
+    "shamrock": false
+  },
+  "klonsim_approx": {
+    "drive": 3.4641,
+    "clean_blend": 0.5,
+    "treble_db": 0.0,
+    "output_level": 0.9112,
+    "clip_asymmetry": 0.15,
+    "shamrock": false
+  },
+  "songs": [
+    "Flagpole Sitta",
+    "T.N.T.",
+    "I Love Rock N Roll",
+    "Crossroads"
+  ],
+  "notes": ""
+}

@@ -27,7 +27,7 @@ SYSTEM_FILES_DIR = $(LIBDAISY_DIR)/core
 include $(SYSTEM_FILES_DIR)/Makefile
 
 # Regenerate params header + copy firmware sources, then build
-PEDALDSP_DIR ?= /mnt/d/projects/PedalDSP
+PEDALDSP_DIR ?= $(shell git rev-parse --show-toplevel)
 
 .PHONY: params
 params:

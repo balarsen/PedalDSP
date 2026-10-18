@@ -151,7 +151,7 @@ def _(mo):
 @app.cell
 def _(mo):
     wav_path_ui = mo.ui.text(
-        value="data/01 - Reach for the sun (RC3).wav",
+        value="recordings/data/01 - Reach for the sun (RC3).wav",
         label="WAV file (relative to project root)",
         full_width=True,
     )

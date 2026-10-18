@@ -273,8 +273,8 @@ Separate generated/captured **data** from **code**, consolidate planning docs, a
 - `generate_capture_signal.py` (root) → keep a thin root CLI wrapper; library logic lives in `pedal_model/signals/`.
 - `tier1_comparison.png` (root) → `results/`.
 - `pedal-*.md` (root) + our plan MDs → `docs/`.
-- `capture_signals/` → `data/signals/` (generated) — keep captured-run wavs distinct from generated signals; if `capture_signals/` holds prior *captures*, move to `data/captures/…` instead. Claude Code to inspect contents and route accordingly.
-- `stems/2026-06-04 pi muff/` → `data/stems/2026-06-04_pi_muff/` (no spaces).
+- `capture_signals/` → `recordings/data/signals/` (generated) — keep captured-run wavs distinct from generated signals; if `capture_signals/` holds prior *captures*, move to `recordings/data/captures/…` instead. Claude Code to inspect contents and route accordingly.
+- `stems/2026-06-04 pi muff/` → `recordings/data/stems/2026-06-04_pi_muff/` (no spaces).
 
 ### Target layout
 ```
@@ -300,7 +300,7 @@ PedalDSP/
 ├─ notebooks/
 │  └─ notaklon/       # NEW subfolder: notaklon exploration (migrates to library)
 │
-├─ data/              # NEW: all audio data
+├─ recordings/data/              # NEW: all audio data
 │  ├─ signals/        # train_signal_v1.{wav,json}, val_signal_v1.{wav,json}
 │  ├─ captures/
 │  │  └─ notaklon/
@@ -334,7 +334,7 @@ PedalDSP/
 2. Manifest schema spec + signal generator (parameterized) emitting WAV + JSON + coverage analysis (§4, §12).
 3. Reader function + section-by-label slicing (§12).
 4. **End-to-end generator tests** with tmp_path cleanup (§12).
-5. **Workflow step — generate signals:** run the generator to produce `train_signal_v1.{wav,json}` and `val_signal_v1.{wav,json}` into `data/signals/`.
+5. **Workflow step — generate signals:** run the generator to produce `train_signal_v1.{wav,json}` and `val_signal_v1.{wav,json}` into `recordings/data/signals/`.
 6. Capture utilities: latency, alignment, level calibration, dry/wet pairing.
 7. Downsample pipeline (96k→48k) + dataset loader/split (reads manifest).
 8. Loss (ESR + multi-scale STFT) + metrics module (section-aware).

@@ -1,0 +1,25 @@
+{
+  "schema_version": "2.2",
+  "pedal": "jhs_notaklon",
+  "preset_name": "gain9_noon",
+  "description": "Low-gain \u2014 Gain 9 o'clock, Treble noon, Volume noon",
+  "knobs": {
+    "gain_oclock": 9.0,
+    "treble_oclock": 12.0,
+    "volume_oclock": 12.0,
+    "shamrock": false
+  },
+  "klonsim_approx": {
+    "drive": 2.1074,
+    "clean_blend": 0.68,
+    "treble_db": 0.0,
+    "output_level": 0.9112,
+    "clip_asymmetry": 0.15,
+    "shamrock": false
+  },
+  "songs": [
+    "Hey Joe",
+    "Fire on the Mountain"
+  ],
+  "notes": ""
+}

@@ -1,7 +1,7 @@
 # GE-7 Hardware Capture Results
 
 Captures evaluated with `scripts/analyze_ge7_capture.py`.
-Reference signals: `data/signals/train_signal_v2.wav` (dry, 96 kHz), `train_signal_v2_reamp only.wav` (bypass), `data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav` (flat reference).
+Reference signals: `recordings/data/signals/train_signal_v2.wav` (dry, 96 kHz), `train_signal_v2_reamp only.wav` (bypass), `recordings/data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav` (flat reference).
 
 **Analysis convention:** all gain figures are *preset relative to flat2* (both captured at −10 dB DAW playback), so the playback-level offset cancels and the numbers reflect pure GE-7 EQ change. Comparison target is the Ge7Sim peaking-EQ cascade with Q = 1.4.
 
@@ -22,7 +22,7 @@ Reference signals: `data/signals/train_signal_v2.wav` (dry, 96 kHz), `train_sign
 
 ## preset_flat (v2 capture — GE7-Flat2)
 
-**File:** `data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav`
+**File:** `recordings/data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav`
 
 **Status: ✅ GOOD — use as reference for all comparisons**
 
@@ -35,7 +35,7 @@ Reference signals: `data/signals/train_signal_v2.wav` (dry, 96 kHz), `train_sign
 
 ## preset_smile
 
-**File:** `data/ge7/captures/preset_smile/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_smile/wet_train_signal_v2.wav`
 **Preset:** +8/+4/−2/−6/−6/+4/+8 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ GOOD — usable for model training**
@@ -72,7 +72,7 @@ Reference signals: `data/signals/train_signal_v2.wav` (dry, 96 kHz), `train_sign
 
 ## preset_frown
 
-**File:** `data/ge7/captures/preset_frown/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_frown/wet_train_signal_v2.wav`
 **Preset:** −6/−2/+6/+8/+6/−2/−6 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ GOOD — usable for model training (with caveat on linearity)**
@@ -123,7 +123,7 @@ Reference signals: `data/signals/train_signal_v2.wav` (dry, 96 kHz), `train_sign
 
 ## preset_bass_boost
 
-**File:** `data/ge7/captures/preset_bass_boost/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_bass_boost/wet_train_signal_v2.wav`
 **Preset:** +12/+8/+4/0/0/0/0 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ Good**
@@ -151,7 +151,7 @@ Shape is clearly correct — thunderous low-end boost tapering to flat at highs.
 
 ## preset_mid_scoop
 
-**File:** `data/ge7/captures/preset_mid_scoop/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_mid_scoop/wet_train_signal_v2.wav`
 **Preset:** 0/0/−8/−12/−10/−4/0 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ Good**
@@ -179,7 +179,7 @@ Mid-scoop shape clearly present. Linearity is near-perfect (0.03 dB). The low-fr
 
 ## preset_presence
 
-**File:** `data/ge7/captures/preset_presence/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_presence/wet_train_signal_v2.wav`
 **Preset:** 0/0/0/0/+6/+10/+12 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ Good**
@@ -207,7 +207,7 @@ Shape is correct: flat at lows, big presence boost at highs. Linearity is perfec
 
 ## preset_high_cut
 
-**File:** `data/ge7/captures/preset_high_cut/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_high_cut/wet_train_signal_v2.wav`
 **Preset:** 0/0/0/0/−6/−10/−14 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ Good**
@@ -259,7 +259,7 @@ This is a Ge7Sim model limitation. It does **not** affect training — models tr
 
 ## preset_bright
 
-**File:** `data/ge7/captures/preset_bright/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_bright/wet_train_signal_v2.wav`
 **Preset:** 0/0/0/+2/+6/+10/+12 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ Good**
@@ -287,7 +287,7 @@ Shape is very clean — flat lows, progressive rise through the highs. Linearity
 
 ## preset_low_cut
 
-**File:** `data/ge7/captures/preset_low_cut/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_low_cut/wet_train_signal_v2.wav`
 **Preset:** −14/−10/−6/0/0/0/0 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ Excellent**
@@ -315,7 +315,7 @@ Best RMS error of all presets. Near-perfect linearity (0.02 dB). Shape is exactl
 
 ## preset_warm
 
-**File:** `data/ge7/captures/preset_warm/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_warm/wet_train_signal_v2.wav`
 **Preset:** +6/+4/+2/0/−4/−8/−10 dB @ 100/200/400/800/1.6k/3.2k/6.4k Hz, LEVEL = 0
 
 **Status: ✅ Good**
@@ -347,7 +347,7 @@ Mid-range (220–5280 Hz) within ±2 dB. Clean capture.
 
 ## preset_all_down
 
-**File:** `data/ge7/captures/preset_all_down/wet_train_signal_v2.wav`
+**File:** `recordings/data/ge7/captures/preset_all_down/wet_train_signal_v2.wav`
 **Preset:** −12 dB on all 7 bands, LEVEL = −15 dB (slider at minimum)
 
 **Status: ✅ Good (errors are model-only)**
@@ -381,7 +381,7 @@ The capture is clean and usable. The errors quantify the Ge7Sim band-interaction
 
 ## preset_all_up
 
-**File:** `data/ge7/captures/preset_all_up/wet_train_signal_v2.wav`  
+**File:** `recordings/data/ge7/captures/preset_all_up/wet_train_signal_v2.wav`  
 **Preset:** +12 dB on all 7 bands, LEVEL = +15 dB (slider at maximum)
 
 **Status: ⚠️ DISCARDED — ADC saturation at −10 dB fader**
@@ -390,7 +390,7 @@ Total measured gain is ~+35 dB (band overlap + LEVEL pot at max). Even the −18
 
 ## preset_all_up_2
 
-**File:** `data/ge7/captures/preset_all_up_2/wet_train_signal_v2.wav`  
+**File:** `recordings/data/ge7/captures/preset_all_up_2/wet_train_signal_v2.wav`  
 **Preset:** +12 dB on all 7 bands, LEVEL = +15 dB (slider at maximum), **DAW fader −30 dB**
 
 **Status: ⚠️ STILL SATURATING — needs recapture at −40 dB fader**
@@ -427,7 +427,7 @@ Headroom calculation at −30 dB fader:
 
 ## Single-slider captures
 
-**Directory:** `data/ge7/captures/single_slider/`  
+**Directory:** `recordings/data/ge7/captures/single_slider/`  
 **Analysis:** `scripts/analyze_single_sliders.py` → `outputs/ge7_captures/single_slider/`
 
 Each band was captured with one slider at +10 dB, all others flat. The LEVEL slider was captured at +10 dB and −10 dB with all band sliders flat.

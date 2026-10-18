@@ -24,13 +24,13 @@ from scipy.signal import correlate, freqz, resample_poly
 
 ROOT = Path(__file__).resolve().parent.parent
 
-DRY_WAV      = ROOT / "data/signals/train_signal_v2.wav"
-DRY_MANIFEST = ROOT / "data/signals/train_signal_v2.json"
-DRY_CACHE    = ROOT / "data/signals/train_signal_v2_48k.npy"  # cached downsample
-BYPASS_WAV   = ROOT / "data/signals/train_signal_v2_reamp only.wav"
-FLAT_WAV     = ROOT / "data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav"
-CAPTURES_DIR = ROOT / "data/ge7/captures"
-PRESETS_DIR  = ROOT / "data/ge7/presets"
+DRY_WAV      = ROOT / "recordings/data/signals/train_signal_v2.wav"
+DRY_MANIFEST = ROOT / "recordings/data/signals/train_signal_v2.json"
+DRY_CACHE    = ROOT / "recordings/data/signals/train_signal_v2_48k.npy"  # cached downsample
+BYPASS_WAV   = ROOT / "recordings/data/signals/train_signal_v2_reamp only.wav"
+FLAT_WAV     = ROOT / "recordings/data/ge7/captures/preset_flat/GE7-Flat2 - flat 2.wav"
+CAPTURES_DIR = ROOT / "recordings/data/ge7/captures"
+PRESETS_DIR  = ROOT / "recordings/data/ge7/presets"
 OUT_BASE     = ROOT / "outputs/ge7_captures"
 
 SR_WET = 48_000  # all wet captures at 48 kHz

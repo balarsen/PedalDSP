@@ -25,7 +25,7 @@ def _():
     import sys
     from pathlib import Path
 
-    PROJECT_ROOT = Path("/mnt/d/Projects/PedalDSP")
+    PROJECT_ROOT = Path(__file__).resolve().parents[1]
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -1206,7 +1206,7 @@ def _(metrics_df, mo):
     superior. The harmonic profile plot shows how many odd harmonics the fuzz generates
     (3rd, 5th, 7th, …) — a good model should reproduce this profile.
 
-    Predictions saved to `data/stems/2026-06-04_pi_muff/predictions/` for listening.
+    Predictions saved to `recordings/data/stems/2026-06-04_pi_muff/predictions/` for listening.
     """)
     return
 

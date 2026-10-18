@@ -6,7 +6,7 @@ audio:
   bit_depth: 24
 
 capture:
-  path: data/raw/capture.wav          # stereo WAV, ch0=dry ch1=wet
+  path: recordings/data/raw/capture.wav          # stereo WAV, ch0=dry ch1=wet
   harmonic_f0: 440.0                  # Hz, used for THD/HP metrics
 
 dataset:

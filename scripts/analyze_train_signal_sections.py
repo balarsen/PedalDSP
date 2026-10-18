@@ -6,8 +6,8 @@ types defined in a train_signal JSON manifest.
 
 Usage:
     uv run python scripts/analyze_train_signal_sections.py \\
-        --dry  data/signals/train_signal_v2.wav \\
-        --wet  "data/signals/train_signal_v2_reamp only.wav:Reamp Only" \\
+        --dry  recordings/data/signals/train_signal_v2.wav \\
+        --wet  "recordings/data/signals/train_signal_v2_reamp only.wav:Reamp Only" \\
         --wet  "results/pedalode/GE-7_v1/GE7 - flat.wav:GE-7 Flat" \\
         --output outputs/ge7_flat_analysis/
 

@@ -40,7 +40,7 @@ def _():
     import librosa.display
     import marimo as mo
 
-    PROJECT_ROOT = Path("/mnt/d/Projects/PedalDSP")
+    PROJECT_ROOT = Path(__file__).resolve().parents[2]
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
 
@@ -49,7 +49,7 @@ def _():
 
     RESULTS_PATH = PROJECT_ROOT / "results" / "data" / "klon_sim" / "klon_sim_v1" / "results.pkl"
     zoo = ZooResults.load(RESULTS_PATH)
-    manifest = Manifest(PROJECT_ROOT / "data" / "signals" / "val_signal_v1.json")
+    manifest = Manifest(PROJECT_ROOT / "recordings" / "data" / "signals" / "val_signal_v1.json")
 
     sr = zoo.sr
     MODEL_NAMES = list(zoo.models.keys())

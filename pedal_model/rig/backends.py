@@ -1,12 +1,10 @@
 """Audio backends: the real interface over ASIO, and a simulated rig for demos and tests.
 
 Both backends run one take with the same contract: the engine's ``callback(out, inp)`` is called
-once per
-block with an output block to fill (2 channels: send, loop) and the input block just recorded (2
-channels:
+once per block with an output block to fill (2 channels: send, loop) and the input block just
+recorded (2 channels:
 return, loop). The callback returns True when the take is finished. ``run`` blocks until then and
-returns
-the number of blocks with a driver under/overflow (0 means no dropouts).
+returns the number of blocks with a driver under/overflow (0 means no dropouts).
 """
 
 from __future__ import annotations
@@ -35,7 +33,7 @@ class SimulatedRig:
 
     Attributes:
         latency_ms: Round trip out → in. 0.98 ms = the 47 samples at 48 kHz in
-        outputs/notaklon_delay.
+            outputs/notaklon_delay.
         reamp_db: ProRMP insertion loss (docs/notaklon_capture_plan.md: −12.4 dB).
         return_gain_db: ProDI + In 1 preamp gain, the knob calibration asks you to set.
         loop_gain_db: Out 2 → In 2 cable with In 2 gain at minimum.
@@ -57,10 +55,8 @@ class SimulatedBackend:
     It never opens a sound card, so it is safe to run anywhere.
 
     The whole return is computed when the take starts (the pedal model is applied to the complete
-    send),
-    then streamed block by block at ``speed`` times real time so the GUI's live views behave as they
-    will
-    with hardware.
+    send), then streamed block by block at ``speed`` times real time so the GUI's live views behave
+    as they will with hardware.
     """
 
     name = "Simulated rig (no audio is played)"

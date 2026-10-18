@@ -11,10 +11,15 @@ _live: set["Worker"] = set()  # keep running workers referenced until they finis
 
 
 class Worker(QThread):
-    """Calls ``fn(*args, **kwargs)`` in a thread; emits ``done(result)`` or ``failed(tb)``."""
+    """Calls ``fn(*args, **kwargs)`` in a thread; emits ``done(result)`` or ``failed(tb)``.
+
+    ``progress(text)`` carries stage messages when the job is started with ``on_progress``: the job
+    then receives a ``report`` callable to call with short status text.
+    """
 
     done = Signal(object)
     failed = Signal(str)
+    progress = Signal(str)
 
     def __init__(self, fn: Callable, *args, **kwargs) -> None:
         super().__init__()
@@ -29,10 +34,18 @@ class Worker(QThread):
 
 
 def run_async(
-    fn: Callable, *args, on_done: Callable | None = None, on_fail: Callable | None = None, **kwargs
+    fn: Callable,
+    *args,
+    on_done: Callable | None = None,
+    on_fail: Callable | None = None,
+    on_progress: Callable | None = None,
+    **kwargs,
 ) -> Worker:
-    """Start a worker and wire its callbacks."""
+    """Start a worker and wire its callbacks (``on_progress`` also passes ``report`` to the job)."""
     w = Worker(fn, *args, **kwargs)
+    if on_progress:
+        w._kwargs["report"] = w.progress.emit
+        w.progress.connect(on_progress)
     if on_done:
         w.done.connect(on_done)
     if on_fail:

@@ -68,10 +68,10 @@ class MainWindow(QMainWindow):
         go = self.go
         for page in (
             StartPage(state, lambda: go(1)),
-            SetupPage(state),
-            CalibratePage(state),
+            SetupPage(state, lambda: go(2)),
+            CalibratePage(state, lambda: go(3)),
             PlanPage(state, lambda: go(4)),
-            RunPage(state),
+            RunPage(state, lambda: go(5)),
             ReviewPage(state),
         ):
             self.stack.addWidget(page)

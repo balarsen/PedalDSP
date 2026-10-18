@@ -4,6 +4,7 @@ pedals.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -29,7 +30,7 @@ CLIP_FAIL_DBFS = -0.1
 LEVEL_OFFSET_WARN_DB = 1.0
 LEVEL_OFFSET_FAIL_DB = 3.0
 FR_TYPES = ("log_sine_sweep", "pink_noise")  # broadband sections used for the response estimate
-DISPLAY_BAND_HZ = (20.0, 20_000.0)
+DISPLAY_BAND_HZ = (20.0, 19_000.0)  # sweeps end at 20 kHz
 STATUS_ORDER = {"ok": 0, "warn": 1, "fail": 2}
 
 
@@ -55,14 +56,12 @@ class QCReport:
     """Result of check_take.
 
     Attributes:
-        lag: Samples removed when aligning the return: the interface latency (this take's loopback)
-        plus
-            the chain's fixed analog offset from calibration. The pedal's own delay is NOT removed:
-            it is
-            part of what the model has to learn.
+        lag: Samples removed when aligning the return: the interface latency (this take's
+            loopback) plus the chain's fixed analog offset from calibration. The pedal's own delay
+            is NOT removed: it is part of what the model has to learn.
         loop_lag: This take's loopback (interface-only) latency.
-        xcorr_lag: Lag at the peak of the send/return cross-correlation; includes the pedal's group
-        delay.
+        xcorr_lag: Lag at the peak of the send/return cross-correlation; includes the pedal's
+            group delay.
     """
 
     items: list[QCItem] = field(default_factory=list)
@@ -122,6 +121,7 @@ def check_take(
     controls: dict[str, float] | None,
     calibration: dict | None,
     qc_limits: dict,
+    report: Callable[[str], None] | None = None,
 ) -> tuple[QCReport, np.ndarray]:
     """Run every check on one take and return the report and the aligned return (the "wet" WAV).
 
@@ -145,6 +145,8 @@ def check_take(
     first = (manifest.sections_of_type("log_sine_sweep") or manifest.sections)[0]
     w0 = pre + first.start_sample
     w1 = pre + min(first.end_sample, first.start_sample + 10 * sr)
+    say = report or (lambda _msg: None)
+    say("Aligning: measuring the loopback latency")
     rep.xcorr_lag = find_lag(take.play[:, 0], take.rec[:, 0], sr, w0, w1)
     rep.loop_lag = find_lag(take.play[:, 1], take.rec[:, 1], sr, w0, w1)
     # Align on the interface latency, not on the correlation peak: an EQ boost or a tone stack adds
@@ -246,6 +248,7 @@ def check_take(
 
     band = tuple(qc_limits.get("fr_band_hz", (100.0, 8000.0)))
     # Measure over the whole audio band for display; score only inside the profile's band.
+    say("Measuring the frequency response")
     grid, measured = measure_response(
         dry, wet, manifest, sr, (DISPLAY_BAND_HZ[0], min(DISPLAY_BAND_HZ[1], 0.95 * sr / 2))
     )

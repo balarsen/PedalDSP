@@ -36,7 +36,7 @@ SETTING_LABELS = {
 
 
 class SetupPage(QWidget):
-    def __init__(self, state: AppState) -> None:
+    def __init__(self, state: AppState, go_next) -> None:
         super().__init__()
         self.state = state
         root = QVBoxLayout(self)
@@ -54,11 +54,11 @@ class SetupPage(QWidget):
         root.addLayout(body, 1)
         self.diagram = BlockDiagram(self._show_box)
         self.diagram.set_pedal_name(state.profile.display_name)
-        body.addWidget(self.diagram, 3)
+        body.addWidget(self.diagram, 5)
 
         tabs = QTabWidget()
-        tabs.setMinimumWidth(400)
-        body.addWidget(tabs, 2)
+        tabs.setMinimumWidth(360)
+        body.addWidget(tabs, 3)
 
         box_tab = QWidget()
         bl = QVBoxLayout(box_tab)
@@ -87,6 +87,13 @@ class SetupPage(QWidget):
         self.current = "interface"
         self.diagram.select(self.current)
         self._show_box(self.current)
+        footer = QHBoxLayout()
+        footer.addStretch()
+        nxt = QPushButton("Continue to Calibrate →")
+        nxt.setObjectName("primary")
+        nxt.clicked.connect(go_next)
+        footer.addWidget(nxt)
+        root.addLayout(footer)
         state.cables_changed.connect(self.diagram.set_cable_states)
         state.rig_changed.connect(lambda: self._show_box(self.current))
 
@@ -144,7 +151,13 @@ class SetupPage(QWidget):
             else:
                 setattr(rig.channels, key, s.value())
         rig.save()
-        self.state.set_mode(
-            self.state.simulated, self.state.demo_speed
-        )  # rebuild backend with the new map
-        self.saved.setText(f"Saved to {DEFAULT_RIG_PATH}. New sessions record these settings.")
+        snapshot = rig.save_snapshot()
+        saved = [DEFAULT_RIG_PATH.name, snapshot.name]
+        session = self.state.session
+        if session is not None:  # the open session records the setup it was captured with
+            session.data["rig"] = rig.to_dict()
+            copy = rig.save(session.root / snapshot.name)
+            session.log("rig_setup_saved", file=copy.name)
+            saved.append(f"{session.root.name}/{copy.name}")
+        self.state.set_mode(self.state.simulated, self.state.demo_speed)  # rebuild the backend
+        self.saved.setText("Saved: " + ", ".join(saved) + ".")

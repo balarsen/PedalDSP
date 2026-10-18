@@ -5,13 +5,13 @@
   "pedal_class": "linear_eq",
   "control_kind": "sliders",
   "controls": [
-    {"key": "hz_100",  "label": "100",   "min": -15, "max": 15, "unit": "dB"},
-    {"key": "hz_200",  "label": "200",   "min": -15, "max": 15, "unit": "dB"},
-    {"key": "hz_400",  "label": "400",   "min": -15, "max": 15, "unit": "dB"},
-    {"key": "hz_800",  "label": "800",   "min": -15, "max": 15, "unit": "dB"},
-    {"key": "hz_1600", "label": "1.6k",  "min": -15, "max": 15, "unit": "dB"},
-    {"key": "hz_3200", "label": "3.2k",  "min": -15, "max": 15, "unit": "dB"},
-    {"key": "hz_6400", "label": "6.4k",  "min": -15, "max": 15, "unit": "dB"},
+    {"key": "hz_100",  "label": "100",   "min": -15, "max": 15, "unit": "dB", "band_hz": 100},
+    {"key": "hz_200",  "label": "200",   "min": -15, "max": 15, "unit": "dB", "band_hz": 200},
+    {"key": "hz_400",  "label": "400",   "min": -15, "max": 15, "unit": "dB", "band_hz": 400},
+    {"key": "hz_800",  "label": "800",   "min": -15, "max": 15, "unit": "dB", "band_hz": 800},
+    {"key": "hz_1600", "label": "1.6k",  "min": -15, "max": 15, "unit": "dB", "band_hz": 1600},
+    {"key": "hz_3200", "label": "3.2k",  "min": -15, "max": 15, "unit": "dB", "band_hz": 3200},
+    {"key": "hz_6400", "label": "6.4k",  "min": -15, "max": 15, "unit": "dB", "band_hz": 6400},
     {"key": "level",   "label": "LEVEL", "min": -15, "max": 15, "unit": "dB"}
   ],
   "presets_dir": "recordings/data/ge7/presets",
@@ -19,6 +19,26 @@
   "calibration_preset": "flat",
   "send_level_db": -10.0,
   "send_level_note": "docs/ge7_plan.md: the passive reamp path saturates above about -12 dBFS; train_signal_v2 peaks at -2 dBFS, so send at -10 dB.",
+  "map": {
+    "positions": [15, 7.5, -7.5, -15],
+    "note": "Slider map: each slider alone at +15, +7.5, -7.5 and -15 dB with the sweep-only signal; the fit gives centre frequency, Q/bandwidth and gain per position."
+  },
+  "preset_notes": {
+    "flat": "Every slider at the centre detent. The pedal should be close to a wire: this is the reference every other preset is compared with, and the calibration preset. A good flat take nulls almost completely against the send.",
+    "all_down": "All seven bands at -12 dB and LEVEL at -15 dB. The most attenuation the pedal does: checks the noise floor and how the bands sum when they all cut together.",
+    "all_up": "All seven bands at +12 dB and LEVEL at +15 dB. The most gain the pedal does: the stress test for headroom and clipping inside the pedal.",
+    "all_up_2": "Same settings as all_up, recaptured in the Studio One days at a lower DAW fader to avoid ADC clipping. With the rig, the send level and calibration handle that; keep it for comparison with the old captures.",
+    "all_up_3": "All bands +12 dB with LEVEL only at +6 dB: the band boosts without the extra output gain, so the EQ shape is measured clean of any clipping.",
+    "bass_boost": "100 Hz +12, 200 Hz +8, 400 Hz +4, the rest flat: a broad low-end lift that fades into the mids. Tests how neighbouring low bands overlap.",
+    "bright": "800 Hz +2, 1.6k +6, 3.2k +10, 6.4k +12: a rising top end, 'Strat sparkle'. Exercises the 6.4k band, which behaves like a high shelf rather than a peak.",
+    "frown": "The inverse of smile: lows and highs cut, mids up to +8 dB at 800 Hz. A mid-forward voicing that tests boosts and cuts next to each other.",
+    "high_cut": "1.6k -6, 3.2k -10, 6.4k -14: rolls off the highs (telephone, muffled, vintage). Checks the deepest top-end cut.",
+    "low_cut": "100 Hz -14, 200 Hz -10, 400 Hz -6: an approximate high-pass. Checks the deepest low-end cut.",
+    "mid_scoop": "400 Hz -8, 800 Hz -12, 1.6k -10, 3.2k -4: the classic metal scoop. A deep notch made from three adjacent cuts.",
+    "presence": "1.6k +6, 3.2k +10, 6.4k +12 (bright without the 800 Hz touch): upper-mid and treble lift for cutting through a mix.",
+    "smile": "The V shape: 100 Hz +8, 200 Hz +4, 400 Hz -2, 800 Hz and 1.6k -6, 3.2k +4, 6.4k +8. The most common GE-7 setting, and a good all-round test of the model.",
+    "warm": "Lows up (+6/+4/+2), highs down (-4/-8/-10): warm and dark, an old-amp or jazz voicing. The tilt test."
+  },
   "fit_hints": {
     "recommended_models": ["FIR", "IIR"],
     "skip_models": ["WienerHammerstein", "Volterra", "Hammerstein"],

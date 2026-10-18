@@ -26,8 +26,7 @@ def find_lag(
     """Lag of *sig* behind *ref* in samples, from cross-correlation over ``[start, stop)``.
 
     Wraps ``pedal_model.capture.hardware_delay.estimate_lag``. Pick a quiet, broadband window (the
-    −24 dBFS
-    sweep) so a nonlinear pedal stays near-linear and the correlation peak is sharp.
+    −24 dBFS sweep) so a nonlinear pedal stays near-linear and the correlation peak is sharp.
     """
     return estimate_lag(ref, sig, sr, start_s=start / sr, end_s=stop / sr, max_lag_s=max_lag_s)
 
@@ -47,8 +46,7 @@ def transfer_function(
     """H1 estimate of the frequency response, |S_dw| / S_dd, plus coherence.
 
     The H1 estimator averages over Welch segments, so uncorrelated noise on the return averages out
-    of the
-    magnitude instead of biasing it upward (as a plain |FFT(wet)| / |FFT(dry)| would).
+    of the magnitude instead of biasing it upward (as a plain |FFT(wet)| / |FFT(dry)| would).
 
     Returns:
         (freqs_hz, magnitude_db, coherence in [0, 1]).

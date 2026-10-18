@@ -57,9 +57,19 @@ target), and an early Pi Muff stem pair.
 
 - Closed-loop capture without Studio One: `uv run python -m pedal_model.rig` (demo; `--hardware` for ASIO).
   Wiring, box settings, level primer and troubleshooting are in README.md and on the GUI's Setup page.
-- Core modules (no Qt): `config` (configs/rig.json), `profiles/` (one JSON per pedal), `signals` (session
-  signals from the 96 kHz masters: full or quick excerpt, resampled), `backends` (ASIO via sounddevice, and
-  `SimulatedBackend`), `engine` (duplex play/record), `calibrate`, `qc`, `session`, `compare`. GUI in `gui/`.
+- Core modules (no Qt): `config` (configs/rig.json), `profiles/` (one JSON per pedal: controls, presets
+  and their notes, map positions), `signals` (session signals from the 96 kHz masters: full or quick train,
+  val, and the sweep-only signal for map steps), `backends` (ASIO via sounddevice, and `SimulatedBackend`),
+  `engine` (duplex play/record), `calibrate`, `qc`, `bandfit` (RBJ peak/shelf fits for the slider map),
+  `session`, `compare`. GUI in `gui/`: one page per step, each ending in a Continue button.
+- **One GUI for every pedal.** A pedal is a profile JSON; the drawing adapts (sliders for the GE-7; knobs
+  and switches for the Notaklon/RAT are planned after the GE-7 is proven on hardware, for the Klon + RAT
+  combo goal).
+- Preset kinds: "model" (train + val, for fitting) and "map" (sweep only, a measurement; its band fit is
+  saved in params.json and session.json).
+- **Saved files describe themselves** (owner, 2026-10-18): WAVs are named
+  `<pedal>_<preset>_<role>_{wet,raw}_<sr>k_<YYYY-MM-DD_HHMM>.wav`; calibrations and setups are also kept as
+  dated JSON files; the same fields are inside the JSON. Keep this convention for anything new.
 - **Alignment rule:** takes are aligned on the interface latency measured on the loopback channel (Out 2 →
   In 2) plus the chain's fixed offset from calibration, *not* on the cross-correlation peak. The difference
   is the pedal's own delay, which belongs in the training data. QC reports it as "Pedal delay".

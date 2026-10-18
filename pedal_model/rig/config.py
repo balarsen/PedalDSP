@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -75,6 +76,7 @@ class RigConfig:
     def from_dict(cls, d: dict) -> "RigConfig":
         """Build from a dict, filling anything missing with defaults."""
         cfg = cls()
+        d = {k: v for k, v in d.items() if k != "saved"}
         cfg.asio_device = d.get("asio_device", cfg.asio_device)
         cfg.block_size = int(d.get("block_size", cfg.block_size))
         cfg.channels = ChannelMap(**{**asdict(cfg.channels), **d.get("channels", {})})
@@ -89,7 +91,19 @@ class RigConfig:
             return cls()
         return cls.from_dict(json.loads(path.read_text(encoding="utf-8")))
 
-    def save(self, path: Path = DEFAULT_RIG_PATH) -> None:
-        """Write to JSON (pretty-printed so it diffs well in git)."""
+    def save(self, path: Path = DEFAULT_RIG_PATH) -> Path:
+        """Write to JSON (pretty-printed so it diffs well in git), with the time it was saved."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(self.to_dict(), indent=2) + "\n", encoding="utf-8")
+        doc = {"saved": local_stamp(iso=True), **self.to_dict()}
+        path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+        return path
+
+    def save_snapshot(self, folder: Path = DEFAULT_RIG_PATH.parent) -> Path:
+        """Write a dated copy, ``rig_setup_<YYYY-MM-DD_HHMM>.json``, so every setup is kept."""
+        return self.save(folder / f"rig_setup_{local_stamp()}.json")
+
+
+def local_stamp(iso: bool = False) -> str:
+    """Local date and time for file names (``2026-10-18_1012``) or JSON (ISO, to the second)."""
+    now = datetime.now()
+    return now.strftime("%Y-%m-%dT%H:%M:%S") if iso else now.strftime("%Y-%m-%d_%H%M")

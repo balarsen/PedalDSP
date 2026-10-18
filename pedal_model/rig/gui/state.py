@@ -50,9 +50,9 @@ class AppState(QObject):
         if session is not None:
             self.sample_rate = session.sample_rate
             self.signal_kind = session.data["signal_kind"]
-            names = list(session.data["presets"])
-            by_name = {p.name: p for p in self.profile.presets()}
-            self.plan = [by_name[n] for n in names if n in by_name]
+            self.plan = (
+                session.presets()
+            )  # the session's own copies: map and custom steps resume too
             cal = session.data.get("calibration") or {}
             self.set_cables_from_calibration(cal)
         self.session_changed.emit()

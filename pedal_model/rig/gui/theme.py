@@ -48,6 +48,11 @@ QProgressBar {{ background: {PANEL_DARK}; border: 1px solid {GRID}; border-radiu
 center; height: 18px; }}
 QProgressBar::chunk {{ background: {CYAN}; border-radius: 5px; }}
 QRadioButton, QCheckBox {{ background: transparent; spacing: 8px; }}
+QCheckBox::indicator, QListWidget::indicator {{ width: 14px; height: 14px; border: 1px solid
+{TEXT_DIM};
+    border-radius: 3px; background: {PANEL_DARK}; }}
+QCheckBox::indicator:checked, QListWidget::indicator:checked {{ background: {CYAN}; border-color:
+{CYAN_BRIGHT}; }}
 QTabWidget::pane {{ border: 1px solid {GRID}; border-radius: 6px; }}
 QTabBar::tab {{ background: {PANEL_DARK}; color: {TEXT_DIM}; padding: 6px 14px;
 border-top-left-radius: 6px; border-top-right-radius: 6px; }}
@@ -68,6 +73,7 @@ def styled_plot(title: str, xlabel: str, ylabel: str, log_x: bool = False) -> pg
     w.setLabel("bottom", xlabel)
     w.setLabel("left", ylabel)
     w.showGrid(x=True, y=True, alpha=0.15)
+    w.getAxis("left").enableAutoSIPrefix(False)  # dB axes must never read "(x1e-06)"
     if log_x:
         w.setLogMode(x=True, y=False)
         # Fixed audio ticks: pyqtgraph's default log ticks label every minor line (2·10¹, 3·10¹,

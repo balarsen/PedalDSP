@@ -52,9 +52,10 @@ PedalDSP/
 ## Capture rig sessions
 
 `recordings/data/<pedal>/sessions/<YYYY-MM-DD_HHMM>_<sr>k/`: `session.json` (settings, rig snapshot,
-calibration, per-preset status, event log), `signals/` (the session's own train/val signals with manifests),
-and one folder per preset with `params.json` (loads in `scripts/fit_models.py --klon-sim-dir`),
-`wet_train.wav`/`wet_val.wav` (return aligned on the loopback latency) and `raw_*.wav` (return + loopback).
+presets, calibration, per-preset status, event log), dated `calibration_*.json` and `rig_setup_*.json`,
+`signals/` (the session's own train/val/sweep signals with manifests), and one folder per preset or map
+step with `params.json` (model presets load in `scripts/fit_models.py --klon-sim-dir`; map steps record
+their band fit) and self-describing WAVs, `<pedal>_<preset>_<role>_{wet,raw}_<sr>k_<date>_<time>.wav`.
 Simulated runs go to `sessions_demo/` and are never committed.
 
 **To retire later:** once the rig is proven, the Studio One-era captures (`recordings/data/*/captures/`, the

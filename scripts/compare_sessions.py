@@ -2,8 +2,7 @@
 """Compare the same presets captured in two rig sessions (for example 48 kHz vs 96 kHz).
 
 Prints the RMS difference of the measured responses below and above 10 kHz for every preset both
-sessions
-captured, and saves an overlay plot per preset.
+sessions captured, and saves an overlay plot per preset.
 
 Usage:
     uv run python scripts/compare_sessions.py <session_dir_a> <session_dir_b> [--preset smile]

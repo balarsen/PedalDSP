@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import soundfile as sf
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QHeaderView,
@@ -53,7 +54,7 @@ def demo_pedal(state: AppState, controls: dict[str, float] | None) -> None:
 
 
 class CalibratePage(QWidget):
-    def __init__(self, state: AppState) -> None:
+    def __init__(self, state: AppState, go_next) -> None:
         super().__init__()
         self.state = state
         self.loop_result = None
@@ -134,6 +135,10 @@ class CalibratePage(QWidget):
         self.save_note = label("", "dim")
         right.addWidget(self.save_note)
         right.addStretch()
+        nxt = QPushButton("Continue to Plan →")
+        nxt.setObjectName("primary")
+        nxt.clicked.connect(go_next)
+        right.addWidget(nxt, 0, Qt.AlignRight)
         state.session_changed.connect(self._load_existing)
         self._load_existing()
 
@@ -214,10 +219,10 @@ class CalibratePage(QWidget):
         old = s.data.get("calibration") or {}
         loop = self.loop_result.to_dict() if self.loop_result else old.get("loopback")
         chain = self.chain_result.to_dict() if self.chain_result else old.get("chain")
-        s.set_calibration(loop, chain)
+        path = s.set_calibration(loop, chain)
         self.state.set_cables_from_calibration(s.data["calibration"])
         self.state.calibration_changed.emit()
-        self.save_note.setText(f"Calibration saved in {s.root.name}/session.json.")
+        self.save_note.setText(f"Calibration saved: {s.root.name}/{path.name} (and session.json).")
 
     def _load_existing(self) -> None:
         self.loop_result = self.chain_result = None

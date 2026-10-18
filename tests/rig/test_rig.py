@@ -204,9 +204,8 @@ def test_alignment_keeps_the_pedals_own_delay(masters, tmp_path):
     """A pedal's own delay (EQ group delay, a digital pedal's buffer) must stay in the aligned data.
 
     The simulated pedal here is a pure 10-sample delay: the correlation peak moves by 10, the
-    alignment
-    (interface latency from the loopback) must not, and QC reports the difference as the pedal's
-    delay.
+    alignment (interface latency from the loopback) must not, and QC reports the difference as the
+    pedal's delay.
     """
     sr, pedal_delay = 48_000, 10
     sig = prepare_signal("train", "full", sr, tmp_path / "sig")

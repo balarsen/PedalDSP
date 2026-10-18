@@ -1,11 +1,14 @@
-"""Capture signals for a session: the full train/val signals or a quick excerpt, at the
-session sample rate.
+"""Capture signals for a session, at the session sample rate.
 
 Every session derives its own signal files from the 96 kHz masters, so a session folder is
-self-contained
-and 48 kHz and 96 kHz sessions play exactly the same material. Each derived WAV gets a rewritten
-manifest
-(same format as ``pedal_model.signals``) with section positions in the new sample rate.
+self-contained and 48 kHz and 96 kHz sessions play exactly the same material. Each derived WAV gets
+a rewritten manifest (same format as ``pedal_model.signals``) with section positions in the new
+sample rate.
+
+Roles:
+    train: the full training signal, or the quick excerpt (sweeps + stepped tones + pink noise).
+    val: the validation signal, always in full.
+    sweep: the three log sweeps only (~1 min), for measurements such as the GE-7 slider map.
 """
 
 from __future__ import annotations
@@ -30,9 +33,13 @@ SIGNAL_KINDS = {
     "quick": "Quick check: sweeps + stepped tones + pink noise (~3.5 min) + val (65 s)",
 }
 
-# Section types kept in the quick excerpt: enough for frequency response, level linearity and noise
-# floor.
-QUICK_TYPES = ("log_sine_sweep", "stepped_sine_tone", "pink_noise")
+# Section types kept in each excerpt. Quick: enough for frequency response, level linearity and the
+# noise floor. Sweep: frequency response only, at three levels.
+EXCERPT_TYPES = {
+    "quick": ("log_sine_sweep", "stepped_sine_tone", "pink_noise"),
+    "sweep": ("log_sine_sweep",),
+}
+QUICK_TYPES = EXCERPT_TYPES["quick"]
 QUICK_GAP_S = 0.5  # silence between excerpted blocks, as in the generator (silence_between_s)
 
 
@@ -66,8 +73,7 @@ def _excerpt(raw: dict, audio: np.ndarray, types: tuple[str, ...]) -> tuple[np.n
         if s["type"] not in types:
             continue
         seg = audio[s["start_sample"] : s["end_sample"]]
-        # Keep runs of adjacent sections (the stepped tones) together; put a gap between separate
-        # blocks.
+        # Keep runs of adjacent sections (the stepped tones) together; gap between separate blocks.
         if previous_end is not None and s["start_sample"] != previous_end:
             pieces.append(gap)
             cursor += len(gap)
@@ -98,32 +104,41 @@ def _rescale_sections(sections: list[dict], sr_in: int, sr_out: int) -> list[dic
     return out
 
 
+def signal_name(role: str, kind: str, sr: int) -> str:
+    """File stem of a session signal: ``train_quick_48k``, ``val_full_96k``, ``sweep_48k``."""
+    if role == "sweep":
+        return f"sweep_{sr // 1000}k"
+    return f"{role}_{'full' if role == 'val' else kind}_{sr // 1000}k"
+
+
 def prepare_signal(role: str, kind: str, sr: int, out_dir: Path) -> SessionSignal:
-    """Write ``<role>_<kind>_<sr>k.{wav,json}`` into *out_dir* (skipped if already there).
+    """Write the role's signal (WAV + manifest) into *out_dir*; skipped if it is already there.
 
     Args:
-        role: "train" or "val".
-        kind: "full" or "quick" (val is always played in full).
+        role: "train", "val" or "sweep".
+        kind: "full" or "quick" (only affects train; val is always full, sweep always sweeps).
         sr: Session sample rate in Hz (48000 or 96000).
         out_dir: Session ``signals/`` folder.
 
     Returns:
         The prepared signal.
     """
-    kind = "full" if role == "val" else kind
-    name = f"{role}_{kind}_{sr // 1000}k"
+    name = signal_name(role, kind, sr)
+    excerpt = (
+        "sweep" if role == "sweep" else ("quick" if role == "train" and kind == "quick" else None)
+    )
     manifest_path = out_dir / f"{name}.json"
     if manifest_path.is_file() and manifest_path.with_suffix(".wav").is_file():
         raw = json.loads(manifest_path.read_text(encoding="utf-8"))
         return SessionSignal(role, manifest_path, raw["sample_rate"], raw["total_samples"])
 
-    src_path = SOURCE_MANIFESTS[role]
+    src_path = SOURCE_MANIFESTS["val" if role == "val" else "train"]
     raw = json.loads(src_path.read_text(encoding="utf-8"))
     audio, _ = sf.read(str(src_path.with_suffix(".wav")), dtype="float32", always_2d=False)
     sr_src = raw["sample_rate"]
 
-    if kind == "quick":
-        audio, sections = _excerpt(raw, audio, QUICK_TYPES)
+    if excerpt:
+        audio, sections = _excerpt(raw, audio, EXCERPT_TYPES[excerpt])
     else:
         sections = [dict(s) for s in raw["sections"]]
 
@@ -138,9 +153,10 @@ def prepare_signal(role: str, kind: str, sr: int, out_dir: Path) -> SessionSigna
     out["sections"] = sections
     out["derived_from"] = {
         "manifest": src_path.relative_to(PROJECT_ROOT).as_posix(),
-        "kind": kind,
+        "role": role,
+        "excerpt": excerpt,
+        "excerpt_types": list(EXCERPT_TYPES[excerpt]) if excerpt else None,
         "source_sample_rate": sr_src,
-        "excerpt_types": list(QUICK_TYPES) if kind == "quick" else None,
     }
     out_dir.mkdir(parents=True, exist_ok=True)
     sf.write(str(manifest_path.with_suffix(".wav")), audio, sr, subtype="FLOAT")

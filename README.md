@@ -17,7 +17,7 @@ Python runs on Windows (the audio interface is only reachable there). WSL is use
 winget install astral-sh.uv            # once
 git submodule update --init --recursive
 uv sync --extra rig                    # Python 3.12 + CUDA PyTorch + the capture rig's GUI packages
-uv run pytest tests                    # 764 pass; 6 known failures in tests/synthetic/test_pedal.py (work in progress)
+uv run pytest tests                    # 779 pass; 6 known failures in tests/synthetic/test_pedal.py (work in progress)
 ```
 
 ## Capture rig: closed-loop recording without Studio One
@@ -31,17 +31,26 @@ uv run python -m pedal_model.rig              # demo mode: a simulated rig, noth
 uv run python -m pedal_model.rig --hardware   # the real 1824c over ASIO
 ```
 
-Steps in the app: **Start** (sample rate 48/96 kHz, pedal, quick or full signal) → **Setup** (wiring
-diagram) → **Calibrate** → **Plan** (presets) → **Run** (set the controls, press Space, accept or retake)
-→ **Review**. Close Studio One first: ASIO allows one program at a time.
+Steps in the app, each ending in a Continue button to the next: **Start** (sample rate 48/96 kHz, pedal,
+quick or full signal) → **Setup** (wiring diagram: every jack named with its connector, every cable with
+its level type; Save writes the settings) → **Calibrate** (loopback and chain tests, knob advice) →
+**Plan** (presets with notes and a model-response preview; add your own preset, or the 32-step slider
+map) → **Run** (the pedal drawn as it must be set, press Space; live meters, spectrum and response; QC with
+a stage-by-stage progress bar; accept or retake) → **Review** (per-step responses, 48 vs 96 kHz comparison,
+and the slider-map table). Close Studio One first: ASIO allows one program at a time.
+
+**Slider map (GE-7).** Each slider alone at +15, +7.5, −7.5 and −15 dB, with a ~1 min sweep-only signal.
+Every step is fitted with an RBJ peaking filter (centre frequency, Q, bandwidth in octaves, gain); the
+6.4k band as a high shelf (corner, slope, gain) and LEVEL as a flat gain. Review shows the measured
+numbers next to the same fit applied to the Ge7Sim model.
 
 ### Wiring
 
 ```
 PC (Windows) ──USB── PreSonus Studio 1824c   (ASIO: "Studio USB ASIO Driver")
 
- SEND      1824c Out 1 (rear, balanced TRS, line level) ──► Radial ProRMP input
-           ProRMP output (1/4" TS, instrument level) ──────► PEDAL IN
+ SEND      1824c Out 1 (rear, balanced TRS, line level) ──► Radial ProRMP INPUT (XLR)
+           ProRMP OUTPUT (1/4" TRS jack, instrument level) ► PEDAL IN (guitar cable)
  RETURN    PEDAL OUT (1/4" TS, instrument level) ─────────► Radial ProDI input
            ProDI XLR output (mic level) ──────────────────► 1824c In 1 (front, XLR; 48 V OFF)
  LOOPBACK  1824c Out 2 (rear, TRS, line level) ───────────► 1824c In 2 (front, TRS; gain at minimum)
@@ -52,7 +61,7 @@ PC (Windows) ──USB── PreSonus Studio 1824c   (ASIO: "Studio USB ASIO Dri
 | 1824c Main knob | Mark its position | Out 1/2 are the Main outputs; I believe this knob sets their level (verify on your unit), so it is part of the send level |
 | 1824c In 1 | Gain set during calibration; 48 V off | Mic preamp for the ProDI's mic-level output |
 | 1824c In 2 | Gain at minimum; 48 V off | Line-level loopback must not clip |
-| Radial ProRMP | Level: note the position; ground lift off unless there is hum | Turns line level into a guitar-like instrument signal for the pedal |
+| Radial ProRMP | Input XLR, output 1/4" TRS jack. Level: note the position; ground lift off unless there is hum | Turns line level into a guitar-like instrument signal for the pedal |
 | Pedal | Engaged, powered | Device under test |
 | Radial ProDI | −15 dB pad (input side): off, on for hot pedals; ground lift (XLR output side): off unless there is hum | Gives the pedal a high-impedance load and sends balanced mic level to In 1 |
 
@@ -82,9 +91,17 @@ instrument → mic. The app's Setup page has a longer version ("Why these boxes?
 ### What a session writes
 
 `recordings/data/<pedal>/sessions/<date>_<time>_<sr>k/` (demo runs go to `sessions_demo/`, never committed):
-the session's own copies of the signals (`signals/`), a `session.json` log (settings, calibration, status,
-events), and per preset `params.json`, `wet_train.wav`, `wet_val.wav` (aligned return) and `raw_*.wav`
-(the unaligned return + loopback). Fit a preset with:
+
+- `session.json`: settings, rig snapshot, presets, calibration, status and an event log
+- `calibration_<date>_<time>.json` and `rig_setup_<date>_<time>.json`: every calibration and every saved
+  setup, as dated files (Setup → Save also writes `configs/rig.json` and a dated copy next to it)
+- `signals/`: the session's own train/val/sweep signals with their manifests
+- `<preset>/params.json` plus, per role, `<pedal>_<preset>_<role>_wet_<sr>k_<date>_<time>.wav` (return
+  aligned on the loopback latency) and `..._raw_...wav` (the unaligned return + loopback). File names carry
+  the pedal, preset, role, sample rate and time, so a copied-out WAV is still identifiable; retakes keep
+  the earlier files.
+
+Fit a preset with:
 
 ```powershell
 uv run python scripts/fit_models.py --klon-sim-dir recordings/data/ge7/sessions/<session>/<preset> --classical-only

@@ -3,8 +3,7 @@
 The chain is send → ProRMP → pedal → ProDI → In 1.
 
 Both tests generate their own short signals, so they run before any capture signal is chosen. The
-results
-are stored in the session and used by QC to normalise every take.
+results are stored in the session and used by QC to normalise every take.
 """
 
 from __future__ import annotations

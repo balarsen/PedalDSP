@@ -1,17 +1,20 @@
-"""Capture sessions on disk: folder layout, session.json log, per-preset WAVs, and
-harness-ready params.json.
+"""Capture sessions on disk: folder layout, session.json log, per-preset WAVs and params.json.
 
-Layout::
+Layout (simulated runs go to ``sessions_demo/`` instead of ``sessions/``)::
 
-    recordings/data/<profile>/sessions/<YYYY-MM-DD_HHMM>_<sr>k/      (simulated runs:
-    sessions_demo/)
-        session.json                 settings, rig snapshot, calibration, per-preset status, event
-        log
-        signals/train_<kind>_<sr>k.{wav,json}, val_full_<sr>k.{wav,json}
-        <preset>/params.json         loads in scripts/fit_models.py --klon-sim-dir <preset dir>
-        <preset>/wet_train.wav       return, aligned to the dry signal (lag and pre-roll removed)
-        <preset>/raw_train.wav       unaligned 2-channel recording: [return, loopback]
-        <preset>/wet_val.wav, raw_val.wav
+    recordings/data/<profile>/sessions/<YYYY-MM-DD_HHMM>_<sr>k/
+        session.json           settings, rig snapshot, calibration, presets, status, events
+        calibration_<stamp>.json            every calibration, also as its own dated file
+        signals/               train_<kind>_<sr>k.*, val_full_<sr>k.*, sweep_<sr>k.* (WAV + JSON)
+        <preset>/params.json   loads in scripts/fit_models.py --klon-sim-dir <preset dir>
+        <preset>/<profile>_<preset>_<role>_wet_<sr>k_<stamp>.wav   aligned return
+        <preset>/<profile>_<preset>_<role>_raw_<sr>k_<stamp>.wav   return + loopback, unaligned
+
+    <stamp> is the local date and time, YYYY-MM-DD_HHMM.
+
+File names carry the profile, preset, role, sample rate and time, so a WAV copied out of its folder
+is still identifiable; the same fields are in params.json and session.json. Retakes keep the earlier
+files (the session log says which take is current).
 """
 
 from __future__ import annotations
@@ -24,21 +27,22 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from pedal_model.rig.config import DATA_ROOT, RigConfig
+from pedal_model.rig.config import DATA_ROOT, RigConfig, local_stamp
 from pedal_model.rig.engine import Take
 from pedal_model.rig.profiles import Preset, Profile
 from pedal_model.rig.signals import SessionSignal, prepare_signal
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 WAV_SUBTYPE = "PCM_24"  # the 1824c converters are 24-bit, so this is lossless for hardware takes
+SIGNAL_ROLES = ("train", "val", "sweep")
 
 
-def _now() -> str:
+def _utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 class Session:
-    """One capture session (one sample rate, one pedal, one signal choice)."""
+    """One capture session (one sample rate, one pedal, one train-signal choice)."""
 
     def __init__(self, root: Path, data: dict) -> None:
         self.root = root
@@ -57,22 +61,20 @@ class Session:
         simulated: bool,
         presets: list[Preset],
     ) -> "Session":
-        """Make the folder and prepare its signals (resampling takes a few seconds: call off the GUI
-        thread).
-        """
+        """Make the folder and prepare its signals (takes seconds: call it off the GUI thread)."""
         base = DATA_ROOT / profile.id / ("sessions_demo" if simulated else "sessions")
-        stamp = datetime.now().strftime("%Y-%m-%d_%H%M")
+        stamp = local_stamp()
         root = base / f"{stamp}_{sr // 1000}k"
         n = 2
         while root.exists():
             root = base / f"{stamp}_{sr // 1000}k_{n}"
             n += 1
         root.mkdir(parents=True)
-        sig_dir = root / "signals"
-        signals = {r: prepare_signal(r, signal_kind, sr, sig_dir) for r in ("train", "val")}
+        signals = {r: prepare_signal(r, signal_kind, sr, root / "signals") for r in SIGNAL_ROLES}
         data = {
             "schema_version": SCHEMA_VERSION,
-            "created": _now(),
+            "created": _utc(),
+            "created_local": local_stamp(iso=True),
             "profile": profile.id,
             "pedal": profile.pedal,
             "sample_rate": sr,
@@ -85,18 +87,12 @@ class Session:
                 r: s.manifest_path.relative_to(root).as_posix() for r, s in signals.items()
             },
             "calibration": None,
-            "presets": {
-                p.name: {
-                    "status": "pending",
-                    "controls": p.controls,
-                    "description": p.description,
-                    "takes": [],
-                }
-                for p in presets
-            },
+            "presets": {},
             "events": [],
         }
         s = cls(root, data)
+        for p in presets:
+            s.add_preset(p, save=False)
         s.log("session_created")
         return s
 
@@ -124,10 +120,36 @@ class Session:
     def sample_rate(self) -> int:
         return int(self.data["sample_rate"])
 
+    @property
+    def profile_id(self) -> str:
+        return self.data["profile"]
+
     def signal(self, role: str) -> SessionSignal:
+        """A session signal; prepared on first use if this session predates it (e.g. "sweep")."""
+        if role not in self.data["signals"]:
+            sig = prepare_signal(
+                role, self.data["signal_kind"], self.sample_rate, self.root / "signals"
+            )
+            self.data["signals"][role] = sig.manifest_path.relative_to(self.root).as_posix()
+            self.save()
         path = self.root / self.data["signals"][role]
         raw = json.loads(path.read_text(encoding="utf-8"))
         return SessionSignal(role, path, raw["sample_rate"], raw["total_samples"])
+
+    def presets(self) -> list[Preset]:
+        """The session's presets in plan order, as stored in session.json."""
+        return [Preset.from_dict(name, d) for name, d in self.data["presets"].items()]
+
+    def add_preset(self, preset: Preset, save: bool = True) -> None:
+        """Add a preset to the session (no-op if it is already there)."""
+        if preset.name not in self.data["presets"]:
+            self.data["presets"][preset.name] = {
+                **preset.to_dict(),
+                "status": "pending",
+                "takes": [],
+            }
+            if save:
+                self.log("preset_added", preset=preset.name, kind=preset.kind)
 
     def save(self) -> None:
         tmp = self.root / "session.json.tmp"
@@ -138,12 +160,26 @@ class Session:
 
     def log(self, event: str, **info) -> None:
         """Append to the event log (the future capture/train loop reads this) and save."""
-        self.data["events"].append({"t": _now(), "event": event, **info})
+        self.data["events"].append({"t": _utc(), "event": event, **info})
         self.save()
 
-    def set_calibration(self, loopback: dict | None, chain: dict | None) -> None:
-        self.data["calibration"] = {"loopback": loopback, "chain": chain, "t": _now()}
-        self.log("calibrated")
+    def set_calibration(self, loopback: dict | None, chain: dict | None) -> Path:
+        """Store the calibration in session.json and as its own dated file; returns that file."""
+        stamp = local_stamp()
+        cal = {
+            "loopback": loopback,
+            "chain": chain,
+            "t": _utc(),
+            "time_local": local_stamp(iso=True),
+            "session": self.root.name,
+            "profile": self.profile_id,
+            "sample_rate": self.sample_rate,
+        }
+        self.data["calibration"] = cal
+        path = self.root / f"calibration_{stamp}.json"
+        path.write_text(json.dumps(cal, indent=2) + "\n", encoding="utf-8")
+        self.log("calibrated", file=path.name)
+        return path
 
     def set_status(self, preset: str, status: str) -> None:
         self.data["presets"][preset]["status"] = status
@@ -152,61 +188,99 @@ class Session:
     def preset_dir(self, preset: str) -> Path:
         return self.root / preset
 
+    def take(self, preset: str, role: str) -> dict | None:
+        """The current take entry of one role of a preset, or None."""
+        for t in self.data["presets"].get(preset, {}).get("takes", []):
+            if t["role"] == role:
+                return t
+        return None
+
+    def wet_path(self, preset: str, role: str) -> Path | None:
+        t = self.take(preset, role)
+        return self.preset_dir(preset) / t["wet_wav"] if t else None
+
     # ── takes ───────────────────────────────────────────────────────────── #
 
+    def _file_name(self, preset: str, role: str, what: str, stamp: str) -> str:
+        return f"{self.profile_id}_{preset}_{role}_{what}_{self.sample_rate // 1000}k_{stamp}.wav"
+
     def save_capture(
-        self, preset: Preset, role: str, take: Take, wet: np.ndarray, qc: dict
+        self,
+        preset: Preset,
+        role: str,
+        take: Take,
+        wet: np.ndarray,
+        qc: dict,
+        band_fit: dict | None = None,
     ) -> None:
-        """Write one role (train or val) of a preset and refresh its params.json."""
+        """Write one role of a preset (train, val or sweep) and refresh its params.json."""
         d = self.preset_dir(preset.name)
         d.mkdir(exist_ok=True)
-        sr = take.sr
-        sf.write(str(d / f"wet_{role}.wav"), wet, sr, subtype=WAV_SUBTYPE)
-        sf.write(str(d / f"raw_{role}.wav"), take.rec, sr, subtype=WAV_SUBTYPE)
+        stamp = local_stamp()
+        wet_name = self._file_name(preset.name, role, "wet", stamp)
+        raw_name = self._file_name(preset.name, role, "raw", stamp)
+        sf.write(str(d / wet_name), wet, take.sr, subtype=WAV_SUBTYPE)
+        sf.write(str(d / raw_name), take.rec, take.sr, subtype=WAV_SUBTYPE)
         entry = {
             "role": role,
-            "t": _now(),
+            "t": _utc(),
+            "time_local": local_stamp(iso=True),
+            "wet_wav": wet_name,
+            "raw_wav": raw_name,
             "lag_samples": qc["lag_samples"],
             "loop_lag_samples": qc["loop_lag_samples"],
+            "xcorr_lag_samples": qc.get("xcorr_lag_samples"),
             "xruns": take.xruns,
             "pre_roll": take.pre_roll,
             "verdict": qc["verdict"],
             "qc": qc["items"],
+            "band_fit": band_fit,
         }
+        self.add_preset(preset, save=False)
         p = self.data["presets"][preset.name]
         p["takes"] = [t for t in p["takes"] if t["role"] != role] + [entry]
-        p["status"] = (
-            "captured" if {t["role"] for t in p["takes"]} >= {"train", "val"} else "partial"
-        )
+        done = {t["role"] for t in p["takes"]} >= set(preset.roles)
+        p["status"] = "captured" if done else "partial"
         self.write_params(preset)
-        self.log("capture_saved", preset=preset.name, role=role, verdict=qc["verdict"])
+        self.log(
+            "capture_saved", preset=preset.name, role=role, verdict=qc["verdict"], file=wet_name
+        )
 
     def write_params(self, preset: Preset) -> Path:
-        """params.json in the harness format (pedal_model/eval/harness.py) plus a "rig" block."""
+        """params.json in the harness format (pedal_model/eval/harness.py) plus a "rig" block.
+
+        Map presets (sweep only) have no val capture, so they are measurements, not fitting input.
+        """
         d = self.preset_dir(preset.name)
         p = self.data["presets"][preset.name]
-        takes = {t["role"]: t for t in p["takes"]}
         captures = {}
-        for role in ("train", "val"):
+        for role in preset.roles:
             sig = self.signal(role)
+            t = self.take(preset.name, role) or {}
             captures[role] = {
                 "dry_signal": sig.manifest_path.stem,
                 "dry_manifest": os.path.relpath(sig.manifest_path, d).replace("\\", "/"),
-                "wet_wav": f"wet_{role}.wav",
-                "raw_wav": f"raw_{role}.wav",
+                "wet_wav": t.get("wet_wav"),
+                "raw_wav": t.get("raw_wav"),
                 "raw_channels": ["return (In 1)", "loopback (In 2)"],
                 "sample_rate": sig.sample_rate,
                 "n_samples": sig.total_samples,
                 "duration_s": sig.duration_s,
-                "lag_samples": takes.get(role, {}).get("lag_samples"),
+                "lag_samples": t.get("lag_samples"),
+                "captured": t.get("time_local"),
             }
         doc = {
-            "schema_version": "1.1",
-            "date_created": _now(),
+            "schema_version": "1.2",
+            "date_created": _utc(),
+            "saved_local": local_stamp(iso=True),
             "source": "simulated" if self.data["simulated"] else "hardware",
+            "profile": self.profile_id,
             "pedal": self.data["pedal"],
             "preset_name": preset.name,
+            "preset_kind": preset.kind,
             "preset_description": preset.description,
+            "preset_notes": preset.notes,
+            "sample_rate": self.sample_rate,
             "sliders": preset.controls,
             "captures": captures,
             "rig": {
@@ -217,6 +291,7 @@ class Session:
                 "boxes": self.data["rig"]["boxes"],
                 "calibration": self.data["calibration"],
                 "qc": {t["role"]: {"verdict": t["verdict"], "items": t["qc"]} for t in p["takes"]},
+                "band_fit": {t["role"]: t.get("band_fit") for t in p["takes"] if t.get("band_fit")},
             },
         }
         path = d / "params.json"

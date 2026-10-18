@@ -2,7 +2,7 @@
     "schema_version": "1.0",
     "pedal": "boss_ge7",
     "preset_name": "all_down",
-    "description": "All bands and level at -12/-6 \u2014 stress test / maximum cut",
+    "description": "All bands -12 dB, LEVEL -15 dB \u2014 stress test / maximum cut",
     "sliders": {
         "hz_100": -12.0,
         "hz_200": -12.0,

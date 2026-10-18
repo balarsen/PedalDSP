@@ -1,6 +1,4 @@
-"""Run page: tell the human how to set the pedal, capture train + val, check, accept or retake,
-next.
-"""
+"""Run page: show how to set the pedal, capture, check, accept or retake, then the next step."""
 
 from __future__ import annotations
 
@@ -21,12 +19,14 @@ from PySide6.QtWidgets import (
 )
 
 from pedal_model.rig.analysis import log_grid, peak_dbfs, spectrum_db
+from pedal_model.rig.bandfit import fit_band
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import confirm_playback, demo_pedal
 from pedal_model.rig.gui.state import AppState
 from pedal_model.rig.gui.widgets import CheckList, ControlPanel, LevelMeter, card, label
 from pedal_model.rig.gui.worker import run_async
-from pedal_model.rig.qc import FR_TYPES, check_take, expected_response
+from pedal_model.rig.profiles import KIND_MAP, Preset, Profile
+from pedal_model.rig.qc import FR_TYPES, QCItem, check_take, expected_response
 from pedal_model.signals.manifest import Manifest
 
 LIVE_MS = 50  # GUI refresh period (20 Hz)
@@ -34,16 +34,50 @@ METER_SAMPLES = 2048
 SPECTRUM_SAMPLES = 8192
 LIVE_TF_MIN_SEND_DBFS = -50.0  # below this the live response estimate is mostly noise
 LIVE_TF_FLOOR = (
-    1e-7  # bins whose accumulated send power is below this fraction of the maximum stay blank
+    1e-7  # bins with less accumulated send power than this fraction of the max stay blank
 )
+ROLE_NAMES = {"train": "Train", "val": "Val", "sweep": "Sweep"}
+SPECTRUM_Y = (-130.0, 0.0)  # fixed ranges used when "Auto scale" is off
+RESPONSE_Y = (-30.0, 20.0)
+# Smallest Y span autoscale may zoom to: a perfect (simulated) flat response would otherwise be
+# zoomed to micro-dB noise, and the spectrum to the noise floor between takes.
+SPECTRUM_MIN_SPAN_DB = 60.0
+RESPONSE_MIN_SPAN_DB = 6.0
 
 
-def _capture_and_check(state: AppState, preset, role: str):
-    """Worker body: play one role of a preset, run QC, save the files. Returns (role, report)."""
+def band_fit_for(profile: Profile, preset: Preset, response, sr: int) -> dict | None:
+    """For a map step: fit the one moved control (a peak, a shelf for the top band, or a gain)."""
+    moved = [c for c in profile.controls if abs(preset.controls.get(c["key"], 0.0)) > 1e-6]
+    if preset.kind != KIND_MAP or len(moved) != 1 or response is None:
+        return None
+    c = moved[0]
+    top_band = c.get("band_hz") == max(k.get("band_hz") or 0 for k in profile.controls)
+    fit = fit_band(
+        response.freqs_hz,
+        response.measured_db,
+        sr,
+        c.get("band_hz"),
+        preset.controls[c["key"]],
+        try_shelf=top_band,
+    )
+    return {
+        "control": c["key"],
+        "setting": preset.controls[c["key"]],
+        **fit.to_dict(),
+        "summary": fit.summary(),
+    }
+
+
+def _capture_and_check(state: AppState, preset: Preset, role: str, report):
+    """Worker body: play one role of a step, run QC (and the band fit), save. Returns (role,
+    report).
+    """
     session = state.session
+    report("Loading the signal")
     sig = session.signal(role)
     manifest = Manifest(sig.manifest_path)
     dry = manifest.load_all()
+    report("capture")
     take = state.engine.run(dry, sig.sample_rate, send_level_db=state.profile.send_level_db)
     if take.aborted:
         return role, None
@@ -55,21 +89,54 @@ def _capture_and_check(state: AppState, preset, role: str):
         controls=preset.controls,
         calibration=session.data.get("calibration"),
         qc_limits=state.profile.qc,
+        report=report,
     )
-    session.save_capture(preset, role, take, wet, rep.to_dict())
+    fit = None
+    if preset.kind == KIND_MAP:
+        report("Fitting the band (centre, bandwidth, gain)")
+        fit = band_fit_for(state.profile, preset, rep.response, sig.sample_rate)
+        if fit:
+            rep.items.append(
+                QCItem(
+                    "Band fit", "ok", fit["summary"], f"RMS fit error {fit['rms_err_db']:.2f} dB"
+                )
+            )
+    report("Saving the WAV files and params.json")
+    session.save_capture(preset, role, take, wet, rep.to_dict(), band_fit=fit)
     return role, rep
 
 
+def _auto_box(plot: pg.PlotWidget, fixed: tuple[float, float], min_span: float) -> QCheckBox:
+    """An "Auto scale" checkbox for a plot (on by default): auto Y range, else a fixed range."""
+    box = QCheckBox("Auto scale")
+    box.setChecked(True)
+    plot.setLimits(minYRange=min_span)
+
+    def apply(on: bool) -> None:
+        if on:
+            plot.enableAutoRange(axis="y", enable=True)
+        else:
+            plot.setYRange(*fixed)
+
+    box.toggled.connect(apply)
+    apply(True)
+    return box
+
+
 class RunPage(QWidget):
-    def __init__(self, state: AppState) -> None:
+    def __init__(self, state: AppState, go_next) -> None:
         super().__init__()
         self.state = state
         self.index = 0
         self.phase = "idle"
         self.role = ""
+        self.roles: tuple[str, ...] = ()
         self.reports: dict[str, object] = {}
         self.manifest: Manifest | None = None
         self.section_starts: list[int] = []
+        self._capture_started = False  # set by the worker's "capture" stage message
+        self.acc_dd = np.zeros(SPECTRUM_SAMPLES // 2 + 1)
+        self.acc_dw = np.zeros(SPECTRUM_SAMPLES // 2 + 1, dtype=complex)
 
         root = QHBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 20)
@@ -95,12 +162,15 @@ class RunPage(QWidget):
         self.ready_btn = QPushButton("Ready ▶  (Space)")
         self.ready_btn.setObjectName("primary")
         self.ready_btn.clicked.connect(self._ready)
-        self.skip_btn = QPushButton("Skip preset")
+        self.skip_btn = QPushButton("Skip")
         self.skip_btn.clicked.connect(self._skip)
         self.abort_btn = QPushButton("Abort take")
         self.abort_btn.setObjectName("danger")
         self.abort_btn.clicked.connect(lambda: self.state.engine.abort())
-        for b in (self.ready_btn, self.skip_btn, self.abort_btn):
+        self.review_btn = QPushButton("Go to Review →")
+        self.review_btn.setObjectName("primary")
+        self.review_btn.clicked.connect(go_next)
+        for b in (self.ready_btn, self.skip_btn, self.abort_btn, self.review_btn):
             row.addWidget(b)
         row.addStretch()
         lay.addLayout(row)
@@ -112,15 +182,11 @@ class RunPage(QWidget):
         left.addWidget(f)
 
         f, lay = card("Quality checks")
-        self.qc_train = CheckList()
-        self.qc_val = CheckList()
-        lay.addWidget(label("<b>Train</b>"))
-        lay.addWidget(self.qc_train)
-        lay.addWidget(label("<b>Val</b>"))
-        lay.addWidget(self.qc_val)
+        self.qc = CheckList()
+        lay.addWidget(self.qc)
         lay.addStretch()
         row = QHBoxLayout()
-        self.accept_btn = QPushButton("Accept ✓  (next preset)")
+        self.accept_btn = QPushButton("Accept ✓  (next step)")
         self.accept_btn.setObjectName("primary")
         self.accept_btn.clicked.connect(self._accept)
         self.retake_btn = QPushButton("Retake ↺")
@@ -146,24 +212,24 @@ class RunPage(QWidget):
         self.spec = theme.styled_plot(
             "Spectrum: send vs return", "Frequency (Hz)", "Level (dBFS)", log_x=True
         )
-        self.spec.setYRange(-130, 0)
         self.spec.setXRange(np.log10(20), np.log10(20_000))
         self.c_send = self.spec.plot(pen=pg.mkPen(theme.TEXT_DIM, width=1), name="send (Out 1)")
         self.c_ret = self.spec.plot(pen=pg.mkPen(theme.CYAN, width=1.5), name="return (In 1)")
         meters.addWidget(self.spec, 1)
         lay.addLayout(meters)
+        lay.addWidget(_auto_box(self.spec, SPECTRUM_Y, SPECTRUM_MIN_SPAN_DB), 0, Qt.AlignRight)
         right.addWidget(f, 1)
 
         f, lay = card("Pedal response (normalised by the calibration chain gain)")
         self.resp = theme.styled_plot("", "Frequency (Hz)", "Gain (dB)", log_x=True)
         self.resp.setXRange(np.log10(20), np.log10(20_000))
-        self.resp.setYRange(-18, 18)
         self.c_expected = self.resp.plot(
             pen=pg.mkPen(theme.AMBER, width=2, style=Qt.DashLine), name="model (expected)"
         )
-        self.c_live = self.resp.plot(pen=pg.mkPen(theme.TEXT_DIM, width=1), name="live estimate")
-        self.c_measured = self.resp.plot(pen=pg.mkPen(theme.OK, width=2.5), name="measured (train)")
+        self.c_live = self.resp.plot(pen=pg.mkPen(theme.TEXT_DIM, width=1.5), name="live estimate")
+        self.c_measured = self.resp.plot(pen=pg.mkPen(theme.OK, width=2.5), name="measured")
         lay.addWidget(self.resp)
+        lay.addWidget(_auto_box(self.resp, RESPONSE_Y, RESPONSE_MIN_SPAN_DB), 0, Qt.AlignRight)
         right.addWidget(f, 1)
 
         self.timer = QTimer(self)
@@ -181,7 +247,7 @@ class RunPage(QWidget):
         self.forget.setVisible(self.state.simulated)
 
     def reset(self) -> None:
-        if self.phase == "capture":
+        if self.phase in ("capture", "analyse"):
             return  # never reset under a running take
         self._update_mode()
         s = self.state.session
@@ -194,18 +260,19 @@ class RunPage(QWidget):
                 self.index += 1
         self._show_current()
 
-    def _current(self):
+    def _current(self) -> Preset | None:
         return self.state.plan[self.index] if self.index < len(self.state.plan) else None
 
     def _show_current(self) -> None:
         self.reports = {}
-        self.qc_train.clear()
-        self.qc_val.clear()
-        self.c_measured.setData([], [])
-        self.c_live.setData([], [])
+        self.qc.clear()
+        for c in (self.c_measured, self.c_live):
+            c.setData([], [])
+        self._progress_busy(False)
         self.progress.setValue(0)
         p = self._current()
         n = len(self.state.plan)
+        self.review_btn.setVisible(False)
         if self.state.session is None:
             self._set_phase("idle")
             self.header.setText("Run")
@@ -215,22 +282,24 @@ class RunPage(QWidget):
         if p is None:
             self._set_phase("done")
             self.header.setText("Run: all done")
-            self.instruction.setText("Every planned preset is accepted or skipped.")
-            self.desc.setText(f"Session folder: {self.state.session.root}. See the Review page.")
+            self.instruction.setText("Every planned step is accepted or skipped.")
+            self.desc.setText(f"Session folder: {self.state.session.root}")
+            self.review_btn.setVisible(True)
             return
-        self.header.setText(f"Preset {self.index + 1} / {n}: {p.name}")
+        kind = "map step" if p.kind == KIND_MAP else "preset"
+        self.header.setText(f"Step {self.index + 1} / {n}: {p.name}  ({kind})")
         self.instruction.setText(
             f"Set the {self.state.profile.display_name} like this, then press Ready."
         )
-        self.desc.setText(p.description)
+        self.desc.setText(p.description + (f"<br>{p.notes}" if p.notes else ""))
         self.panel.set_values(p.controls)
         grid = log_grid(20, 20_000)
         exp = expected_response(self.state.profile.pedal, p.controls, self.state.sample_rate, grid)
         self.c_expected.setData(grid, exp if exp is not None else np.zeros_like(grid))
-        if self.state.calibration is None or not (self.state.calibration or {}).get("chain"):
+        if not (self.state.calibration or {}).get("chain"):
             self.status.setText(
-                "<span style='color:%s'>No calibration in this session yet: QC can't check "
-                "latency or level. Run the Calibrate page first if you can.</span>" % theme.AMBER
+                f"<span style='color:{theme.AMBER}'>No calibration in this session yet: QC can't "
+                "check latency or level. Run the Calibrate page first if you can.</span>"
             )
         else:
             self.status.setText("Ready when you are.")
@@ -245,6 +314,15 @@ class RunPage(QWidget):
         self.retake_btn.setEnabled(phase == "verdict")
         self.forget.setEnabled(phase == "ready")
 
+    def _progress_busy(self, on: bool, text: str = "") -> None:
+        """Busy-indicator mode (moving bar) for the analysis stages, which have no percentage."""
+        if on:
+            self.progress.setRange(0, 0)
+            self.progress.setFormat(text)
+        else:
+            self.progress.setRange(0, 1000)
+            self.progress.setFormat("%p%")
+
     def _space(self) -> None:
         if self.phase == "ready":
             self._ready()
@@ -254,24 +332,28 @@ class RunPage(QWidget):
             return
         p = self._current()
         cal_name = self.state.profile.raw.get("calibration_preset", "flat")
-        if self.forget.isChecked():
-            demo_pedal(self.state, self.state.profile.preset(cal_name).controls)
-        else:
-            demo_pedal(self.state, p.controls)
-        self._start_role("train")
+        controls = (
+            self.state.profile.preset(cal_name).controls if self.forget.isChecked() else p.controls
+        )
+        demo_pedal(self.state, controls)
+        self.roles = p.roles
+        self.qc.clear()
+        self._start_role(self.roles[0])
 
     def _start_role(self, role: str) -> None:
         self.role = role
         sig = self.state.session.signal(role)
         self.manifest = Manifest(sig.manifest_path)
         self.section_starts = [s.start_sample for s in self.manifest.sections]
-        self.m_send.reset()
-        self.m_ret.reset()
-        self.m_loop.reset()
+        for m in (self.m_send, self.m_ret, self.m_loop):
+            m.reset()
         self.acc_dd = np.zeros(SPECTRUM_SAMPLES // 2 + 1)
         self.acc_dw = np.zeros(SPECTRUM_SAMPLES // 2 + 1, dtype=complex)
         self.c_live.setData([], [])
         self._set_phase("capture")
+        self._capture_started = False
+        self._progress_busy(False)
+        self.progress.setValue(0)
         self.status.setText(f"Recording the {role} signal ({sig.duration_s:.0f} s of audio)…")
         run_async(
             _capture_and_check,
@@ -280,23 +362,40 @@ class RunPage(QWidget):
             role,
             on_done=self._role_done,
             on_fail=self._failed,
+            on_progress=self._stage,
         )
+
+    def _stage(self, text: str) -> None:
+        """Stage messages from the worker: the capture itself shows % progress, analysis a moving
+        bar.
+        """
+        if text == "capture":
+            self._capture_started = True
+            self._progress_busy(False)
+            return
+        # The engine still holds the previous take's position when a new role starts, so the stage
+        # is tracked explicitly: anything reported after "capture" is analysis.
+        if self._capture_started:
+            self.phase = "analyse"
+            self.status.setText(f"Checking the {self.role} take: {text.lower()}…")
+        self._progress_busy(True, f"{ROLE_NAMES[self.role]}: {text}…")
 
     def _role_done(self, result) -> None:
         role, rep = result
+        self._progress_busy(False)
         if rep is None:
             self.status.setText("Aborted. Press Ready to try again.")
             self._set_phase("ready")
             return
         self.reports[role] = rep
-        lst = self.qc_train if role == "train" else self.qc_val
-        lst.clear()
+        self.qc.add_heading(ROLE_NAMES[role])
         for item in rep.items:
-            lst.add(item.status, f"{item.name}: {item.value}", item.detail)
-        if role == "train" and rep.response is not None:
+            self.qc.add(item.status, f"{item.name}: {item.value}", item.detail)
+        if role == self.roles[0] and rep.response is not None:
             self.c_measured.setData(rep.response.freqs_hz, rep.response.measured_db)
-        if role == "train":
-            self._start_role("val")
+        i = self.roles.index(role)
+        if i + 1 < len(self.roles):
+            self._start_role(self.roles[i + 1])
             return
         worst = max(
             (r.verdict for r in self.reports.values()),
@@ -325,6 +424,7 @@ class RunPage(QWidget):
         self._show_current()
 
     def _failed(self, tb: str) -> None:
+        self._progress_busy(False)
         self._set_phase("ready")
         self.status.setText("The take failed; see the message.")
         QMessageBox.critical(self, "Capture failed", tb[-2500:])
@@ -333,13 +433,9 @@ class RunPage(QWidget):
 
     def _tick(self) -> None:
         eng = self.state.engine
-        if self.phase != "capture":
+        if self.phase != "capture" or not self._capture_started or not eng.running:
             return
         pos, total = eng.position, eng.total
-        if not eng.running and pos == 0:
-            return
-        if pos >= total and total:
-            self.status.setText(f"Checking the {self.role} take…")
         self.progress.setValue(int(1000 * pos / max(total, 1)))
         if pos < METER_SAMPLES:
             return
@@ -367,9 +463,7 @@ class RunPage(QWidget):
                 self._accumulate_response(play, rec, pos, sr)
 
     def _accumulate_response(self, play: np.ndarray, rec: np.ndarray, pos: int, sr: int) -> None:
-        """Build the response up block by block (H1: |sum D*·W| / sum |D|²), as the sweep moves
-        through.
-        """
+        """Build the response up block by block (H1: |Σ D*·W| / Σ |D|²) as the sweep moves on."""
         cal = self.state.calibration or {}
         lag = cal["chain"]["lag_samples"] if cal.get("chain") else 0
         n = SPECTRUM_SAMPLES

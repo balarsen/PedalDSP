@@ -19,10 +19,10 @@ class Take:
 
     Attributes:
         sr: Sample rate in Hz.
-        play: What was sent, shape (n, 2): [:, 0] to the pedal (Out 1), [:, 1] to the loopback (Out
-        2).
-        rec: What came back, shape (n, 2): [:, 0] the pedal return (In 1), [:, 1] the loopback (In
-        2).
+        play: What was sent, shape (n, 2): [:, 0] to the pedal (Out 1), [:, 1] to the loopback
+            (Out 2).
+        rec: What came back, shape (n, 2): [:, 0] the pedal return (In 1), [:, 1] the loopback
+            (In 2).
         pre_roll: Samples of silence before the signal starts.
         signal_len: Samples of signal (the dry WAV's length).
         send_level_db: Digital gain applied to the signal before it was sent.
@@ -46,9 +46,8 @@ class CaptureEngine:
     """Owns the play/record buffers of the take in progress; the GUI reads them for its live views.
 
     All buffers are allocated before the stream starts. The audio callback only copies slices, so it
-    does
-    not allocate arrays or take locks (Python still creates small view objects; that is cheap and
-    bounded).
+    does not allocate arrays or take locks (Python still creates small view objects; that is cheap
+    and bounded).
     """
 
     def __init__(self, backend, block_size: int = 1024) -> None:

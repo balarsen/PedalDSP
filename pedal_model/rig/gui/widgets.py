@@ -169,6 +169,9 @@ class CheckList(QWidget):
                 w.setParent(None)
                 w.deleteLater()
 
+    def add_heading(self, text: str) -> None:
+        self.lay.addWidget(label(f"<b style='color:{theme.CYAN_BRIGHT}'>{text}</b>"))
+
     def add(self, status: str, text: str, detail: str = "") -> None:
         colour = theme.STATUS_COLOURS.get(status, theme.TEXT_DIM)
         sym = {"ok": "●", "warn": "▲", "fail": "✖", "busy": "◌"}.get(status, "○")

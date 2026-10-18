@@ -18,6 +18,7 @@ from pedal_model.rig.analysis import (
     smooth_octave,
     transfer_function,
 )
+from pedal_model.rig.calibrate import Reference
 from pedal_model.rig.engine import Take
 from pedal_model.signals.manifest import Manifest
 
@@ -32,6 +33,11 @@ LEVEL_OFFSET_FAIL_DB = 3.0
 FR_TYPES = ("log_sine_sweep", "pink_noise")  # broadband sections used for the response estimate
 DISPLAY_BAND_HZ = (20.0, 19_000.0)  # sweeps end at 20 kHz
 STATUS_ORDER = {"ok": 0, "warn": 1, "fail": 2}
+REFERENCE_NOTES = {
+    "chain": "Take ÷ the chain alone (C2): the pedal's whole response, buffers included.",
+    "bypass": "Take ÷ the bypassed pedal (C3): what the engaged circuit adds (plan decision D1).",
+    "engaged_flat": "Take ÷ the engaged pedal at its calibration preset (C4).",
+}
 
 
 @dataclass
@@ -44,11 +50,16 @@ class QCItem:
 
 @dataclass
 class FrequencyResponse:
-    """Pedal-only response on a log grid: measured (normalised by the chain gain) and expected."""
+    """Pedal response on a log grid: measured (normalised by a calibration reference) and expected.
+
+    ``reference`` names what the measurement was divided by: a reference curve ("chain", "bypass",
+    "engaged_flat"), "chain_gain" (old scalar normalisation), or None.
+    """
 
     freqs_hz: np.ndarray
     measured_db: np.ndarray
     expected_db: np.ndarray | None
+    reference: str | None = None
 
 
 @dataclass
@@ -96,6 +107,28 @@ def expected_response(
 
     f, db = Ge7Sim.from_sliders(Ge7Sliders.from_dict(controls)).frequency_response(sr, n_fft=32768)
     return np.interp(grid, f, db)
+
+
+def calibration_reference(calibration: dict | None, name: str) -> Reference | None:
+    """The named reference curve of a calibration, else "chain", else None."""
+    refs = (calibration or {}).get("references") or {}
+    d = refs.get(name) or refs.get("chain")
+    return Reference.from_dict(d) if d else None
+
+
+def calibration_flat_level(calibration: dict | None, ref: Reference | None, band) -> float:
+    """The pedal's own level at its calibration preset (C4) relative to the normalising reference,
+    in dB (median over ``band``); 0 if there is no C4 reference.
+
+    A model's expected curve is 0 dB at the flat setting, but a real pedal is not: the GE-7 loses
+    about 1.4 dB when engaged at flat. "Level vs calibration" compares against this, not 0 dB.
+    """
+    refs = (calibration or {}).get("references") or {}
+    if ref is None or "engaged_flat" not in refs:
+        return 0.0
+    flat = Reference.from_dict(refs["engaged_flat"])
+    f = np.geomspace(band[0], band[1], 64)
+    return float(np.median(flat.db_at(f) - ref.db_at(f)))
 
 
 def measure_response(
@@ -254,8 +287,31 @@ def check_take(
     )
     measured = measured - take.send_level_db
     chain_gain = cal_chain["gain_db"] if cal_chain else None
-    if chain_gain is not None:
+    ref = calibration_reference(calibration, qc_limits.get("reference", "chain"))
+    normalised = None
+    if ref is not None:
+        measured = measured - ref.db_at(grid)
+        normalised = ref.name
+        items.append(
+            QCItem(
+                "Normalised by",
+                "ok",
+                f"{ref.name} reference",
+                REFERENCE_NOTES.get(ref.name, ""),
+            )
+        )
+    elif chain_gain is not None:
         measured = measured - chain_gain
+        normalised = "chain_gain"
+        items.append(
+            QCItem(
+                "Normalised by",
+                "warn",
+                "chain gain at 1 kHz",
+                "No reference curves, so the chain's own frequency response is still in this "
+                "curve. Run the guided calibration (C1-C4).",
+            )
+        )
     expected = expected_response(pedal, controls or {}, sr, grid) if controls is not None else None
     if expected is not None:
         in_band = (grid >= band[0]) & (grid <= band[1])
@@ -273,7 +329,9 @@ def check_take(
                 + ("" if st == "ok" else " Are the controls set as shown?"),
             )
         )
-        if chain_gain is not None:
+        if normalised is not None:
+            flat_level = calibration_flat_level(calibration, ref, band)
+            offset -= flat_level
             st = (
                 "ok"
                 if abs(offset) < LEVEL_OFFSET_WARN_DB
@@ -284,12 +342,15 @@ def check_take(
                     "Level vs calibration",
                     st,
                     f"{offset:+.2f} dB",
-                    ""
-                    if st == "ok"
-                    else "Overall level moved since calibration (LEVEL slider? a knob bumped?).",
+                    f"Relative to the pedal at its calibration preset (C4: {flat_level:+.2f} dB)."
+                    + (
+                        ""
+                        if st == "ok"
+                        else " The level moved since calibration (LEVEL slider? a knob bumped?)."
+                    ),
                 )
             )
         else:
             measured = measured - offset
-    rep.response = FrequencyResponse(grid, measured, expected)
+    rep.response = FrequencyResponse(grid, measured, expected, normalised)
     return rep, wet

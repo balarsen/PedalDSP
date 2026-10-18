@@ -1,14 +1,25 @@
-"""Calibrate page: loopback test, chain test, knob guidance; results saved into the session."""
+"""Calibrate page: the guided steps C1–C4 (plan R1), each with exact cable moves and a test.
+
+C1 loopback, C2 the chain alone (pedal out), C3 the pedal bypassed, C4 the pedal engaged at its
+calibration preset. A step unlocks when the one before it has passed; running a step again clears
+the steps after it, because their cables and references no longer match.
+"""
 
 from __future__ import annotations
 
+from datetime import datetime
+
+import numpy as np
+import pyqtgraph as pg
 import soundfile as sf
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QMessageBox,
     QPushButton,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -16,10 +27,31 @@ from PySide6.QtWidgets import (
 )
 
 from pedal_model.rig.analysis import peak_dbfs
-from pedal_model.rig.calibrate import run_chain_test, run_loopback_test
+from pedal_model.rig.calibrate import CAL_STEPS, CalStep, Reference, StepResult, run_step
+from pedal_model.rig.gui import theme
+from pedal_model.rig.gui.diagram import BlockDiagram
 from pedal_model.rig.gui.state import AppState
-from pedal_model.rig.gui.widgets import CheckList, ControlPanel, card, label
+from pedal_model.rig.gui.widgets import (
+    CheckList,
+    ControlPanel,
+    auto_scale_box,
+    card,
+    label,
+    show_error,
+)
 from pedal_model.rig.gui.worker import run_async
+
+STATUS_TEXT = {
+    "locked": "locked: pass the step above first",
+    "todo": "to do",
+    "busy": "running…",
+    "ok": "passed",
+    "warn": "passed, with warnings",
+    "fail": "failed: fix and run again",
+}
+STATUS_COLOUR = {**theme.STATUS_COLOURS, "locked": theme.TEXT_DIM, "todo": theme.CYAN}
+REFERENCE_Y = (-10.0, 10.0)  # fixed range when "Auto scale" is off
+REFERENCE_MIN_SPAN_DB = 6.0
 
 
 def confirm_playback(parent: QWidget, state: AppState) -> bool:
@@ -31,110 +63,151 @@ def confirm_playback(parent: QWidget, state: AppState) -> bool:
         parent,
         "Play test signals?",
         f"The app is about to play test signals out of Out {ch.send_out} and Out {ch.loop_out} "
-        "of the 1824c "
-        "(the Main outputs).\n\nMake sure studio monitors are not connected to them (or are "
-        "turned down), the "
-        "pedal chain is wired, and Studio One is closed.\n\nContinue?",
+        "of the 1824c (the Main outputs).\n\nMake sure studio monitors are not connected to them "
+        "(or are turned down), the pedal chain is wired, and Studio One is closed.\n\nContinue?",
     )
     state.hardware_confirmed = ok == QMessageBox.Yes
     return state.hardware_confirmed
 
 
 def demo_pedal(state: AppState, controls: dict[str, float] | None) -> None:
-    """In demo mode, 'turn the knobs' of the simulated pedal to these settings."""
+    """In demo mode, 'turn the knobs' of the simulated pedal to these settings (and engage it)."""
     if not state.simulated:
         return
+    backend = state.engine.backend
+    backend.set_pedal_state("engaged")
     if state.profile.pedal == "boss_ge7" and controls is not None:
         from pedal_model.synthetic.ge7 import Ge7Sim, Ge7Sliders
 
         sim = Ge7Sim.from_sliders(Ge7Sliders.from_dict(controls))
-        state.engine.backend.set_pedal(lambda x, sr: sim.process(x, sr))
+        backend.set_pedal(lambda x, sr: sim.process(x, sr))
     else:
-        state.engine.backend.set_pedal(None)
+        backend.set_pedal(None)
+
+
+class StepCard(QFrame):
+    """One guided step: what to move, what the test checks, a Run button and the results."""
+
+    def __init__(self, step: CalStep, pedal: str, on_run) -> None:
+        super().__init__()
+        self.step = step
+        self.setObjectName("card")
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(14, 10, 14, 10)
+        head = QHBoxLayout()
+        head.addWidget(label(f"<b>{step.id} · {step.title.format(pedal=pedal)}</b>"), 1)
+        self.chip = label("", wrap=False)
+        head.addWidget(self.chip)
+        lay.addLayout(head)
+        moves = "".join(f"<li>{m.format(pedal=pedal)}</li>" for m in step.moves)
+        lay.addWidget(label(f"<ol style='margin-left:-20px'>{moves}</ol>"))
+        lay.addWidget(label(f"Checks: {step.checks}", "dim"))
+        self.btn = QPushButton(f"Run {step.id} test")
+        self.btn.clicked.connect(lambda: on_run(step.id))
+        lay.addWidget(self.btn, 0, Qt.AlignLeft)
+        self.results = CheckList()
+        lay.addWidget(self.results)
+
+    def set_status(self, status: str, unlocked: bool) -> None:
+        colour = STATUS_COLOUR.get(status, theme.TEXT_DIM)
+        self.chip.setText(f"<span style='color:{colour}'>{STATUS_TEXT[status]}</span>")
+        self.btn.setEnabled(unlocked and status != "busy")
+        self.setEnabled(unlocked or status in ("ok", "warn", "fail"))
+
+    def show_advice(self, advice: list) -> None:
+        self.results.clear()
+        for a in advice:
+            status, text = (a.status, a.text) if hasattr(a, "status") else (a["status"], a["text"])
+            self.results.add(status, text)
 
 
 class CalibratePage(QWidget):
     def __init__(self, state: AppState, go_next) -> None:
         super().__init__()
         self.state = state
-        self.loop_result = None
-        self.chain_result = None
+        self.loopback: dict | None = None
+        self.chain: dict | None = None
+        self.references: dict[str, dict] = {}
+        self.steps: dict[str, dict] = {}
+        self.busy: str | None = None
+        pedal = state.profile.display_name
+
         root = QVBoxLayout(self)
         root.setContentsMargins(24, 20, 24, 20)
         root.addWidget(label("Calibrate", "title"))
         root.addWidget(
             label(
-                "Two short tests at the start of every session. They measure the interface and the "
-                "whole chain, and tell you which knob to move. QC uses the results on every take.",
+                "Four short steps at the start of every session. Each one says exactly which cable "
+                "to move; a test after the move checks it, and the next step unlocks when it "
+                "passes. <b>Cable A</b> runs ProRMP OUTPUT → pedal IN, <b>cable B</b> runs pedal "
+                "OUT → ProDI INPUT. QC divides every take by the references measured here.",
                 "dim",
             )
         )
         body = QHBoxLayout()
         root.addLayout(body, 1)
 
-        left = QVBoxLayout()
-        body.addLayout(left, 1)
-        f, lay = card("Before you start")
+        steps_box = QWidget()
+        steps_lay = QVBoxLayout(steps_box)
+        steps_lay.setContentsMargins(0, 0, 8, 0)
+        self.cards: dict[str, StepCard] = {}
+        for step in CAL_STEPS:
+            c = StepCard(step, pedal, self._run)
+            self.cards[step.id] = c
+            steps_lay.addWidget(c)
+        steps_lay.addStretch()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setWidget(steps_box)
+        body.addWidget(scroll, 3)
+
+        right = QVBoxLayout()
+        body.addLayout(right, 2)
+        f, lay = card("Cables to move now (orange)")
+        self.diagram = BlockDiagram(lambda _box: None)
+        self.diagram.set_pedal_name(pedal)
+        self.diagram.setMinimumHeight(220)
+        lay.addWidget(self.diagram)
+        right.addWidget(f, 2)
+
+        f, lay = card("Calibration preset (C4)")
         cal_name = state.profile.raw.get("calibration_preset", "flat")
-        lay.addWidget(
-            label(
-                f"Set the {state.profile.display_name} to <b>{cal_name}</b> and switch it on. "
-                "Check the wiring against the Setup page."
-            )
-        )
+        lay.addWidget(label(f"Set the {pedal} to <b>{cal_name}</b> for C4.", "dim"))
         self.panel = ControlPanel(state.profile.controls)
         try:
             self.panel.set_values(state.profile.preset(cal_name).controls)
         except KeyError:
             pass
         lay.addWidget(self.panel)
-        left.addWidget(f)
+        right.addWidget(f, 2)
 
-        f, lay = card("1. Loopback test (Out 2 → In 2)")
-        lay.addWidget(
-            label(
-                "A 1 s sweep and a tone on Out 2 only. Measures the interface's own latency and "
-                "gain, "
-                "and checks that In 1 stays silent (cables not swapped).",
-                "dim",
-            )
+        f, lay = card("Reference responses")
+        self.plot = theme.styled_plot("", "Frequency (Hz)", "dB", log_x=True)
+        self.plot.setXRange(np.log10(20), np.log10(20_000))
+        self.plot.setMinimumHeight(220)
+        self.plot.addLegend(offset=(10, 10))
+        self.c_chain = self.plot.plot(pen=pg.mkPen(theme.CYAN, width=2), name="chain (C2)")
+        self.c_bypass = self.plot.plot(
+            pen=pg.mkPen(theme.AMBER, width=2), name="bypassed ÷ chain (C3)"
         )
-        self.loop_btn = QPushButton("Run loopback test")
-        self.loop_btn.clicked.connect(self._run_loop)
-        lay.addWidget(self.loop_btn)
-        self.loop_list = CheckList()
-        lay.addWidget(self.loop_list)
-        left.addWidget(f)
-        left.addStretch()
-
-        right = QVBoxLayout()
-        body.addLayout(right, 1)
-        f, lay = card("2. Chain test (Out 1 → ProRMP → pedal → ProDI → In 1)")
-        lay.addWidget(
-            label(
-                "A quiet sweep, then 1 kHz tones from −36 to −9 dBFS. Measures chain gain, "
-                "latency and "
-                "linearity, and predicts where the training signal will peak on In 1.",
-                "dim",
-            )
+        self.c_engaged = self.plot.plot(
+            pen=pg.mkPen(theme.OK, width=2), name="engaged ÷ bypassed (C4)"
         )
-        self.chain_btn = QPushButton("Run chain test")
-        self.chain_btn.clicked.connect(self._run_chain)
-        lay.addWidget(self.chain_btn)
-        self.chain_list = CheckList()
-        lay.addWidget(self.chain_list)
+        lay.addWidget(self.plot)
+        lay.addWidget(
+            auto_scale_box(self.plot, REFERENCE_Y, REFERENCE_MIN_SPAN_DB), 0, Qt.AlignRight
+        )
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(
-            ["Send (dBFS peak)", "Return (dBFS peak)", "Gain (dB)"]
-        )
+        self.table.setHorizontalHeaderLabels(["C2 send (dBFS)", "Return (dBFS)", "Gain (dB)"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
         self.table.verticalHeader().setVisible(False)
-        self.table.setMinimumHeight(200)
+        self.table.setMaximumHeight(150)
         lay.addWidget(self.table)
-        right.addWidget(f)
+        right.addWidget(f, 3)
+
         self.save_note = label("", "dim")
         right.addWidget(self.save_note)
-        right.addStretch()
         nxt = QPushButton("Continue to Plan →")
         nxt.setObjectName("primary")
         nxt.clicked.connect(go_next)
@@ -142,104 +215,136 @@ class CalibratePage(QWidget):
         state.session_changed.connect(self._load_existing)
         self._load_existing()
 
-    def _need_session(self) -> bool:
-        if self.state.session is None:
+    # ── step logic ──────────────────────────────────────────────────────── #
+
+    def _status(self, step_id: str) -> str:
+        if self.busy == step_id:
+            return "busy"
+        return self.steps.get(step_id, {}).get("status", "todo")
+
+    def _refresh(self) -> None:
+        """Lock/unlock the cards, colour the cables, redraw the reference plot."""
+        unlocked = True
+        pending = None
+        for step in CAL_STEPS:
+            st = self._status(step.id)
+            shown = st if unlocked or st != "todo" else "locked"
+            self.cards[step.id].set_status(shown, unlocked and self.busy is None)
+            if pending is None and unlocked and st in ("todo", "fail"):
+                pending = step
+            unlocked = unlocked and st in ("ok", "warn")
+        cables = dict(self.state.cables)
+        if pending is not None:
+            cables.update({c: "move" for c in pending.cables})
+        self.diagram.set_cable_states(cables)
+        self._plot()
+
+    def _plot(self) -> None:
+        refs = {k: Reference.from_dict(v) for k, v in self.references.items()}
+        for curve in (self.c_chain, self.c_bypass, self.c_engaged):
+            curve.setData([], [])
+        if "chain" in refs:
+            r = refs["chain"]
+            self.c_chain.setData(r.freqs_hz, np.asarray(r.mag_db) - r.gain_1k_db)
+        for name, base, curve in (
+            ("bypass", "chain", self.c_bypass),
+            ("engaged_flat", "bypass", self.c_engaged),
+        ):
+            if name in refs and base in refs:
+                f = np.asarray(refs[name].freqs_hz)
+                curve.setData(f, np.asarray(refs[name].mag_db) - refs[base].db_at(f))
+
+    def _run(self, step_id: str) -> None:
+        st = self.state
+        if st.session is None:
             QMessageBox.information(
                 self, "No session", "Start or resume a session on the Start page first."
             )
-            return False
-        return confirm_playback(self, self.state)
-
-    def _busy(self, on: bool) -> None:
-        self.loop_btn.setEnabled(not on)
-        self.chain_btn.setEnabled(not on)
-
-    def _run_loop(self) -> None:
-        if not self._need_session():
             return
-        self._busy(True)
-        self.loop_list.clear()
-        self.loop_list.add("busy", "Running…")
-        run_async(
-            run_loopback_test,
-            self.state.engine,
-            self.state.sample_rate,
-            on_done=self._loop_done,
-            on_fail=self._failed,
-        )
-
-    def _loop_done(self, res) -> None:
-        self._busy(False)
-        self.loop_result = res
-        self._show_advice(self.loop_list, res.advice)
-        self._store()
-
-    def _run_chain(self) -> None:
-        if not self._need_session():
+        if not confirm_playback(self, st):
             return
-        st = self.state
-        cal_name = st.profile.raw.get("calibration_preset", "flat")
-        try:
-            demo_pedal(st, st.profile.preset(cal_name).controls)
-        except KeyError:
-            demo_pedal(st, None)
+        step = next(s for s in CAL_STEPS if s.id == step_id)
+        if st.simulated and step.pedal_state is not None:
+            cal_name = st.profile.raw.get("calibration_preset", "flat")
+            try:
+                demo_pedal(st, st.profile.preset(cal_name).controls)
+            except KeyError:
+                demo_pedal(st, None)
+            st.engine.backend.set_pedal_state(step.pedal_state)
         train = st.session.signal("train")
         train_peak = peak_dbfs(sf.read(str(train.wav_path), dtype="float32")[0])
-        self._busy(True)
-        self.chain_list.clear()
-        self.chain_list.add("busy", "Running…")
+        refs = {k: Reference.from_dict(v) for k, v in self.references.items()}
+        self.busy = step_id
+        self.cards[step_id].results.clear()
+        self.cards[step_id].results.add("busy", "Running…")
+        self._refresh()
         run_async(
-            run_chain_test,
+            run_step,
+            step_id,
             st.engine,
             st.sample_rate,
-            st.profile.send_level_db,
-            train_peak,
-            on_done=self._chain_done,
+            send_level_db=st.profile.send_level_db,
+            train_peak_dbfs=train_peak,
+            references=refs,
+            on_done=self._done,
             on_fail=self._failed,
         )
 
-    def _chain_done(self, res) -> None:
-        self._busy(False)
-        self.chain_result = res
-        self._show_advice(self.chain_list, res.advice)
-        self.table.setRowCount(len(res.steps))
-        for i, s in enumerate(res.steps):
-            for j, v in enumerate((s.send_dbfs, s.return_dbfs, s.gain_db)):
-                self.table.setItem(i, j, QTableWidgetItem(f"{v:+.2f}"))
-        self._store()
-
-    def _show_advice(self, lst: CheckList, advice) -> None:
-        lst.clear()
-        for a in advice:
-            status, text = (a.status, a.text) if hasattr(a, "status") else (a["status"], a["text"])
-            lst.add(status, text)
-
-    def _store(self) -> None:
+    def _done(self, res: StepResult) -> None:
+        self.busy = None
         s = self.state.session
-        old = s.data.get("calibration") or {}
-        loop = self.loop_result.to_dict() if self.loop_result else old.get("loopback")
-        chain = self.chain_result.to_dict() if self.chain_result else old.get("chain")
-        path = s.set_calibration(loop, chain)
+        later = [x.id for x in CAL_STEPS][[x.id for x in CAL_STEPS].index(res.step) + 1 :]
+        for sid in later:  # their cables and references no longer match
+            self.steps.pop(sid, None)
+            self.cards[sid].results.clear()
+            ref = next(x for x in CAL_STEPS if x.id == sid).reference
+            if ref:
+                self.references.pop(ref, None)
+        if res.loopback is not None:
+            self.loopback = res.loopback.to_dict()
+        if res.chain is not None:
+            self.chain = res.chain.to_dict()
+            self._show_tones(self.chain["steps"])
+        if res.reference is not None and res.passed:
+            res.reference.file = s.save_reference(res.reference.name, res.take)
+            self.references[res.reference.name] = res.reference.to_dict()
+        self.steps[res.step] = {
+            "status": res.status,
+            "advice": [{"status": a.status, "text": a.text} for a in res.advice],
+            "time_local": datetime.now().isoformat(timespec="seconds"),
+        }
+        self.cards[res.step].show_advice(res.advice)
+        path = s.set_calibration(self.loopback, self.chain, self.references, self.steps)
         self.state.set_cables_from_calibration(s.data["calibration"])
         self.state.calibration_changed.emit()
         self.save_note.setText(f"Calibration saved: {s.root.name}/{path.name} (and session.json).")
+        self._refresh()
+
+    def _show_tones(self, steps: list[dict]) -> None:
+        self.table.setRowCount(len(steps))
+        for i, t in enumerate(steps):
+            for j, k in enumerate(("send_dbfs", "return_dbfs", "gain_db")):
+                self.table.setItem(i, j, QTableWidgetItem(f"{t[k]:+.2f}"))
 
     def _load_existing(self) -> None:
-        self.loop_result = self.chain_result = None
-        self.loop_list.clear()
-        self.chain_list.clear()
-        self.table.setRowCount(0)
+        """Resume a session's calibration (older sessions without guided steps restore C1 only)."""
         cal = self.state.calibration or {}
-        if cal.get("loopback"):
-            self._show_advice(self.loop_list, cal["loopback"]["advice"])
-        if cal.get("chain"):
-            self._show_advice(self.chain_list, cal["chain"]["advice"])
-            steps = cal["chain"]["steps"]
-            self.table.setRowCount(len(steps))
-            for i, s in enumerate(steps):
-                for j, k in enumerate(("send_dbfs", "return_dbfs", "gain_db")):
-                    self.table.setItem(i, j, QTableWidgetItem(f"{s[k]:+.2f}"))
+        self.loopback, self.chain = cal.get("loopback"), cal.get("chain")
+        self.references = dict(cal.get("references") or {})
+        self.steps = dict(cal.get("steps") or {})
+        if not self.steps and self.loopback:
+            ok = all(a["status"] != "fail" for a in self.loopback["advice"])
+            self.steps["C1"] = {"status": "ok" if ok else "fail", "advice": self.loopback["advice"]}
+        for step in CAL_STEPS:
+            self.cards[step.id].show_advice(self.steps.get(step.id, {}).get("advice", []))
+        self.table.setRowCount(0)
+        if self.chain and "C2" in self.steps:
+            self._show_tones(self.chain["steps"])
+        self._refresh()
 
     def _failed(self, tb: str) -> None:
-        self._busy(False)
-        QMessageBox.critical(self, "Test failed", tb[-2000:])
+        step, self.busy = self.busy, None
+        if self.state.session is not None:
+            self.state.session.log("error", page="calibrate", step=step, traceback=tb)
+        self._refresh()
+        show_error(self, "Test failed", tb)

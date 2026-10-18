@@ -95,8 +95,8 @@ PORTS: dict[str, tuple[str, str, float, str]] = {
 CABLES: dict[str, tuple] = {
     "usb": ("pc_usb", "if_usb", "USB", "", (186, 92), []),
     "send": ("if_out1", "rmp_in", "LINE level", "TRS → XLR", (382, 280), []),
-    "inst_in": ("rmp_out", "pedal_in", "INSTRUMENT", "guitar cable", (752, 104), []),
-    "inst_out": ("pedal_out", "di_in", "INSTRUMENT level", "TS → TS", (1000, 345), []),
+    "inst_in": ("rmp_out", "pedal_in", "INSTRUMENT", "cable A · guitar cable", (752, 104), []),
+    "inst_out": ("pedal_out", "di_in", "INSTRUMENT level", "cable B · TS → TS", (1000, 345), []),
     "mic": ("di_out", "if_in1", "MIC level", "XLR → XLR, balanced", (470, 545), []),
     "loop": ("if_out2", "if_in2", "LINE (loopback)", "TRS → TRS", (405, 366), [(395, None)]),
 }
@@ -146,7 +146,8 @@ a photo) and type them into the boxes' settings: they are saved with every sessi
 into In 1 without the ProDI. Not used now; worth one test capture to compare.</p>
 """
 
-_STATE_COLOURS = {"ok": theme.OK, "fail": theme.FAIL, "idle": "#2a8a99"}
+# "move": a cable the current calibration step asks you to move.
+_STATE_COLOURS = {"ok": theme.OK, "fail": theme.FAIL, "idle": "#2a8a99", "move": theme.ACCENT}
 
 
 def _font(px: int, bold: bool = False) -> QFont:

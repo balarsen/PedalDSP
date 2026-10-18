@@ -41,7 +41,7 @@ PedalDSP/
 | `rig/` | Closed-loop capture rig: `backends` (ASIO / simulated), `engine`, `signals`, `calibrate`, `qc`, `session`, `compare`, `profiles/` (ge7.json), `gui/` (PySide6). Run `uv run python -m pedal_model.rig` |
 | `models/classical/` | FIR, IIR, Hammerstein, Wiener-Hammerstein, Volterra, circuit dictionary |
 | `models/neural/` | MLP, LSTM, GRU, TCN, WaveNet, DDSP, DDSP-Klon, conditioned LSTM/TCN (knob inputs) |
-| `ode/` | PedalODE models: filters, nonlinearity, Wiener-Hammerstein ODE, fitting, identifiability, step0 |
+| `ode/` | PedalODE models: filters, nonlinearity, Wiener-Hammerstein ODE, fitting, identifiability, step0; GE-7 block model (`blocks`, `ge7_model`, `ge7_fitter`: continuous-time blocks, Levenberg–Marquardt fit, Fisher report) |
 | `synthetic/` | `pedal.py` (KlonSim), `ge7.py` (Ge7Sim peaking-EQ cascade, calibrated from the slider captures) |
 | `metrics/` | time domain (ESR, null depth), frequency domain (multi-STFT), harmonic (THD), perceptual (MCD); `suite.py` |
 | `eval/` | model-zoo harness, comparison, diagnostics, report, results I/O |
@@ -53,6 +53,7 @@ PedalDSP/
 
 `recordings/data/<pedal>/sessions/<YYYY-MM-DD_HHMM>_<sr>k/`: `session.json` (settings, rig snapshot,
 presets, calibration, per-preset status, event log), dated `calibration_*.json` and `rig_setup_*.json`,
+`calibration/` (the C2–C4 reference captures, 24-bit FLAC),
 `signals/` (the session's own train/val/sweep signals with manifests), and one folder per preset or map
 step with `params.json` (model presets load in `scripts/fit_models.py --klon-sim-dir`; map steps record
 their band fit) and self-describing 24-bit FLAC captures,

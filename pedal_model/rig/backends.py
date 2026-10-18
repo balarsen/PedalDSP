@@ -10,12 +10,15 @@ returns the number of blocks with a driver under/overflow (0 means no dropouts).
 from __future__ import annotations
 
 import os
+import sys
 import threading
 import time
 from collections.abc import Callable
+from contextlib import contextmanager
 from dataclasses import dataclass
 
 import numpy as np
+from scipy.signal import bilinear, lfilter
 
 from pedal_model.rig.config import ChannelMap
 
@@ -27,26 +30,46 @@ def _identity_pedal(x: np.ndarray, sr: int) -> np.ndarray:
     return x
 
 
+PEDAL_STATES = ("cable", "bypass", "engaged")  # pedal out of the chain / in, bypassed / engaged
+
+
 @dataclass
 class SimulatedRig:
-    """Analog behaviour of the simulated chain. Defaults are the real rig's measured numbers.
+    """Analog behaviour of the simulated chain. Defaults are the real rig's measured numbers where
+    one exists; the rest are marked illustrative.
 
     Attributes:
         latency_ms: Round trip out → in. 0.98 ms = the 47 samples at 48 kHz in
             outputs/notaklon_delay.
         reamp_db: ProRMP insertion loss (docs/notaklon_capture_plan.md: −12.4 dB).
+        reamp_tilt_db: High-frequency rise of the chain, a first-order shelf centred on
+            ``reamp_tilt_hz``. Size from the Studio One-era re-amp-only captures (about +4 dB); the
+            shape is illustrative. It is what a scalar chain-gain normalisation gets wrong.
         return_gain_db: ProDI + In 1 preamp gain, the knob calibration asks you to set.
         loop_gain_db: Out 2 → In 2 cable with In 2 gain at minimum.
         noise_dbfs: RMS noise floor of each input.
         clip_dbfs: Converter full scale; anything above is hard-clipped, as a real ADC would.
+        bypass_gain_db, bypass_hp_hz: The pedal's buffers when bypassed (illustrative).
+        engaged_gain_db: Engaged path vs bypassed at the flat setting (illustrative).
     """
 
     latency_ms: float = 0.98
     reamp_db: float = -12.4
+    reamp_tilt_db: float = 4.0
+    reamp_tilt_hz: float = 3000.0
     return_gain_db: float = 12.0
     loop_gain_db: float = -0.5
     noise_dbfs: float = -95.0
     clip_dbfs: float = 0.0
+    bypass_gain_db: float = -0.3
+    bypass_hp_hz: float = 8.0
+    engaged_gain_db: float = 0.4
+
+
+def _first_order(b_s: tuple[float, float], a_s: tuple[float, float], x: np.ndarray, sr: int):
+    """Filter x by the analog first-order section b_s / a_s (bilinear transform)."""
+    b, a = bilinear(b_s, a_s, fs=sr)
+    return lfilter(b, a, x).astype(np.float32)
 
 
 class SimulatedBackend:
@@ -66,18 +89,49 @@ class SimulatedBackend:
         self.rig = rig or SimulatedRig()
         self.speed = speed  # <= 0 means as fast as possible (tests)
         self.pedal: PedalFn = _identity_pedal
+        self.pedal_state = "engaged"
         self._rng = np.random.default_rng(seed)
 
     def set_pedal(self, fn: PedalFn | None) -> None:
         """Model of the pedal as currently set (the demo's stand-in for turning the knobs)."""
         self.pedal = fn or _identity_pedal
 
+    def set_pedal_state(self, state: str) -> None:
+        """The demo's stand-in for moving cables and pressing the footswitch (``PEDAL_STATES``)."""
+        if state not in PEDAL_STATES:
+            raise ValueError(f"pedal state must be one of {PEDAL_STATES}, not {state!r}")
+        self.pedal_state = state
+
+    def _chain_in(self, x: np.ndarray, sr: int) -> np.ndarray:
+        """Send → ProRMP output: insertion loss and the high-frequency tilt."""
+        r = self.rig
+        x = x * np.float32(10 ** (r.reamp_db / 20))
+        if r.reamp_tilt_db:
+            g = 10 ** (r.reamp_tilt_db / 20)
+            w = 2 * np.pi * r.reamp_tilt_hz
+            wz, wp = w / np.sqrt(g), w * np.sqrt(g)
+            x = _first_order((wp / wz, wp), (1.0, wp), x, sr)  # 1 at DC, g at high frequency
+        return x
+
+    def _through_pedal(self, x: np.ndarray, sr: int) -> np.ndarray:
+        r = self.rig
+        if self.pedal_state == "cable":
+            return x
+        if r.bypass_hp_hz > 0:
+            w = 2 * np.pi * r.bypass_hp_hz
+            x = _first_order((1.0, 0.0), (1.0, w), x, sr)
+        x = x * np.float32(10 ** (r.bypass_gain_db / 20))
+        if self.pedal_state == "engaged":
+            x = self.pedal(x, sr) * np.float32(10 ** (r.engaged_gain_db / 20))
+        return x
+
     def _simulate(self, play: np.ndarray, sr: int) -> np.ndarray:
         r = self.rig
         n = len(play)
         lag = int(round(r.latency_ms * 1e-3 * sr))
         noise = 10 ** (r.noise_dbfs / 20)
-        ret = self.pedal(play[:, 0] * 10 ** (r.reamp_db / 20), sr) * 10 ** (r.return_gain_db / 20)
+        ret = self._through_pedal(self._chain_in(play[:, 0], sr), sr)
+        ret = ret * 10 ** (r.return_gain_db / 20)
         loop = play[:, 1] * 10 ** (r.loop_gain_db / 20)
         inp = np.zeros((n, 2), dtype=np.float32)
         inp[lag:, 0] = ret[: n - lag]
@@ -108,6 +162,28 @@ class SimulatedBackend:
                 delay = due - time.perf_counter()
                 if delay > 0:
                     time.sleep(delay)
+
+
+@contextmanager
+def _com_apartment():
+    """Initialise COM on this thread for the duration (Windows only).
+
+    An ASIO driver is a COM object, and PortAudio loads it on the thread that opens the stream. The
+    GUI opens streams on a worker thread, where COM is not initialised, and the driver then fails
+    with "Failed to load ASIO driver" (seen on the 1824c, 2026-10-18; the same open works from the
+    main thread).
+    """
+    if sys.platform != "win32":
+        yield
+        return
+    import ctypes
+
+    hr = ctypes.windll.ole32.CoInitializeEx(None, 0x2)  # COINIT_APARTMENTTHREADED
+    try:
+        yield
+    finally:
+        if hr in (0, 1):  # S_OK / S_FALSE: this call owns an initialisation, so undo it
+            ctypes.windll.ole32.CoUninitialize()
 
 
 def _sounddevice():
@@ -164,18 +240,21 @@ class AsioBackend:
             if callback(outdata, indata):
                 raise sd.CallbackStop
 
-        with sd.Stream(
-            device=(idx, idx),
-            samplerate=sr,
-            blocksize=block_size,
-            channels=(2, 2),
-            dtype="float32",
-            extra_settings=(
-                sd.AsioSettings(channel_selectors=in_sel),
-                sd.AsioSettings(channel_selectors=out_sel),
+        with (
+            _com_apartment(),
+            sd.Stream(
+                device=(idx, idx),
+                samplerate=sr,
+                blocksize=block_size,
+                channels=(2, 2),
+                dtype="float32",
+                extra_settings=(
+                    sd.AsioSettings(channel_selectors=in_sel),
+                    sd.AsioSettings(channel_selectors=out_sel),
+                ),
+                callback=cb,
+                finished_callback=finished.set,
             ),
-            callback=cb,
-            finished_callback=finished.set,
         ):
             finished.wait()
         return xruns

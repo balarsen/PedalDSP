@@ -12,7 +12,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QListWidget,
     QListWidgetItem,
-    QMessageBox,
     QPushButton,
     QRadioButton,
     QVBoxLayout,
@@ -23,7 +22,7 @@ from pedal_model.rig.backends import list_asio_devices
 from pedal_model.rig.config import SAMPLE_RATES
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.state import DEMO_SPEEDS, AppState
-from pedal_model.rig.gui.widgets import card, label
+from pedal_model.rig.gui.widgets import card, label, show_error
 from pedal_model.rig.gui.worker import run_async
 from pedal_model.rig.profiles import available_profiles
 from pedal_model.rig.session import Session
@@ -205,4 +204,4 @@ class StartPage(QWidget):
     def _failed(self, tb: str) -> None:
         self.new_btn.setEnabled(True)
         self.status.setText("Failed, see the message.")
-        QMessageBox.critical(self, "Could not create the session", tb[-2000:])
+        show_error(self, "Could not create the session", tb)

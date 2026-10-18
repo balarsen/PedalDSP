@@ -33,7 +33,8 @@ uv run python -m pedal_model.rig --hardware   # the real 1824c over ASIO
 
 Steps in the app, each ending in a Continue button to the next: **Start** (sample rate 48/96 kHz, pedal,
 quick or full signal) → **Setup** (wiring diagram: every jack named with its connector, every cable with
-its level type; Save writes the settings) → **Calibrate** (loopback and chain tests, knob advice) →
+its level type; Save writes the settings) → **Calibrate** (four guided steps C1–C4: loopback, chain alone,
+pedal bypassed, pedal engaged; each says exactly which cable to move, tests the move, and unlocks the next) →
 **Plan** (presets with notes and a model-response preview; add your own preset, or the 32-step slider
 map) → **Run** (the pedal drawn as it must be set, press Space; live meters, spectrum and response; QC with
 a stage-by-stage progress bar; accept or retake) → **Review** (per-step responses, 48 vs 96 kHz comparison,
@@ -95,6 +96,8 @@ instrument → mic. The app's Setup page has a longer version ("Why these boxes?
 - `session.json`: settings, rig snapshot, presets, calibration, status and an event log
 - `calibration_<date>_<time>.json` and `rig_setup_<date>_<time>.json`: every calibration and every saved
   setup, as dated files (Setup → Save also writes `configs/rig.json` and a dated copy next to it)
+- `calibration/<pedal>_ref_<chain|bypass|engaged_flat>_raw_<sr>k_<date>_<time>.flac`: the C2–C4 reference
+  captures; their response curves are in the calibration JSON, and QC divides every take by one of them
 - `signals/`: the session's own train/val/sweep signals with their manifests
 - `<preset>/params.json` plus, per role, `<pedal>_<preset>_<role>_wet_<sr>k_<date>_<time>.flac` (return
   aligned on the loopback latency) and `..._raw_...flac` (the unaligned return + loopback), 24-bit FLAC:

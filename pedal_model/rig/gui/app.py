@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from pedal_model.rig.config import code_version
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import CalibratePage
 from pedal_model.rig.gui.page_plan import PlanPage
@@ -107,8 +108,11 @@ class MainWindow(QMainWindow):
             self.badge.setText("HARDWARE · ASIO")
             self.badge.setStyleSheet(f"background:{theme.OK}; color:#000;")
         s = self.state.session
-        self.session_label.setText(
-            f"{s.root.name} · {s.sample_rate // 1000} kHz   " if s else "no session   "
+        where = f"{s.root.name} · {s.sample_rate // 1000} kHz" if s else "no session"
+        self.session_label.setText(f"{where} · code {code_version()}   ")
+        self.session_label.setToolTip(
+            "Git commit of the running code (saved in every JSON and FLAC). "
+            "'-dirty' means it has uncommitted edits."
         )
 
     def launch(self, app: str) -> None:
@@ -139,6 +143,7 @@ def main(argv: list[str] | None = None) -> int:
         "--hardware", action="store_true", help="start in hardware (ASIO) mode instead of demo"
     )
     args = parser.parse_args(argv)
+    code_version()  # pin the version of the code as loaded, before anything is edited
     app = QApplication(sys.argv[:1])
     app.setStyleSheet(theme.STYLESHEET)
     theme.setup_pyqtgraph()

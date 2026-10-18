@@ -11,7 +11,6 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
-    QMessageBox,
     QProgressBar,
     QPushButton,
     QVBoxLayout,
@@ -23,10 +22,24 @@ from pedal_model.rig.bandfit import fit_band
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import confirm_playback, demo_pedal
 from pedal_model.rig.gui.state import AppState
-from pedal_model.rig.gui.widgets import CheckList, ControlPanel, LevelMeter, card, label
+from pedal_model.rig.gui.widgets import (
+    CheckList,
+    ControlPanel,
+    LevelMeter,
+    auto_scale_box,
+    card,
+    label,
+    show_error,
+)
 from pedal_model.rig.gui.worker import run_async
 from pedal_model.rig.profiles import KIND_MAP, Preset, Profile
-from pedal_model.rig.qc import FR_TYPES, QCItem, check_take, expected_response
+from pedal_model.rig.qc import (
+    FR_TYPES,
+    QCItem,
+    calibration_reference,
+    check_take,
+    expected_response,
+)
 from pedal_model.signals.manifest import Manifest
 
 LIVE_MS = 50  # GUI refresh period (20 Hz)
@@ -106,21 +119,7 @@ def _capture_and_check(state: AppState, preset: Preset, role: str, report):
     return role, rep
 
 
-def _auto_box(plot: pg.PlotWidget, fixed: tuple[float, float], min_span: float) -> QCheckBox:
-    """An "Auto scale" checkbox for a plot (on by default): auto Y range, else a fixed range."""
-    box = QCheckBox("Auto scale")
-    box.setChecked(True)
-    plot.setLimits(minYRange=min_span)
-
-    def apply(on: bool) -> None:
-        if on:
-            plot.enableAutoRange(axis="y", enable=True)
-        else:
-            plot.setYRange(*fixed)
-
-    box.toggled.connect(apply)
-    apply(True)
-    return box
+_auto_box = auto_scale_box  # page_review imports it from here
 
 
 class RunPage(QWidget):
@@ -220,7 +219,7 @@ class RunPage(QWidget):
         lay.addWidget(_auto_box(self.spec, SPECTRUM_Y, SPECTRUM_MIN_SPAN_DB), 0, Qt.AlignRight)
         right.addWidget(f, 1)
 
-        f, lay = card("Pedal response (normalised by the calibration chain gain)")
+        f, lay = card("Pedal response (÷ the calibration reference)")
         self.resp = theme.styled_plot("", "Frequency (Hz)", "Gain (dB)", log_x=True)
         self.resp.setXRange(np.log10(20), np.log10(20_000))
         self.c_expected = self.resp.plot(
@@ -427,7 +426,9 @@ class RunPage(QWidget):
         self._progress_busy(False)
         self._set_phase("ready")
         self.status.setText("The take failed; see the message.")
-        QMessageBox.critical(self, "Capture failed", tb[-2500:])
+        if self.state.session is not None:
+            self.state.session.log("error", page="run", traceback=tb)
+        show_error(self, "Capture failed", tb)
 
     # ── live views ──────────────────────────────────────────────────────── #
 
@@ -484,10 +485,14 @@ class RunPage(QWidget):
         grid = log_grid(30, min(16_000, 0.45 * sr), 12)
         live = np.interp(grid, f, h_db)
         live[np.interp(grid, f, valid.astype(float)) < 0.5] = np.nan
-        # play[] already contains the send level, so only the chain gain is removed here (QC, which
+        # play[] already contains the send level, so only the reference is removed here (QC, which
         # divides by the dry signal before the send level, removes both).
-        cal_gain = cal["chain"]["gain_db"] if cal.get("chain") else 0.0
-        self.c_live.setData(grid, live - cal_gain, connect="finite")
+        ref = calibration_reference(cal, self.state.profile.qc.get("reference", "chain"))
+        if ref is not None:
+            corr = ref.db_at(grid)
+        else:
+            corr = cal["chain"]["gain_db"] if cal.get("chain") else 0.0
+        self.c_live.setData(grid, live - corr, connect="finite")
 
     def _section_at(self, sample: int):
         if not self.manifest or sample < 0:

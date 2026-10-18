@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
+from functools import lru_cache
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -76,7 +78,7 @@ class RigConfig:
     def from_dict(cls, d: dict) -> "RigConfig":
         """Build from a dict, filling anything missing with defaults."""
         cfg = cls()
-        d = {k: v for k, v in d.items() if k != "saved"}
+        d = {k: v for k, v in d.items() if k not in ("saved", "code_version")}
         cfg.asio_device = d.get("asio_device", cfg.asio_device)
         cfg.block_size = int(d.get("block_size", cfg.block_size))
         cfg.channels = ChannelMap(**{**asdict(cfg.channels), **d.get("channels", {})})
@@ -94,13 +96,40 @@ class RigConfig:
     def save(self, path: Path = DEFAULT_RIG_PATH) -> Path:
         """Write to JSON (pretty-printed so it diffs well in git), with the time it was saved."""
         path.parent.mkdir(parents=True, exist_ok=True)
-        doc = {"saved": local_stamp(iso=True), **self.to_dict()}
+        doc = {"saved": local_stamp(iso=True), "code_version": code_version(), **self.to_dict()}
         path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
         return path
 
     def save_snapshot(self, folder: Path = DEFAULT_RIG_PATH.parent) -> Path:
         """Write a dated copy, ``rig_setup_<YYYY-MM-DD_HHMM>.json``, so every setup is kept."""
         return self.save(folder / f"rig_setup_{local_stamp()}.json")
+
+
+# What counts as "the code" for the version tag: data, sessions and configs/rig.json change during
+# normal use and must not mark the code as modified.
+CODE_PATHS = ("pedal_model", "scripts", "pyproject.toml", "uv.lock")
+
+
+@lru_cache(maxsize=1)
+def code_version() -> str:
+    """Git commit of the running code, e.g. ``"9c0ecb7"``, or ``"9c0ecb7-dirty"`` if the code has
+    uncommitted edits (tracked or new files under ``CODE_PATHS``); ``"unknown"`` outside git.
+
+    Cached on first call: the GUI calls it at startup, so it names the code that was loaded even if
+    files are edited while it runs.
+    """
+
+    def git(*args: str) -> str:
+        return subprocess.run(
+            ["git", *args], cwd=PROJECT_ROOT, capture_output=True, text=True, timeout=10, check=True
+        ).stdout.strip()
+
+    try:
+        head = git("rev-parse", "--short", "HEAD")
+        dirty = git("status", "--porcelain", "--", *CODE_PATHS)
+    except (OSError, subprocess.SubprocessError):
+        return "unknown"
+    return f"{head}-dirty" if dirty else head
 
 
 def local_stamp(iso: bool = False) -> str:

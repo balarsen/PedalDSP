@@ -10,7 +10,7 @@ import soundfile as sf
 
 from pedal_model.rig.backends import SimulatedBackend
 from pedal_model.rig.bandfit import fit_band, peak_db, q_to_bw_oct, shelf_db
-from pedal_model.rig.calibrate import run_chain_test, run_loopback_test
+from pedal_model.rig.calibrate import simulate_guided_calibration
 from pedal_model.rig.config import RigConfig
 from pedal_model.rig.engine import CaptureEngine
 from pedal_model.rig.profiles import KIND_MAP, Preset, load_profile
@@ -104,9 +104,8 @@ def test_map_capture_writes_named_files_and_a_band_fit(masters):
     preset = prof.preset("map_hz_800_p15")
     s = Session.create(prof, SR, "quick", RigConfig(), "sim", True, [preset])
     eng = _engine()
-    cal_path = s.set_calibration(
-        run_loopback_test(eng, SR).to_dict(), run_chain_test(eng, SR, -10.0, -2.0).to_dict()
-    )
+    cal, _ = simulate_guided_calibration(eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0)
+    cal_path = s.set_calibration(cal["loopback"], cal["chain"], cal["references"], cal["steps"])
     assert cal_path.name.startswith("calibration_") and cal_path.is_file()
 
     from pedal_model.synthetic.ge7 import Ge7Sim, Ge7Sliders

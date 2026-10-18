@@ -5,6 +5,7 @@ Layout (simulated runs go to ``sessions_demo/`` instead of ``sessions/``)::
     recordings/data/<profile>/sessions/<YYYY-MM-DD_HHMM>_<sr>k/
         session.json           settings, rig snapshot, calibration, presets, status, events
         calibration_<stamp>.json            every calibration, also as its own dated file
+        calibration/<profile>_ref_<name>_raw_<sr>k_<stamp>.flac  C2-C4 reference captures
         signals/               train_<kind>_<sr>k.*, val_full_<sr>k.*, sweep_<sr>k.* (WAV + JSON)
         <preset>/params.json   loads in scripts/fit_models.py --klon-sim-dir <preset dir>
         <preset>/<profile>_<preset>_<role>_wet_<sr>k_<stamp>.flac  aligned return
@@ -27,7 +28,7 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from pedal_model.rig.config import DATA_ROOT, RigConfig, local_stamp
+from pedal_model.rig.config import DATA_ROOT, RigConfig, code_version, local_stamp
 from pedal_model.rig.engine import Take
 from pedal_model.rig.profiles import Preset, Profile
 from pedal_model.rig.signals import SessionSignal, prepare_signal
@@ -38,6 +39,19 @@ SCHEMA_VERSION = "1.1"
 # Session signals stay float32 WAV: FLAC stores integers only.
 CAPTURE_FORMAT, CAPTURE_SUBTYPE, CAPTURE_EXT = "FLAC", "PCM_24", ".flac"
 SIGNAL_ROLES = ("train", "val", "sweep")
+
+
+def write_capture(path: Path, audio: np.ndarray, sr: int, description: str) -> None:
+    """Write a capture as 24-bit FLAC, tagged with the code version and what it holds."""
+    channels = 1 if audio.ndim == 1 else audio.shape[1]
+    with sf.SoundFile(
+        str(path), "w", sr, channels, subtype=CAPTURE_SUBTYPE, format=CAPTURE_FORMAT
+    ) as f:
+        # Tags must be set before the first frame is written.
+        f.software = f"PedalDSP capture rig, code {code_version()}"
+        f.comment = description
+        f.date = local_stamp(iso=True)
+        f.write(audio)
 
 
 def _utc() -> str:
@@ -78,6 +92,7 @@ class Session:
             "schema_version": SCHEMA_VERSION,
             "created": _utc(),
             "created_local": local_stamp(iso=True),
+            "code_version": code_version(),
             "profile": profile.id,
             "pedal": profile.pedal,
             "sample_rate": sr,
@@ -163,26 +178,51 @@ class Session:
 
     def log(self, event: str, **info) -> None:
         """Append to the event log (the future capture/train loop reads this) and save."""
-        self.data["events"].append({"t": _utc(), "event": event, **info})
+        self.data["events"].append({"t": _utc(), "event": event, "code": code_version(), **info})
         self.save()
 
-    def set_calibration(self, loopback: dict | None, chain: dict | None) -> Path:
-        """Store the calibration in session.json and as its own dated file; returns that file."""
+    def set_calibration(
+        self,
+        loopback: dict | None,
+        chain: dict | None,
+        references: dict[str, dict] | None = None,
+        steps: dict[str, dict] | None = None,
+    ) -> Path:
+        """Store the calibration in session.json and as its own dated file; returns that file.
+
+        ``references`` are the C2-C4 response curves by name ("chain", "bypass", "engaged_flat");
+        ``steps`` the status of each guided step ("C1"... with status, advice, time).
+        """
         stamp = local_stamp()
         cal = {
             "loopback": loopback,
             "chain": chain,
+            "references": references or {},
+            "steps": steps or {},
             "t": _utc(),
             "time_local": local_stamp(iso=True),
             "session": self.root.name,
             "profile": self.profile_id,
             "sample_rate": self.sample_rate,
+            "code_version": code_version(),
         }
         self.data["calibration"] = cal
         path = self.root / f"calibration_{stamp}.json"
         path.write_text(json.dumps(cal, indent=2) + "\n", encoding="utf-8")
         self.log("calibrated", file=path.name)
         return path
+
+    def save_reference(self, name: str, take: Take) -> str:
+        """Write a reference capture (return + loopback, unaligned); returns its session path."""
+        d = self.root / "calibration"
+        d.mkdir(exist_ok=True)
+        fname = f"{self.profile_id}_ref_{name}_raw_{self.sample_rate // 1000}k_{local_stamp()}"
+        path = d / (fname + CAPTURE_EXT)
+        what = f"{self.root.name} reference {name}: return, loopback"
+        write_capture(path, take.rec, take.sr, what)
+        rel = path.relative_to(self.root).as_posix()
+        self.log("reference_saved", reference=name, file=rel)
+        return rel
 
     def set_status(self, preset: str, status: str) -> None:
         self.data["presets"][preset]["status"] = status
@@ -223,8 +263,9 @@ class Session:
         stamp = local_stamp()
         wet_name = self._file_name(preset.name, role, "wet", stamp)
         raw_name = self._file_name(preset.name, role, "raw", stamp)
-        for name, audio in ((wet_name, wet), (raw_name, take.rec)):
-            sf.write(str(d / name), audio, take.sr, format=CAPTURE_FORMAT, subtype=CAPTURE_SUBTYPE)
+        what = f"{self.root.name} {preset.name} {role}"
+        write_capture(d / wet_name, wet, take.sr, f"{what}: aligned return")
+        write_capture(d / raw_name, take.rec, take.sr, f"{what}: return, loopback (unaligned)")
         entry = {
             "role": role,
             "t": _utc(),
@@ -237,6 +278,7 @@ class Session:
             "xruns": take.xruns,
             "pre_roll": take.pre_roll,
             "verdict": qc["verdict"],
+            "code_version": code_version(),
             "qc": qc["items"],
             "band_fit": band_fit,
         }
@@ -277,6 +319,7 @@ class Session:
             "schema_version": "1.2",
             "date_created": _utc(),
             "saved_local": local_stamp(iso=True),
+            "code_version": code_version(),
             "source": "simulated" if self.data["simulated"] else "hardware",
             "profile": self.profile_id,
             "pedal": self.data["pedal"],

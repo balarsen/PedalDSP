@@ -73,6 +73,17 @@ target), and an early Pi Muff stem pair.
 - **Alignment rule:** takes are aligned on the interface latency measured on the loopback channel (Out 2 →
   In 2) plus the chain's fixed offset from calibration, *not* on the cross-correlation peak. The difference
   is the pedal's own delay, which belongs in the training data. QC reports it as "Pedal delay".
+- **Calibration is four guided steps** (C1 loopback, C2 chain alone, C3 pedal bypassed, C4 pedal engaged;
+  cable A = ProRMP OUTPUT → pedal IN, cable B = pedal OUT → ProDI INPUT). C2–C4 store complex reference
+  curves; QC divides every take by the profile's `qc.reference` (GE-7: `bypass`, so QC sees what the EQ
+  adds). The simulated rig has a chain tilt and cable/bypass/engaged states so this is exercised in tests.
+- **Every output carries the code version** (`config.code_version()`: short git hash, `-dirty` if
+  `pedal_model/`, `scripts/` or the lock have uncommitted edits): the GUI header, `session.json` and each
+  of its events, calibration, `params.json`, rig setups, and a tag inside every FLAC. Commit before a
+  real capture session so the hash names the exact code.
+- **Debugging a session:** the raw FLACs hold both inputs and the played signals are reproducible, so
+  `uv run python scripts/reanalyse_session.py <session folder>` recomputes the references and QC with the
+  current code without changing the session. GUI errors and their tracebacks go into the session log.
 - Never play audio on the hardware without the person there: Out 1/2 are the Main outputs and may drive
   monitors. The GUI asks for confirmation before the first sound. Demo mode never opens the sound card.
 - Tests (`tests/rig/`) use synthetic masters in tmp_path and the simulated backend: no hardware, no repo audio.

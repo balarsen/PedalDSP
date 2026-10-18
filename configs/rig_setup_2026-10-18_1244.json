@@ -1,0 +1,32 @@
+{
+  "saved": "2026-10-18T12:44:51",
+  "asio_device": "Studio USB ASIO Driver",
+  "block_size": 1024,
+  "channels": {
+    "send_out": 1,
+    "loop_out": 2,
+    "return_in": 1,
+    "loop_in": 2
+  },
+  "boxes": {
+    "interface": {
+      "main_knob": "mark it: the Main knob sets the Out 1/2 level (verify)",
+      "in1_gain": "set during calibration (note the knob position)",
+      "in1_48v": "OFF",
+      "in2_gain": "minimum",
+      "in2_48v": "OFF"
+    },
+    "prormp": {
+      "level": "note the knob position",
+      "ground_lift": "off"
+    },
+    "pedal": {
+      "engaged": "on (LED lit)",
+      "power": "9 V supply"
+    },
+    "prodi": {
+      "pad_15db": "off",
+      "ground_lift": "off"
+    }
+  }
+}

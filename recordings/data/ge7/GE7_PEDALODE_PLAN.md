@@ -1,9 +1,13 @@
 # GE-7 PedalODE plan: the GE-7's block diagram, with learned block parameters
 
-Status: plan, revised 2026-10-18. Nothing here is built yet.
+Status: plan, revised 2026-10-18. **A0 passed and R1 built, 2026-10-18** (see "A0 result" under Rung A
+and "R1 as built"); R2 onward needs the rig.
 - **Level of description** (Brian, 2026-10-18): the **block diagram**, not individual components. Each
   block is a physical stage with a few physical parameters (gain, corner frequency, Q, pot law).
 - **Starting values** (Brian): reasonable guesses. Recovering the true values is the point of the model.
+- **Two deployment targets** (Brian, 2026-10-18): the Hothouse/Daisy (primary; pedals chained in
+  series to build tones), and a **Studio Pro plugin** (secondary; built in the BrianEQ repo, not here).
+  This repo delivers the fully fitted model in a form both can implement and test against.
 - **Confidence tags** follow the PedalODE rule: anything not measured says where it came from and how
   sure it is.
 
@@ -19,6 +23,7 @@ captures, and one model covers every slider setting.
 | A0. Known answer | The fitter recovers this structure's parameters at all | Synthetic data from the model itself, parameters recovered (criteria below) |
 | A. Block-diagram fit | This structure explains the GE-7 and generalises to unseen slider settings | Held-out settings within the repeatability floor; every one better than Ge7Sim; parameters consistent across data sets |
 | C. Deploy | The same model runs on the Daisy | Firmware nulls against the Python model; CPU budget met |
+| C2. Plugin handoff | The same model is complete enough for a Studio Pro plugin | Handoff package (below) passes its own checks at 44.1–192 kHz; BrianEQ builds the plugin |
 
 (Rung B, the component-level comparison with the schematic, is dropped by decision; the name C is kept
 so older notes still match.) Rungs in order. Later, beyond this plan: capture and fitting in one closed
@@ -120,14 +125,22 @@ All positive parameters are fitted as logs. "Teardown" means a value quoted by t
 | | max cut | −15 dB | guess (the panel says ±15) |
 | | pot law | linear, plus one shape parameter | guess |
 | | wiper corner | 7.2 Hz | teardown |
-| EQ | ρ_a, ρ_b | equal, set so full boost ≈ +15 dB | guess, derived at start-up |
+| EQ | ρ_a, ρ_b | 40, equal | guess, tuned with σ (see note) |
 | | end resistance e | 0.01 of the pot | guess |
 | | pot law τ | linear, plus one shape parameter | guess |
 | Bands 1–6 | fₖ | 100, 200, 400, 800, 1600, 3200 Hz | panel |
 | | Qₖ | 2 | guess |
-| | σₖ | set so full boost ≈ +15 dB at fₖ | guess, derived at start-up |
+| | σₖ | 1.0 | guess, tuned with ρ (see note) |
 | Band 7 | f₇ | 6.4 kHz | panel |
-| | σ₇ | set so full boost ≈ +15 dB at 15 kHz | guess |
+| | σ₇ | 1.0 | guess |
+
+Note on ρ and σ (found while building A0): the branches at centre load both nodes, so one band's boost
+is (1+A+B)/(1+A), not 1+B. The first guess (ρ 1, σ 4.7) gave only +9.4 dB. ρ 40 and σ 1.0 were picked
+so the middle bands give about ±15 dB at full and ±8.5 dB at ±10, the coarse Studio One-era readings.
+The 100 Hz band then gives about +12 dB. These are still guesses, but no longer unreasonable ones.
+LEVEL starts at ρ_in 0.914, ρ_fb 1.545, κ 4 (+14/−15 dB at the ends, linear pot), with the overall
+ratio gain 0.753 so that all-centre is 0 dB. (Fitting the LEVEL guess to `ge7.py`'s two-point law
+drove the pot law into a step, so it was dropped: the fit, not the guess, should find the law.)
 
 About 30 parameters. Measured hints are *not* used as starting values, so the fit cannot just copy
 them; they are kept as checks. These are the single-slider peaks near 87, 190, 383, 792, 1599 and
@@ -181,6 +194,51 @@ Normalisation after R1, both stored per session:
 - QC's "Response vs model" uses H_wet/H_chain, the whole pedal including pre/de-emphasis.
 - The rung A EQ fit uses engaged ÷ bypassed (decision D1).
 
+**R1 as built (2026-10-18; `pedal_model/rig/calibrate.py`, the Calibrate page, `tests/rig/test_calibration_steps.py`).**
+Each of C2–C4 measures a complex reference H(f) = return ÷ send from a 3 s log sweep, aligned on the
+loopback only (so the chain's and the pedal's own delays stay in the phase), stored in the session's
+calibration with its raw capture as `calibration/<profile>_ref_<name>_raw_<sr>k_<stamp>.flac`. Re-running a
+step clears the steps after it. Differences from the table above, all deliberate:
+- **QC divides the GE-7 by the bypass reference, not the chain.** The expected curve (Ge7Sim, later the
+  block model's ratio) and the slider-map band fits describe the EQ alone, so engaged ÷ bypassed is the
+  like-for-like comparison, and the same quantity as D1. One line in the profile (`qc.reference`:
+  `chain`, `bypass` or `engaged_flat`) switches it; other pedals default to `chain`. Old sessions without
+  references fall back to the scalar chain gain, with a QC warning.
+- **C4 measures a reference sweep** (engaged at the calibration preset), not the chain test, so it can be
+  compared with C3 directly.
+- **Checks after each move:** C3 fails if bypassed differs from the chain by more than 6 dB (wiring or
+  power), and warns if it is identical to the chain within 0.02 dB (cables not moved; a true-bypass pedal
+  would also do this). C4 warns if it is identical to bypassed (footswitch still off), and warns above
+  3 dB from bypassed (controls not at the preset). The 3 dB is looser than the 1.5 dB above, because the
+  measured flat insertion (−1.2 dB) plus any ripple would trip 1.5 dB. Tighten once C4 has been seen on
+  the real pedal.
+- **Simulator:** the simulated chain now has a +4 dB high-frequency tilt (size from the re-amp-only
+  captures, shape illustrative) and cable/bypassed/engaged states, so the demo and the tests exercise the
+  normalisation. With only a scalar calibration, the tilt moved the simulated 800 Hz slider-map band fit
+  to 2.26 kHz. With the references it is back at 790 Hz.
+
+**First hardware session (2026-10-18, `sessions/2026-10-18_1238_48k`).** Recorded with code that
+had a lag bug, so its stored alignments are wrong. `scripts/reanalyse_session.py` recomputes everything
+from the raw FLACs. Measured:
+- **Interface round trip:** 3718–3725 samples (77.5 ms) at 48 kHz with 1024-sample blocks. It moves a
+  few samples between stream opens. The ProRMP/ProDI chain adds +1 sample.
+- **Chain response** (re 1 kHz): −2.0 dB at 30 Hz, +1.4 dB at 10 kHz, +1.7 dB at 15 kHz.
+- **Bypassed GE-7 vs cable:** −0.34 dB, flat within 0.08 dB from 50 Hz to 10 kHz.
+- **Engaged ÷ bypassed at flat:** −1.43 dB (Studio One era: −1.2 dB).
+- **Flat preset vs model,** after re-analysis: 0.42 dB RMS (train) and 0.45 dB RMS (val), from 100 Hz
+  to 8 kHz.
+- **Return level is low:** the training signal peaks near −31 dBFS on In 1. C2 asks for about +19 dB
+  more In 1 gain.
+
+**Open issue: the pink-noise and sweep responses disagree.** Per-section H1 from the pink-noise sections
+reads about 2 dB below the sweep sections, sloping to about 3 dB lower at 30 Hz. It is the same at −24,
+−12 and −3 dBFS, and the same in train and val. The sweeps agree with the C4 reference sweep. Because it
+doesn't change with level, clipping is not the cause; it looks like a property of how the response is
+estimated from noise, or of the noise sections themselves. Not diagnosed yet. QC averages both kinds of
+section, so its curve sits between them. **Must be settled before rung A**, because the fit needs the
+right H(f). The first check: compare a sweep-only H against a pink-only H on one take, against the
+references.
+
 **R2. Capture session** (48 kHz, hardware, about 3 hours of audio, mostly unattended; agreed 2026-10-18):
 1. C1–C4.
 2. Flat ×3 and smile ×3, then one more of each after re-plugging (P0.4).
@@ -188,6 +246,9 @@ Normalisation after R1, both stored per session:
 4. Interaction set (16 sweep steps).
 5. The 14 presets (full signal).
 6. 8 random settings (seeded, saved as custom presets) as extra holdout.
+6a. **Added after A0:** 8 more random settings (a different seed) for **training**. A0 shows the
+    slider map pins the LEVEL internals only to ±2–4 % and pot_end to ±1.3 %; random settings, with
+    LEVEL at in-between positions, bring every parameter under ±0.5 % (at 0.05 dB white noise).
 7. A bypass capture at the end, to check drift.
 
 A repeat at 96 kHz (slider map plus 4 presets) gives the sample-rate consistency check.
@@ -231,6 +292,20 @@ guesses.
 
 If A0 fails, the problem is the fitter or identifiability, and real data would only hide it.
 
+**A0 result (2026-10-18, `tests/ode/test_ge7_blocks.py`).** Truth drawn around the guesses (fₖ ±15 %,
+Q 1.2–3, σ and ρ ±20–30 %, pot_end 0.005–0.03, both pot laws 0.8–1.5, delay ±20 µs); data: all-centre,
+slider map, interaction pairs and 24 random settings, 200 log points 20 Hz–19 kHz, complex.
+- **Noise-free:** all 31 ratio parameters and all 5 bypass parameters recovered to about 1e-6
+  (relative), in 10 Levenberg–Marquardt iterations (3 s on the CPU).
+- **0.05 dB noise:** every error within 4.5σ of its reported uncertainty.
+- **Identifiability** (Fisher at 0.05 dB white noise; real errors will be larger and partly
+  systematic): condition number about 2e4. The weakest directions are the ones expected: the EQ's
+  ρ scale against all the σ's, and the LEVEL ratios against the overall gain. Without phase the
+  residual delay cannot be identified at all, so the phase term stays.
+- **Decision (D7 changed):** Levenberg–Marquardt with a forward-mode Jacobian instead of Adam then
+  L-BFGS. It is a small least-squares problem, and JᵀJ is the Fisher report. Revisit if the parameter
+  count grows or the fit moves to the time domain.
+
 **A success criteria** (relative to measured floors, not invented numbers):
 - every held-out setting within 2× the P0.4 floor (RMS, 50 Hz–10 kHz);
 - better than Ge7Sim on every held-out preset;
@@ -245,13 +320,70 @@ If A0 fails, the problem is the fitter or identifiability, and real data would o
 - **New tool:** a Fisher-information/Hessian report at the optimum, saying which parameters (or
   combinations) are pinned, with uncertainties. Results report only those.
 
+## Parked: if the block diagram is too simple (hybrid, physics-informed ML)
+
+Raised by Brian, 2026-10-18, to come back to later. Nothing is built for it yet.
+
+**The concern.** The fit assumes the topology. If the real GE-7 does something the block diagram leaves
+out, the model can't sound right however well it is fitted. **The correct sound matters most:** more than
+speed, and more than elegant parameters.
+
+**What is and isn't the risk** (my reading, not settled):
+- **The optimiser isn't the risk.** Levenberg–Marquardt and Adam minimise the same loss over the same
+  structure. Neither one makes the model rely on the topology more or less. LM was chosen only because it
+  converges reliably here and gives the uncertainty report.
+- **The structure is the risk.** A0 can't detect it, because A0's data come from the model itself. Only real
+  data can.
+
+**How we'll know (rung A gives the data).** Model mismatch shows up as residuals that are
+- **structured:** they repeat across settings, or follow a slider or a frequency;
+- **larger than the repeatability floor (P0.4).**
+
+Noise doesn't do that. The checks:
+1. Holdout residual against the floor, per setting and per frequency.
+2. The same data fitted by a black-box baseline: the `LinearBiquadModel` cascade, and later a
+   knob-conditioned neural model. If a black box clearly beats the block model on holdout, that gap is
+   what the structure costs.
+3. Time-domain ESR on the val signal, and listening, for what the frequency-domain loss might hide.
+
+**Options if there is a gap, in order:**
+1. **Richer blocks where the residual points:**
+   - the band-7 alternatives (D2);
+   - a second-order term in the pot loading;
+   - a finite-gain op-amp;
+   - an asymmetric LEVEL law.
+
+   This keeps the model interpretable.
+2. **A hybrid model:** the fitted block model, plus a small learned correction trained on what the
+   block model can't explain. For example, a few low-order sections whose coefficients come from a small
+   network conditioned on the sliders, or a learned correction to each band's (f, Q, σ) as a function of
+   all the sliders.
+3. **Black-box, conditioned on the controls,** as the fallback if the structure is badly wrong.
+
+**"Physics-informed" constraints for the learned part** (so it can't learn something no real EQ does):
+- It stays stable and causal.
+- All-centre stays flat.
+- Boost and cut stay near mirror images where the circuit makes them so.
+- Its output varies smoothly with each slider.
+- It's small compared with the block model, through a penalty on its size, so the physics carries the
+  sound and the network only fixes the remainder.
+
+**Deployment constraints still apply** (Daisy and the plugin):
+- It must be cheap to evaluate when a slider moves.
+- It must be expressible in continuous time, or at least at every sample rate the plugin supports.
+- It must ship in the handoff package with golden vectors, like the rest.
+
+**Decision:** parked. Revisit after rung A, using the residual and baseline comparison above. Not
+before: until real data show a gap, any added flexibility only fits noise.
+
 ## Storage and use in the GUI
 
 - **Parameter file** `pedal_model/rig/models/ge7/ge7_pedalode_v<N>.json`:
   - the block diagram's id and version, plus the band-7 hypothesis used;
   - every block parameter with units, its starting guess and its fitted uncertainty;
   - the training sessions and presets, the git commit;
-  - the fit metrics, holdout results, repeatability floor and the consistency table.
+  - the fit metrics, holdout results, repeatability floor and the consistency table;
+  - golden test vectors for the Daisy and the plugin (see the plugin section).
   - New file per refit, never overwritten.
 - **Profile link:** `profiles/ge7.json` gains `"model": ...`. `qc.expected_response()` evaluates the
   model, falling back to Ge7Sim if no file exists.
@@ -268,6 +400,41 @@ If A0 fails, the problem is the fitter or identifiability, and real data would o
   - *Medium confidence on numerical behaviour at the extreme settings; prove it in Python first.*
 - **Option 2:** at control rate, convert the current H to second-order sections (degree-14 root
   finding on the MCU).
+
+## Secondary target: a Studio Pro plugin (built in BrianEQ, not here)
+
+The plugin is written in the BrianEQ repo. This repo's job is a model complete enough that the plugin
+is a port, not a second modelling project. What that requires of the model:
+
+- **Sample-rate independent.** The parameter file holds continuous-time block parameters (D4), never
+  digital coefficients. The plugin discretises at the host rate: 44.1, 48, 88.2, 96, 176.4 or 192 kHz.
+  The Daisy runs at 48 kHz only, so the plugin is the stricter test.
+- **All of the pedal.** All 8 sliders over their full range, the input and output blocks
+  (pre/de-emphasis, coupling high-passes), and the bypass path, so "bypassed" can sound like the
+  pedal's buffer too. The ratio fit alone (D1) would leave out the outer blocks.
+- **Automation-safe.** Plugin sliders move while audio plays. The direct block form (D8 option 1)
+  suits this: the band blocks are fixed, and a slider only changes its own pot-split conductances,
+  so updates are cheap and the structure stays stable while they change. To prove in Python: a
+  full-range slider sweep during audio, no clicks and no instability. *Medium confidence that the
+  plain bilinear form is enough; a topology-preserving (zero-delay-feedback) form is the fallback.*
+- **One reference, two ports.** A Python reference renderer `render_ge7(params, sliders, sr, x)` is
+  the single definition of the sound. Both C++ ports null against it.
+
+**Handoff package** (one folder per fitted model version, next to the parameter file):
+1. the parameter file (above);
+2. `docs/pedalode_ge7_spec.md`: the block equations, the pot law, the slider-to-wiper mapping, and
+   the discretisation recipe, written so it can be implemented without reading Python;
+3. golden vectors: H(jω) on a fixed grid for a fixed list of slider settings, plus short
+   time-domain input/output pairs at 44.1, 48 and 96 kHz (impulse, a sine sweep, and a slider
+   automation sweep), with the tolerances a port must meet;
+4. **D9 (decide at rung C):** whether to also write a portable, header-only C++ core here (no
+   JUCE and no libDaisy dependency) that both the firmware and the plugin include. It would remove one
+   port, but tie the BrianEQ repo to this one.
+
+**Out of scope for now (open question):** the GE-7 runs on 9 V and clips when driven hot. DAW levels
+can drive a plugin much harder than a guitar drives the pedal. This plan models only the linear
+pedal. A Step 0 level probe can measure where clipping starts, so the plugin can at least document
+its valid input range.
 
 ## Updates needed in PedalODE (`pedal_model/ode/`, reviewed 2026-10-18)
 
@@ -291,4 +458,5 @@ There is no GE-7 PedalODE code yet. `results/pedalode/GE-7_v1/` holds one flat c
 3. R2: the capture session (you at the rig).
 4. Step 0 probes; settle D0 and D2.
 5. Rung A fit, holdout and consistency tables, parameter file v1; the GUI switches to it.
-6. Rung C (after D8).
+6. Rung C (after D8): the Daisy firmware.
+7. Rung C2: the plugin handoff package; the plugin itself is built in BrianEQ.

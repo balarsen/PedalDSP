@@ -2,9 +2,18 @@
 
 from __future__ import annotations
 
+import pyqtgraph as pg
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
-from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QFrame,
+    QLabel,
+    QMessageBox,
+    QVBoxLayout,
+    QWidget,
+)
 
 from pedal_model.rig.gui import theme
 
@@ -21,6 +30,43 @@ def card(title: str | None = None) -> tuple[QFrame, QVBoxLayout]:
         h.setObjectName("heading")
         lay.addWidget(h)
     return f, lay
+
+
+def auto_scale_box(plot: pg.PlotWidget, fixed: tuple[float, float], min_span: float) -> QCheckBox:
+    """An "Auto scale" checkbox for a plot (on by default): auto Y range, else a fixed range."""
+    box = QCheckBox("Auto scale")
+    box.setChecked(True)
+    plot.setLimits(minYRange=min_span)
+
+    def apply(on: bool) -> None:
+        if on:
+            plot.enableAutoRange(axis="y", enable=True)
+        else:
+            plot.setYRange(*fixed)
+
+    box.toggled.connect(apply)
+    apply(True)
+    return box
+
+
+def show_error(parent: QWidget, title: str, tb: str) -> None:
+    """Error box: the last line of a traceback up front, the whole traceback under Show Details,
+    and a Copy button that puts the whole traceback on the clipboard (for pasting into a report).
+    """
+    lines = [ln for ln in tb.strip().splitlines() if ln.strip()]
+    box = QMessageBox(parent)
+    box.setIcon(QMessageBox.Critical)
+    box.setWindowTitle(title)
+    box.setText(lines[-1] if lines else title)
+    box.setDetailedText(tb)
+    box.setTextInteractionFlags(Qt.TextSelectableByMouse)
+    copy = box.addButton("Copy", QMessageBox.ActionRole)
+    # The button box closes the dialog through the button's own clicked() connection; dropping it
+    # keeps the box open after copying.
+    copy.clicked.disconnect()
+    copy.clicked.connect(lambda: QApplication.clipboard().setText(title + "\n" + tb))
+    box.addButton(QMessageBox.Ok)
+    box.exec()
 
 
 def label(text: str, kind: str = "", wrap: bool = True) -> QLabel:

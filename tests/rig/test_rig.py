@@ -13,7 +13,11 @@ import soundfile as sf
 
 from pedal_model.rig.analysis import aligned
 from pedal_model.rig.backends import SimulatedBackend, SimulatedRig
-from pedal_model.rig.calibrate import run_chain_test, run_loopback_test
+from pedal_model.rig.calibrate import (
+    run_chain_test,
+    run_loopback_test,
+    simulate_guided_calibration,
+)
 from pedal_model.rig.config import RigConfig
 from pedal_model.rig.engine import CaptureEngine
 from pedal_model.rig.profiles import Preset, load_profile
@@ -39,6 +43,11 @@ FLAT = {k: 0.0 for k in SMILE}
 def _ge7(controls):
     sim = Ge7Sim.from_sliders(Ge7Sliders.from_dict(controls))
     return lambda x, sr: sim.process(x, sr)
+
+
+# A chain with no tone of its own (no re-amp tilt, transparent buffers): for tests of alignment and
+# level, where the chain's frequency response would only blur the check.
+IDEAL = dict(reamp_tilt_db=0.0, bypass_gain_db=0.0, bypass_hp_hz=0.0, engaged_gain_db=0.0)
 
 
 def _engine(rig=None):
@@ -86,8 +95,21 @@ def test_loopback_lag_recovered_exactly(sr, expected_lag):
     assert res.ok
 
 
+def test_long_interface_latency_is_found():
+    """The real 1824c round trip is 3722 samples (77.5 ms) at 48 kHz with 1024-sample blocks. A
+    ±50 ms search once returned −2105 for it."""
+    eng = _engine(SimulatedRig(latency_ms=3722 / 48))
+    assert run_loopback_test(eng, 48_000).lag_samples == 3722
+    assert run_chain_test(eng, 48_000, -10.0, -2.0).lag_samples == 3722
+
+
+def test_latency_beyond_the_search_fails():
+    res = run_loopback_test(_engine(SimulatedRig(latency_ms=600.0)), 48_000)
+    assert not res.ok and any("longer than" in a.text for a in res.advice)
+
+
 def test_chain_gain_and_linearity():
-    rig = SimulatedRig()
+    rig = SimulatedRig(**IDEAL)
     res = run_chain_test(_engine(rig), 48_000, send_level_db=-10.0, train_peak_dbfs=-2.0)
     assert res.lag_samples == 47
     assert res.gain_db == pytest.approx(rig.reamp_db + rig.return_gain_db, abs=0.05)
@@ -114,11 +136,9 @@ def _capture(masters, tmp_path, pedal_controls, preset_controls, rig=None, sr=48
     m = Manifest(sig.manifest_path)
     dry = m.load_all()
     eng = _engine(rig)
-    eng.backend.set_pedal(_ge7(FLAT))
-    cal = {
-        "chain": run_chain_test(eng, sr, -10.0, -2.0).to_dict(),
-        "loopback": run_loopback_test(eng, sr).to_dict(),
-    }
+    cal, _ = simulate_guided_calibration(
+        eng, sr, send_level_db=-10.0, train_peak_dbfs=-2.0, engaged_pedal=_ge7(FLAT)
+    )
     eng.backend.set_pedal(_ge7(pedal_controls))
     take = eng.run(dry, sr, send_level_db=-10.0)
     profile = load_profile("ge7")
@@ -147,9 +167,10 @@ def test_qc_passes_correct_preset(masters, tmp_path):
 
 
 def test_qc_wet_is_aligned_to_dry(masters, tmp_path):
-    rep, take, dry = _capture(masters, tmp_path, FLAT, FLAT)
+    rig = SimulatedRig(**IDEAL)
+    rep, take, dry = _capture(masters, tmp_path, FLAT, FLAT, rig=rig)
     wet = aligned(take.rec[:, 0], take.pre_roll, rep.lag, take.signal_len)
-    gain = 10 ** ((-10.0 + SimulatedRig().reamp_db + SimulatedRig().return_gain_db) / 20)
+    gain = 10 ** ((-10.0 + rig.reamp_db + rig.return_gain_db) / 20)
     sweep = slice(int(0.2 * 48_000), int(1.2 * 48_000))
     corr = np.corrcoef(dry[sweep] * gain, wet[sweep])[0, 1]
     assert corr > 0.999
@@ -211,7 +232,7 @@ def test_alignment_keeps_the_pedals_own_delay(masters, tmp_path):
     sig = prepare_signal("train", "full", sr, tmp_path / "sig")
     m = Manifest(sig.manifest_path)
     dry = m.load_all()
-    eng = _engine()
+    eng = _engine(SimulatedRig(**IDEAL))
     cal = {
         "chain": run_chain_test(eng, sr, -10.0, -2.0).to_dict(),
         "loopback": run_loopback_test(eng, sr).to_dict(),

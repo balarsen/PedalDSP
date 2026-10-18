@@ -1,3 +1,4 @@
+# LEGACY: dependencies are managed by uv in pyproject.toml (uv sync --extra rig). Kept for reference only.
 # Deep learning
 torch>=2.2.0
 torchaudio>=2.2.0

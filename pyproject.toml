@@ -7,12 +7,43 @@ name = "pedal-model"
 version = "0.1.0"
 requires-python = ">=3.11"
 dependencies = [
-    "librosa>=0.11.0",
+    "numpy>=2.0",
+    "scipy>=1.12",
     "soundfile>=0.13.1",
     "soxr>=0.3.7",
+    "librosa>=0.11.0",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "pandas>=2.2",
+    "torch>=2.2",
     "torchdiffeq>=0.2.3",
     "tqdm>=4.0",
 ]
+
+[project.optional-dependencies]
+# Capture rig (Windows): ASIO audio I/O and the PySide6 GUI.
+rig = [
+    "sounddevice>=0.5",
+    "PySide6>=6.7",
+    "pyqtgraph>=0.13",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.3",
+    "marimo>=0.23",
+]
+
+# PyPI's Windows torch wheels are CPU-only; take Windows torch from the CUDA 13.0 index (RTX 2070 SUPER,
+# driver 617). Linux keeps PyPI's torch, which already bundles CUDA.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu130", marker = "sys_platform == 'win32'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -230,7 +230,16 @@ from the raw FLACs. Measured:
 - **Return level is low:** the training signal peaks near −31 dBFS on In 1. C2 asks for about +19 dB
   more In 1 gain.
 
-**Open issue: the pink-noise and sweep responses disagree.** Per-section H1 from the pink-noise sections
+**Resolved, same day: lost audio, not the estimator.** The pink-vs-sweep gap below came from audio
+silently missing in the Run-page takes: 28–32 % of 1024-sample blocks in every take of both sessions,
+with the driver reporting no dropout. All 13 calibration captures were clean. The Python audio callback
+was starved by the GUI's live views. Fixes: the stream now runs in its own process; a QC check compares
+the loopback with the send block by block; the takes of both sessions fail it and must be recaptured.
+Also found in session 1307: C2 was measured with the pedal still in the chain. C4 now fails when its
+curve is identical to C2's, and the chain offset now comes from one capture, because the latency
+moves 3–9 samples between stream opens.
+
+**Open issue (superseded by the note above): the pink-noise and sweep responses disagree.** Per-section H1 from the pink-noise sections
 reads about 2 dB below the sweep sections, sloping to about 3 dB lower at 30 Hz. It is the same at −24,
 −12 and −3 dBFS, and the same in train and val. The sweeps agree with the C4 reference sweep. Because it
 doesn't change with level, clipping is not the cause; it looks like a property of how the response is

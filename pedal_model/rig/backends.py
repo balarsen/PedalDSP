@@ -18,7 +18,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 
 import numpy as np
-from scipy.signal import bilinear, lfilter
 
 from pedal_model.rig.config import ChannelMap
 
@@ -51,6 +50,8 @@ class SimulatedRig:
         clip_dbfs: Converter full scale; anything above is hard-clipped, as a real ADC would.
         bypass_gain_db, bypass_hp_hz: The pedal's buffers when bypassed (illustrative).
         engaged_gain_db: Engaged path vs bypassed at the flat setting (illustrative).
+        dropout_prob: Chance that each 1024-sample output block is silently lost (the driver
+            plays silence and reports nothing), as seen on the 1824c on 2026-10-18.
     """
 
     latency_ms: float = 0.98
@@ -64,10 +65,13 @@ class SimulatedRig:
     bypass_gain_db: float = -0.3
     bypass_hp_hz: float = 8.0
     engaged_gain_db: float = 0.4
+    dropout_prob: float = 0.0
 
 
 def _first_order(b_s: tuple[float, float], a_s: tuple[float, float], x: np.ndarray, sr: int):
     """Filter x by the analog first-order section b_s / a_s (bilinear transform)."""
+    from scipy.signal import bilinear, lfilter  # lazy: keeps the audio child process light
+
     b, a = bilinear(b_s, a_s, fs=sr)
     return lfilter(b, a, x).astype(np.float32)
 
@@ -128,6 +132,11 @@ class SimulatedBackend:
     def _simulate(self, play: np.ndarray, sr: int) -> np.ndarray:
         r = self.rig
         n = len(play)
+        if r.dropout_prob > 0:
+            play = play.copy()
+            for a in range(0, n, 1024):
+                if self._rng.random() < r.dropout_prob:
+                    play[a : a + 1024] = 0.0
         lag = int(round(r.latency_ms * 1e-3 * sr))
         noise = 10 ** (r.noise_dbfs / 20)
         ret = self._through_pedal(self._chain_in(play[:, 0], sr), sr)
@@ -258,3 +267,122 @@ class AsioBackend:
         ):
             finished.wait()
         return xruns
+
+
+# ── Out-of-process streaming ───────────────────────────────────────────────── #
+#
+# The audio callback is Python, so it needs the GIL. In the GUI process the live views hold it often
+# enough that the callback misses the driver's deadline: on 2026-10-18 about 30 % of the blocks of
+# every Run-page take came back silent, with no dropout reported, while the short calibration takes
+# (no live views) were perfect. A child process owns the stream instead and copies straight between
+# shared-memory play/record buffers, so nothing in the GUI process can delay it.
+
+
+def _raise_priority() -> None:
+    if sys.platform == "win32":
+        import ctypes
+
+        HIGH_PRIORITY_CLASS = 0x80
+        k32 = ctypes.windll.kernel32
+        k32.SetPriorityClass(k32.GetCurrentProcess(), HIGH_PRIORITY_CLASS)
+
+
+def _child_main(factory, kwargs, sr, play_name, rec_name, n, block_size, pos, stop, conn) -> None:
+    """Child process: open the shared buffers, build the backend, stream one take."""
+    import traceback
+    from multiprocessing import shared_memory
+
+    shm_p = shared_memory.SharedMemory(name=play_name)
+    shm_r = shared_memory.SharedMemory(name=rec_name)
+    try:
+        _raise_priority()
+        play = np.ndarray((n, 2), dtype=np.float32, buffer=shm_p.buf)
+        rec = np.ndarray((n, 2), dtype=np.float32, buffer=shm_r.buf)
+        backend = factory(**kwargs)
+        p = 0
+
+        def cb(out: np.ndarray, inp: np.ndarray) -> bool:
+            nonlocal p
+            end = min(p + len(out), n)
+            k = end - p
+            out[:k] = play[p:end]
+            out[k:] = 0.0
+            rec[p:end] = inp[:k]
+            p = end
+            pos.value = end
+            return end >= n or bool(stop.value)
+
+        xruns = backend.run(sr, play, cb, block_size)
+        conn.send(("ok", xruns))
+    except BaseException:
+        conn.send(("error", traceback.format_exc()))
+    finally:
+        play = rec = None  # release the views before closing the mappings
+        shm_p.close()
+        shm_r.close()
+
+
+class ProcessBackend:
+    """Runs another backend's stream in a child process, on shared-memory play/record buffers.
+
+    ``factory(**kwargs)`` builds the real backend inside the child, so both must be picklable (a
+    class and plain settings). The engine sees the same buffers through shared memory, so its
+    position and live views work as before.
+    """
+
+    out_of_process = True
+
+    def __init__(self, factory, kwargs: dict, name: str, is_hardware: bool) -> None:
+        self.factory = factory
+        self.kwargs = kwargs
+        self.name = name
+        self.is_hardware = is_hardware
+
+    def run_shared(
+        self,
+        sr: int,
+        play_name: str,
+        rec_name: str,
+        n: int,
+        block_size: int,
+        progress: Callable[[int], None],
+        aborted: Callable[[], bool],
+    ) -> int:
+        """Stream one take in a child process; returns its dropout count.
+
+        Args:
+            play_name, rec_name: Shared-memory blocks holding (n, 2) float32 play / record buffers.
+            progress: Called with the frame position while the take runs (from this thread).
+            aborted: Polled; when it returns True the child stops at its next block.
+        """
+        import multiprocessing as mp
+
+        ctx = mp.get_context("spawn")
+        pos = ctx.Value("q", 0, lock=False)
+        stop = ctx.Value("b", 0, lock=False)
+        recv, send = ctx.Pipe(duplex=False)
+        args = (self.factory, self.kwargs, sr, play_name, rec_name, n, block_size, pos, stop, send)
+        child = ctx.Process(target=_child_main, args=args, daemon=True)
+        child.start()
+        result = None
+        try:
+            while result is None:
+                progress(int(pos.value))
+                if aborted():
+                    stop.value = 1
+                if recv.poll(0.02):
+                    result = recv.recv()
+                elif not child.is_alive():
+                    if recv.poll(0.2):
+                        result = recv.recv()
+                    break
+        finally:
+            child.join(5.0)
+            if child.is_alive():
+                child.kill()
+        progress(int(pos.value))
+        if result is None:
+            raise RuntimeError(f"The audio process exited with no result (code {child.exitcode}).")
+        if result[0] == "error":
+            raise RuntimeError("The audio process failed:\n" + result[1])
+        return int(result[1])

@@ -23,7 +23,7 @@ from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import confirm_playback, demo_pedal
 from pedal_model.rig.gui.state import AppState
 from pedal_model.rig.gui.widgets import (
-    CheckList,
+    CheckText,
     ControlPanel,
     LevelMeter,
     auto_scale_box,
@@ -181,9 +181,10 @@ class RunPage(QWidget):
         left.addWidget(f)
 
         f, lay = card("Quality checks")
-        self.qc = CheckList()
-        lay.addWidget(self.qc)
-        lay.addStretch()
+        # Scrolls instead of growing: two roles' checks are taller than a laptop screen.
+        self.qc = CheckText()
+        self.qc.setMinimumHeight(120)
+        lay.addWidget(self.qc, 1)
         row = QHBoxLayout()
         self.accept_btn = QPushButton("Accept ✓  (next step)")
         self.accept_btn.setObjectName("primary")

@@ -84,6 +84,11 @@ target), and an early Pi Muff stem pair.
 - **Debugging a session:** the raw FLACs hold both inputs and the played signals are reproducible, so
   `uv run python scripts/reanalyse_session.py <session folder>` recomputes the references and QC with the
   current code without changing the session. GUI errors and their tracebacks go into the session log.
+- **The hardware stream runs in its own process** (`backends.ProcessBackend` around `AsioBackend`,
+  shared-memory play/record buffers). In the GUI process the live views starved the Python audio
+  callback: about 30 % of every Run-page take came back silent while the driver reported no dropout
+  (2026-10-18). QC's "Audio integrity (loopback)" check compares each block of the loopback with
+  what was sent; never trust the driver's dropout count alone.
 - Never play audio on the hardware without the person there: Out 1/2 are the Main outputs and may drive
   monitors. The GUI asks for confirmation before the first sound. Demo mode never opens the sound card.
 - Tests (`tests/rig/`) use synthetic masters in tmp_path and the simulated backend: no hardware, no repo audio.

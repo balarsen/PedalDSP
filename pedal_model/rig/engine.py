@@ -84,6 +84,43 @@ class CaptureEngine:
         self._pos = end
         return end >= len(self.play) or self._abort
 
+    def _run_shared(self, sr: int, play: np.ndarray) -> int:
+        """Stream through an out-of-process backend; play/rec live in shared memory meanwhile."""
+        from multiprocessing import shared_memory
+
+        shm_p = shared_memory.SharedMemory(create=True, size=play.nbytes)
+        shm_r = shared_memory.SharedMemory(create=True, size=play.nbytes)
+        try:
+            self.play = np.ndarray(play.shape, dtype=np.float32, buffer=shm_p.buf)
+            self.play[:] = play
+            self.rec = np.ndarray(play.shape, dtype=np.float32, buffer=shm_r.buf)
+            self.rec[:] = 0.0
+            self.running = True
+            try:
+                xruns = self.backend.run_shared(
+                    sr,
+                    shm_p.name,
+                    shm_r.name,
+                    len(play),
+                    self.block_size,
+                    progress=lambda p: setattr(self, "_pos", p),
+                    aborted=lambda: self._abort,
+                )
+            finally:
+                self.running = False
+                # Own copies before the shared blocks go away (the GUI may still hold views).
+                self.play, self.rec = np.array(self.play), np.array(self.rec)
+        finally:
+            for shm in (shm_p, shm_r):
+                for _ in range(50):
+                    try:
+                        shm.close()
+                        break
+                    except BufferError:  # a live view still exists for a moment: retry
+                        time.sleep(0.02)
+                shm.unlink()
+        return xruns
+
     def run(
         self,
         signal: np.ndarray,
@@ -112,18 +149,21 @@ class CaptureEngine:
             play[pre : pre + len(signal), 0] = signal * gain
         if route in ("both", "loop"):
             play[pre : pre + len(signal), 1] = signal * gain
-        self.play = play
-        self.rec = np.zeros((n, 2), dtype=np.float32)
         self.sr = sr
         self.pre_roll = pre
         self._pos = 0
         self._abort = False
-        self.running = True
         t0 = time.perf_counter()
-        try:
-            xruns = self.backend.run(sr, self.play, self._callback, self.block_size)
-        finally:
-            self.running = False
+        if getattr(self.backend, "out_of_process", False):
+            xruns = self._run_shared(sr, play)
+        else:
+            self.play = play
+            self.rec = np.zeros((n, 2), dtype=np.float32)
+            self.running = True
+            try:
+                xruns = self.backend.run(sr, self.play, self._callback, self.block_size)
+            finally:
+                self.running = False
         return Take(
             sr=sr,
             play=self.play,

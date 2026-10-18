@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QLabel,
     QMessageBox,
+    QTextBrowser,
     QVBoxLayout,
     QWidget,
 )
@@ -227,3 +228,36 @@ class CheckList(QWidget):
                 f"<br><span style='color:{theme.TEXT_DIM}'>&nbsp;&nbsp;&nbsp;&nbsp;{detail}</span>"
             )
         self.lay.addWidget(label(body))
+
+
+class CheckText(QTextBrowser):
+    """CheckList's look in one scrollable rich-text view, for long lists (a whole step's QC).
+
+    Separate labels inside a scroll area clip their wrapped second lines; a text view wraps and
+    scrolls by itself.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFrameShape(QFrame.NoFrame)
+        self.setStyleSheet(f"background: transparent; color: {theme.TEXT};")
+        self._parts: list[str] = []
+
+    def clear(self) -> None:
+        self._parts = []
+        super().clear()
+
+    def add_heading(self, text: str) -> None:
+        self._parts.append(
+            f"<p style='margin:8px 0 2px 0'><b style='color:{theme.CYAN_BRIGHT}'>{text}</b></p>"
+        )
+        self.setHtml("".join(self._parts))
+
+    def add(self, status: str, text: str, detail: str = "") -> None:
+        colour = theme.STATUS_COLOURS.get(status, theme.TEXT_DIM)
+        sym = {"ok": "●", "warn": "▲", "fail": "✖", "busy": "◌"}.get(status, "○")
+        body = f"<span style='color:{colour}'>{sym}</span>&nbsp; {text}"
+        if detail:
+            body += f"<br><span style='color:{theme.TEXT_DIM}'>{detail}</span>"
+        self._parts.append(f"<p style='margin:2px 0 4px 18px; text-indent:-18px'>{body}</p>")
+        self.setHtml("".join(self._parts))

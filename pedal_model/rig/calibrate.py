@@ -318,7 +318,9 @@ REFERENCE_F_LO = 20.0
 REFERENCE_F_HI = 19_000.0  # the sweep ends at 20 kHz, so its last bins are unreliable
 REFERENCE_NPERSEG = 16384  # 2.9 Hz bins at 48 kHz
 COMPARE_BAND_HZ = (50.0, 10_000.0)  # where references are compared with each other
-SAME_PATH_DB = 0.02  # two references closer than this everywhere are the same path
+# Two references closer than this everywhere (50 Hz-10 kHz) are the same path. Real differences seen
+# so far: bypassed vs cable 0.34 dB, engaged vs bypassed 1.5 dB (2026-10-18).
+SAME_PATH_DB = 0.1
 BYPASS_LEVEL_FAIL_DB = 6.0  # bypassed pedal vs cable: a bigger level change means a wiring fault
 FLAT_LIMIT_DB = 3.0  # engaged ÷ bypassed at the calibration preset
 
@@ -413,6 +415,9 @@ class Reference:
     noise_dbfs: float
     gain_1k_db: float
     file: str | None = None  # the raw capture, relative to the session folder
+    # Lag of the return (In 1) in the same take. Minus ``lag_samples`` it is the analog chain's own
+    # delay, free of the few-sample latency jitter between separate stream opens.
+    return_lag_samples: int | None = None
 
     def db_at(self, freqs_hz: np.ndarray) -> np.ndarray:
         """Magnitude in dB at other frequencies (interpolated in log frequency)."""
@@ -453,6 +458,7 @@ def reference_from_take(take: Take, name: str) -> Reference:
     sr = take.sr
     pre, n = take.pre_roll, len(reference_signal(sr))
     lag = find_lag(take.play[:, 1], take.rec[:, 1], sr, pre, pre + n, LAG_SEARCH_S)
+    return_lag = find_lag(take.play[:, 0], take.rec[:, 0], sr, pre, pre + n, LAG_SEARCH_S)
     x = take.play[pre : pre + n, 0]
     y = take.rec[pre + lag : pre + lag + n, 0]
     f, h, coh = transfer_function_complex(x, y, sr, nperseg=min(REFERENCE_NPERSEG, n))
@@ -469,6 +475,7 @@ def reference_from_take(take: Take, name: str) -> Reference:
         coherence=np.interp(grid, f[keep], coh[keep]).tolist(),
         noise_dbfs=rms_dbfs(take.rec[int(0.1 * sr) : pre, 0]),
         gain_1k_db=float(np.interp(np.log(1000.0), np.log(grid), mag)),
+        return_lag_samples=int(return_lag),
     )
     return ref
 
@@ -526,7 +533,18 @@ def check_bypass(bypass: Reference, chain: Reference) -> list[Advice]:
     ]
 
 
-def check_engaged(engaged: Reference, bypass: Reference) -> list[Advice]:
+def check_engaged(
+    engaged: Reference, bypass: Reference, chain: Reference | None = None
+) -> list[Advice]:
+    if chain is not None and np.max(np.abs(_band_diff(engaged, chain))) < SAME_PATH_DB:
+        return [
+            Advice(
+                "fail",
+                "Identical to the chain reference (C2): the pedal must have been in the chain, "
+                "engaged, during C2. Redo C2 with cable A plugged straight into ProDI INPUT, then "
+                "C3 and C4.",
+            )
+        ]
     d = _band_diff(engaged, bypass)
     med, worst = float(np.median(d)), float(np.max(np.abs(d)))
     if worst < SAME_PATH_DB:
@@ -596,13 +614,14 @@ def run_step(
         return StepResult(step_id, advice, chain=chain, reference=ref, take=take)
     ref, take = measure_reference(engine, sr, step.reference)
     advice = check_reference(ref)
-    base, check, earlier = (
-        ("chain", check_bypass, "C2") if step_id == "C3" else ("bypass", check_engaged, "C3")
-    )
+    base, earlier = ("chain", "C2") if step_id == "C3" else ("bypass", "C3")
     if base not in references:
         advice.append(Advice("fail", f"No {base} reference yet: run {earlier} first."))
     elif all(a.status != "fail" for a in advice):
-        advice += check(ref, references[base])
+        if step_id == "C3":
+            advice += check_bypass(ref, references["chain"])
+        else:
+            advice += check_engaged(ref, references["bypass"], references.get("chain"))
     return StepResult(step_id, advice, reference=ref, take=take)
 
 

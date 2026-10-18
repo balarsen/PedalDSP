@@ -22,7 +22,9 @@ from pedal_model.rig.calibrate import Reference
 from pedal_model.rig.engine import Take
 from pedal_model.signals.manifest import Manifest
 
-LAG_TOLERANCE_SAMPLES = 2
+# The 1824c latency moves a few samples between stream opens (3718-3727 seen, 2026-10-18). Each take
+# aligns on its own loopback, so that is harmless; only a jump like a buffer-size change is flagged.
+LAG_TOLERANCE_SAMPLES = 16
 NOISE_OK_DBFS = -70.0  # docs/notaklon_capture_plan.md §8: noise floor < −70 dBFS in silent gaps
 NOISE_FAIL_DBFS = -55.0
 PRESENT_DBFS = -60.0
@@ -33,6 +35,8 @@ LEVEL_OFFSET_FAIL_DB = 3.0
 FR_TYPES = ("log_sine_sweep", "pink_noise")  # broadband sections used for the response estimate
 DISPLAY_BAND_HZ = (20.0, 19_000.0)  # sweeps end at 20 kHz
 STATUS_ORDER = {"ok": 0, "warn": 1, "fail": 2}
+INTEGRITY_MIN_DBFS = -60.0  # send blocks quieter than this are not judged
+INTEGRITY_DROP_DB = 6.0  # a loopback block this far below the typical ratio lost its audio
 REFERENCE_NOTES = {
     "chain": "Take ÷ the chain alone (C2): the pedal's whole response, buffers included.",
     "bypass": "Take ÷ the bypassed pedal (C3): what the engaged circuit adds (plan decision D1).",
@@ -107,6 +111,37 @@ def expected_response(
 
     f, db = Ge7Sim.from_sliders(Ge7Sliders.from_dict(controls)).frequency_response(sr, n_fft=32768)
     return np.interp(grid, f, db)
+
+
+def loopback_integrity(
+    take: Take, loop_lag: int, block: int = 1024
+) -> tuple[int, int, float | None]:
+    """Blocks where the loopback (In 2) lost the audio that was sent (Out 2).
+
+    The driver does not always report a dropout: on the 1824c, output blocks went silent mid-take
+    while the stream reported no under/overflow. The loopback is a plain cable, so its level must
+    follow the send's level block by block; a block more than ``INTEGRITY_DROP_DB`` below the
+    take's typical send-to-loopback ratio lost its audio. Quiet blocks (send below
+    ``INTEGRITY_MIN_DBFS``) are not judged.
+
+    Returns:
+        (blocks judged, blocks lost, time of the first lost block in seconds or None).
+    """
+    sr, pre = take.sr, take.pre_roll
+    ratios, starts = [], []
+    for a in range(pre, pre + take.signal_len - block, block):
+        send = take.play[a : a + block, 1]
+        if rms_dbfs(send) < INTEGRITY_MIN_DBFS:
+            continue
+        got = take.rec[a + loop_lag : a + loop_lag + block, 1]
+        ratios.append(rms_dbfs(got) - rms_dbfs(send))
+        starts.append(a - pre)
+    if not ratios:
+        return 0, 0, None
+    r = np.asarray(ratios)
+    lost = r < np.median(r) - INTEGRITY_DROP_DB
+    first = float(starts[int(np.argmax(lost))]) / sr if lost.any() else None
+    return len(r), int(lost.sum()), first
 
 
 def calibration_reference(calibration: dict | None, name: str) -> Reference | None:
@@ -186,9 +221,14 @@ def check_take(
     # group delay that belongs to the pedal, and the correlation peak would cut it out of the
     # training data. Calibration (pedal at its neutral preset) gives the chain's fixed offset
     # relative to the loopback.
-    chain_offset = (
-        cal_chain["lag_samples"] - cal_loop["lag_samples"] if cal_chain and cal_loop else None
-    )
+    chain_ref = ((calibration or {}).get("references") or {}).get("chain") or {}
+    if chain_ref.get("return_lag_samples") is not None:
+        # Both inputs of the same C2 capture: the chain's own delay, without stream-open jitter.
+        chain_offset = chain_ref["return_lag_samples"] - chain_ref["lag_samples"]
+    elif cal_chain and cal_loop:
+        chain_offset = cal_chain["lag_samples"] - cal_loop["lag_samples"]
+    else:
+        chain_offset = None
     rep.lag = rep.loop_lag + chain_offset if chain_offset is not None else rep.xcorr_lag
     wet = aligned(take.rec[:, 0], pre, rep.lag, take.signal_len)
 
@@ -200,6 +240,18 @@ def check_take(
             ""
             if take.xruns == 0
             else "Audio blocks were lost; retake (raise block size if it repeats).",
+        )
+    )
+    n_blocks, n_lost, first_lost = loopback_integrity(take, rep.loop_lag)
+    items.append(
+        QCItem(
+            "Audio integrity (loopback)",
+            "ok" if n_lost == 0 else "fail",
+            f"{n_lost} of {n_blocks} blocks lost",
+            ""
+            if n_lost == 0
+            else f"Audio went missing (first at {first_lost:.1f} s) although the driver reported "
+            "no dropout: the stream did not keep up. Retake; if it repeats, report it.",
         )
     )
     if take.aborted:

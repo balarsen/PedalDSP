@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import QObject, Signal
 
-from pedal_model.rig.backends import AsioBackend, SimulatedBackend
+from pedal_model.rig.backends import AsioBackend, ProcessBackend, SimulatedBackend
 from pedal_model.rig.config import RigConfig
 from pedal_model.rig.engine import CaptureEngine
 from pedal_model.rig.profiles import Preset, Profile, load_profile
@@ -37,7 +37,13 @@ class AppState(QObject):
     def _make_backend(self):
         if self.simulated:
             return SimulatedBackend(speed=self.demo_speed)
-        return AsioBackend(self.rig.asio_device, self.rig.channels)
+        # The stream runs in its own process so the GUI can never starve the audio callback.
+        return ProcessBackend(
+            AsioBackend,
+            {"device_name": self.rig.asio_device, "channels": self.rig.channels},
+            f"ASIO: {self.rig.asio_device}",
+            is_hardware=True,
+        )
 
     def set_mode(self, simulated: bool, demo_speed: float) -> None:
         self.simulated, self.demo_speed = simulated, demo_speed

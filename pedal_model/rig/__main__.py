@@ -2,6 +2,8 @@
 
 import sys
 
-from pedal_model.rig.gui.app import main
+# Guarded: the audio stream runs in a child process (spawn), which imports this module again.
+if __name__ == "__main__":
+    from pedal_model.rig.gui.app import main
 
-sys.exit(main())
+    sys.exit(main())

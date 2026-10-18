@@ -130,6 +130,24 @@ def test_c4_warns_when_the_controls_are_not_flat():
     assert c4.status == "warn" and "calibration preset" in _texts(c4)
 
 
+def test_c4_fails_when_c2_was_measured_through_the_engaged_pedal():
+    """The 2026-10-18 mistake: cables not moved for C2, so the 'chain' was the engaged pedal."""
+    eng = _engine()
+    eng.backend.set_pedal(_ge7(FLAT))
+    refs = {}
+    for step, state in (("C2", "engaged"), ("C3", "bypass"), ("C4", "engaged")):
+        eng.backend.set_pedal_state(state)
+        res = run_step(step, eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0, references=refs)
+        refs[res.reference.name] = res.reference
+    assert res.status == "fail" and "Redo C2" in _texts(res)
+
+
+def test_chain_offset_comes_from_one_capture():
+    cal, _ = _calibrate(_engine())
+    chain = cal["references"]["chain"]
+    assert chain["return_lag_samples"] - chain["lag_samples"] == 0  # simulated chain: no delay
+
+
 def test_a_missing_return_fails_and_stops_the_sequence():
     cal, results = _calibrate(_engine(SimulatedRig(return_gain_db=-200.0)))
     assert results[-1].step == "C2" and results[-1].status == "fail"

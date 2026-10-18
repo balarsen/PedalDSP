@@ -163,6 +163,7 @@ def test_qc_passes_correct_preset(masters, tmp_path):
     assert rep.lag == 47 and rep.loop_lag == 47
     assert _item(rep, "Response vs model").status == "ok"
     assert _item(rep, "Level vs calibration").status == "ok"
+    assert _item(rep, "Audio integrity (loopback)").status == "ok"
     assert rep.verdict == "ok", [vars(i) for i in rep.items if i.status != "ok"]
 
 
@@ -179,6 +180,14 @@ def test_qc_wet_is_aligned_to_dry(masters, tmp_path):
 def test_qc_catches_wrong_knob_settings(masters, tmp_path):
     rep, _, _ = _capture(masters, tmp_path, FLAT, SMILE)
     assert _item(rep, "Response vs model").status == "fail"
+
+
+def test_qc_catches_silently_lost_audio(masters, tmp_path):
+    """Blocks lost without a driver dropout flag (seen on the 1824c) must fail QC."""
+    rep, take, _ = _capture(masters, tmp_path, FLAT, FLAT, rig=SimulatedRig(dropout_prob=0.05))
+    assert take.xruns == 0  # the driver says nothing
+    item = _item(rep, "Audio integrity (loopback)")
+    assert item.status == "fail" and not item.value.startswith("0 of")
 
 
 def test_qc_flags_clipping(masters, tmp_path):

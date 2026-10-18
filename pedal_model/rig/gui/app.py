@@ -12,10 +12,12 @@ from PySide6.QtCore import QProcess
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QApplication,
+    QFrame,
     QHBoxLayout,
     QListWidget,
     QMainWindow,
     QMessageBox,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -75,7 +77,13 @@ class MainWindow(QMainWindow):
             RunPage(state, lambda: go(5)),
             ReviewPage(state),
         ):
-            self.stack.addWidget(page)
+            # Each page scrolls when the window is shorter than it, instead of forcing the window
+            # taller than a laptop screen.
+            scroll = QScrollArea()
+            scroll.setWidgetResizable(True)
+            scroll.setFrameShape(QFrame.NoFrame)
+            scroll.setWidget(page)
+            self.stack.addWidget(scroll)
         self.nav.currentRowChanged.connect(self.stack.setCurrentIndex)
         body.addWidget(self.nav)
         body.addWidget(self.stack, 1)

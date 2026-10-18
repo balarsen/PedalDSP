@@ -75,7 +75,8 @@ def main() -> None:
     if "chain" in refs and "bypass" in refs:
         print("  C3:", check_bypass(refs["bypass"], refs["chain"])[0].text)
     if "bypass" in refs and "engaged_flat" in refs:
-        print("  C4:", check_engaged(refs["engaged_flat"], refs["bypass"], refs.get("chain"))[0].text)
+        c4 = check_engaged(refs["engaged_flat"], refs["bypass"], refs.get("chain"))
+        print("  C4:", c4[0].text)
     if "chain" in refs:
         r = refs["chain"]
         row = "  ".join(f"{f}:{r.db_at(np.array([f]))[0] - r.gain_1k_db:+.1f}" for f in REPORT_HZ)

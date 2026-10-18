@@ -81,7 +81,9 @@ target), and an early Pi Muff stem pair.
 - The libraries are standalone clones at `D:\Projects\{libDaisy,DaisySP,HothouseExamples}` (`/mnt/d/projects/...`
   in WSL). The Makefile defaults point there.
 - Toolchain (WSL): `arm-none-eabi-gcc` 13.2, `make`, `dfu-util`. Build and flash from WSL with `make` and
-  `make program-dfu`.
+  `make program-dfu`. From the Windows side (VS Code / Claude Code), wrap the command:
+  `wsl.exe -e bash -lc 'cd /mnt/c/Users/Brian/Documents/GitHub/PedalDSP/daisy && make'`. Run Python the same
+  way (`... && uv run pytest tests`). `usbipd` 5.3 is installed on Windows for attaching the DFU device.
 - **DFU:** hold **both** footswitches for 2 s (the firmware must already be running), or hold BOOT on the Seed
   and tap RESET. USB reaches WSL through `usbipd attach --wsl --busid <id>`. Full steps are in
   `docs/daisy_programming.md`.

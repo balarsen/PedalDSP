@@ -96,9 +96,10 @@ instrument → mic. The app's Setup page has a longer version ("Why these boxes?
 - `calibration_<date>_<time>.json` and `rig_setup_<date>_<time>.json`: every calibration and every saved
   setup, as dated files (Setup → Save also writes `configs/rig.json` and a dated copy next to it)
 - `signals/`: the session's own train/val/sweep signals with their manifests
-- `<preset>/params.json` plus, per role, `<pedal>_<preset>_<role>_wet_<sr>k_<date>_<time>.wav` (return
-  aligned on the loopback latency) and `..._raw_...wav` (the unaligned return + loopback). File names carry
-  the pedal, preset, role, sample rate and time, so a copied-out WAV is still identifiable; retakes keep
+- `<preset>/params.json` plus, per role, `<pedal>_<preset>_<role>_wet_<sr>k_<date>_<time>.flac` (return
+  aligned on the loopback latency) and `..._raw_...flac` (the unaligned return + loopback), 24-bit FLAC:
+  lossless, about half the size of WAV. File names carry
+  the pedal, preset, role, sample rate and time, so a copied-out file is still identifiable; retakes keep
   the earlier files.
 
 Fit a preset with:

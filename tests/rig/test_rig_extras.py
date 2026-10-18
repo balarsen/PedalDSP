@@ -131,7 +131,7 @@ def test_map_capture_writes_named_files_and_a_band_fit(masters):
 
     t = s.take(preset.name, "sweep")
     assert t["wet_wav"].startswith("ge7_map_hz_800_p15_sweep_wet_48k_") and t["wet_wav"].endswith(
-        ".wav"
+        ".flac"
     )
     assert (s.preset_dir(preset.name) / t["wet_wav"]).is_file()
     params = json.loads((s.preset_dir(preset.name) / "params.json").read_text())
@@ -177,3 +177,33 @@ def test_fit_band_on_ge7sim_returns_its_calibrated_bands(key, fc, model):
     assert fit.model == model
     assert fit.fc_hz == pytest.approx(fc, rel=0.03)
     assert fit.rms_err_db < 0.1
+
+
+def test_capture_flac_is_bit_exact_for_24_bit_audio(masters):
+    """Captures are 24-bit FLAC: a 24-bit signal must come back sample for sample (lossless)."""
+    prof = load_profile("ge7")
+    preset = prof.preset("flat")
+    s = Session.create(prof, SR, "quick", RigConfig(), "sim", True, [preset])
+    sig = s.signal("val")
+    m = Manifest(sig.manifest_path)
+    dry = m.load_all()
+    take = _engine().run(dry, SR, send_level_db=-10.0)
+    # What a 24-bit converter delivers: multiples of 2^-23.
+    take.rec[:] = np.round(take.rec * 2**23) / 2**23
+    wet = take.rec[take.pre_roll : take.pre_roll + take.signal_len, 0].copy()
+    rep, _ = check_take(
+        take,
+        dry,
+        m,
+        pedal=prof.pedal,
+        controls=preset.controls,
+        calibration=None,
+        qc_limits=prof.qc,
+    )
+    s.save_capture(preset, "val", take, wet, rep.to_dict())
+    t = s.take("flat", "val")
+    raw, sr = sf.read(str(s.preset_dir("flat") / t["raw_wav"]), dtype="float64")
+    back, _ = sf.read(str(s.preset_dir("flat") / t["wet_wav"]), dtype="float64")
+    assert sf.info(str(s.preset_dir("flat") / t["wet_wav"])).format == "FLAC"
+    np.testing.assert_array_equal(raw, take.rec.astype(np.float64))
+    np.testing.assert_array_equal(back, wet.astype(np.float64))

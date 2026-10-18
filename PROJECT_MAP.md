@@ -55,7 +55,8 @@ PedalDSP/
 presets, calibration, per-preset status, event log), dated `calibration_*.json` and `rig_setup_*.json`,
 `signals/` (the session's own train/val/sweep signals with manifests), and one folder per preset or map
 step with `params.json` (model presets load in `scripts/fit_models.py --klon-sim-dir`; map steps record
-their band fit) and self-describing WAVs, `<pedal>_<preset>_<role>_{wet,raw}_<sr>k_<date>_<time>.wav`.
+their band fit) and self-describing 24-bit FLAC captures,
+`<pedal>_<preset>_<role>_{wet,raw}_<sr>k_<date>_<time>.flac`.
 Simulated runs go to `sessions_demo/` and are never committed.
 
 **To retire later:** once the rig is proven, the Studio One-era captures (`recordings/data/*/captures/`, the
@@ -68,6 +69,7 @@ Every WAV sits beside the JSON that describes it. Keep the pairs together.
 | Path | Contents |
 |---|---|
 | `signals/` | `train_signal_v1/v2.{wav,json}` (96 kHz float32, 642.5 s), `train_signal_v2_48k.{wav,json,npy}`, `val_signal_v1`, `notaklon_val_take1`, re-amp bypass references (`train_signal_v2_reamp only*.wav`), `legacy/` |
+| `ge7/GE7_PEDALODE_PLAN.md` | Plan for the GE-7 topology model with learned parameters (PedalODE rungs A0–C) |
 | `ge7/presets/` | 14 preset JSONs (slider dB settings) |
 | `ge7/captures/preset_<name>/` | `wet_train_signal_v2.wav` + `params.json` per preset; `preset_flat/GE7-Flat2 - flat 2.wav` is the reference |
 | `ge7/captures/single_slider/` | `slider_<f>hz.wav` (one band moved), `slider_level_{p,m}10db.wav` |

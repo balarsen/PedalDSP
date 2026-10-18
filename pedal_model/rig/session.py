@@ -7,8 +7,8 @@ Layout (simulated runs go to ``sessions_demo/`` instead of ``sessions/``)::
         calibration_<stamp>.json            every calibration, also as its own dated file
         signals/               train_<kind>_<sr>k.*, val_full_<sr>k.*, sweep_<sr>k.* (WAV + JSON)
         <preset>/params.json   loads in scripts/fit_models.py --klon-sim-dir <preset dir>
-        <preset>/<profile>_<preset>_<role>_wet_<sr>k_<stamp>.wav   aligned return
-        <preset>/<profile>_<preset>_<role>_raw_<sr>k_<stamp>.wav   return + loopback, unaligned
+        <preset>/<profile>_<preset>_<role>_wet_<sr>k_<stamp>.flac  aligned return
+        <preset>/<profile>_<preset>_<role>_raw_<sr>k_<stamp>.flac  return + loopback, unaligned
 
     <stamp> is the local date and time, YYYY-MM-DD_HHMM.
 
@@ -33,7 +33,10 @@ from pedal_model.rig.profiles import Preset, Profile
 from pedal_model.rig.signals import SessionSignal, prepare_signal
 
 SCHEMA_VERSION = "1.1"
-WAV_SUBTYPE = "PCM_24"  # the 1824c converters are 24-bit, so this is lossless for hardware takes
+# Captures are stored as 24-bit FLAC: the 1824c converters are 24-bit, so this is lossless for
+# hardware takes, and on real captures it is 49-64 % of the WAV size (measured 2026-10-18).
+# Session signals stay float32 WAV: FLAC stores integers only.
+CAPTURE_FORMAT, CAPTURE_SUBTYPE, CAPTURE_EXT = "FLAC", "PCM_24", ".flac"
 SIGNAL_ROLES = ("train", "val", "sweep")
 
 
@@ -202,7 +205,8 @@ class Session:
     # ── takes ───────────────────────────────────────────────────────────── #
 
     def _file_name(self, preset: str, role: str, what: str, stamp: str) -> str:
-        return f"{self.profile_id}_{preset}_{role}_{what}_{self.sample_rate // 1000}k_{stamp}.wav"
+        sr_k = self.sample_rate // 1000
+        return f"{self.profile_id}_{preset}_{role}_{what}_{sr_k}k_{stamp}{CAPTURE_EXT}"
 
     def save_capture(
         self,
@@ -219,8 +223,8 @@ class Session:
         stamp = local_stamp()
         wet_name = self._file_name(preset.name, role, "wet", stamp)
         raw_name = self._file_name(preset.name, role, "raw", stamp)
-        sf.write(str(d / wet_name), wet, take.sr, subtype=WAV_SUBTYPE)
-        sf.write(str(d / raw_name), take.rec, take.sr, subtype=WAV_SUBTYPE)
+        for name, audio in ((wet_name, wet), (raw_name, take.rec)):
+            sf.write(str(d / name), audio, take.sr, format=CAPTURE_FORMAT, subtype=CAPTURE_SUBTYPE)
         entry = {
             "role": role,
             "t": _utc(),

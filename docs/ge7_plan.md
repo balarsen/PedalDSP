@@ -1,5 +1,8 @@
 # Boss GE-7 Equalizer — Modeling Plan
 
+> **Next model (2026-10-18):** a PedalODE topology model with learned parameters replaces the
+> Ge7Sim cascade: see `recordings/data/ge7/GE7_PEDALODE_PLAN.md`.
+
 ## Overview
 
 The Boss GE-7 is a 7-band graphic equalizer with 8 sliders total (7 bands + output

@@ -68,7 +68,7 @@ target), and an early Pi Muff stem pair.
 - Preset kinds: "model" (train + val, for fitting) and "map" (sweep only, a measurement; its band fit is
   saved in params.json and session.json).
 - **Saved files describe themselves** (owner, 2026-10-18): WAVs are named
-  `<pedal>_<preset>_<role>_{wet,raw}_<sr>k_<YYYY-MM-DD_HHMM>.wav`; calibrations and setups are also kept as
+  `<pedal>_<preset>_<role>_{wet,raw}_<sr>k_<YYYY-MM-DD_HHMM>.flac`; calibrations and setups are also kept as
   dated JSON files; the same fields are inside the JSON. Keep this convention for anything new.
 - **Alignment rule:** takes are aligned on the interface latency measured on the loopback channel (Out 2 →
   In 2) plus the chain's fixed offset from calibration, *not* on the cross-correlation peak. The difference
@@ -107,6 +107,8 @@ target), and an early Pi Muff stem pair.
   One `Cache/` and `History/` folders, and firmware build output are ignored. GitHub rejects files over 100 MB.
   On 2026-10-17, multi-GB `results.pkl` files were stripped from unpushed history.
 - Plots (`*.png`) and small JSON/CSV results in `outputs/` and `results/` are tracked.
+- Capture audio is 24-bit FLAC (lossless; 49–64 % of the WAV size on real captures). Session signals
+  and model renders stay float32 WAV (FLAC stores integers only).
 - Line endings are LF (`.gitattributes`: `* text=auto eol=lf`). Keep it that way: the firmware build runs in
   WSL, and the history was written with LF.
 - Capture sessions: `session.json`, `params.json` and signal manifests are tracked (small, and they record how
@@ -175,6 +177,8 @@ target), and an early Pi Muff stem pair.
 
 ## Related projects
 
+- **GE-7 PedalODE plan**: `recordings/data/ge7/GE7_PEDALODE_PLAN.md` (parallel-resonator topology,
+  learned parameters; replaces Ge7Sim as the GUI's model once rung A passes).
 - **PedalODE**: physics-grounded ODE circuit-topology discovery and parameter fitting. It uses these GE-7 and
   Notaklon captures as its rungs (`docs/pedalode_klonsim_spec.md`, `pedal_model/ode/`).
 - **BrianAudioLab** (local folder `../BrianEQ`): JUCE analyzer plug-ins for Studio One. Its planned `brianpedal`

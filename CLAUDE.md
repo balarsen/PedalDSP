@@ -177,7 +177,7 @@ target), and an early Pi Muff stem pair.
 
 ## Related projects
 
-- **GE-7 PedalODE plan**: `recordings/data/ge7/GE7_PEDALODE_PLAN.md` (parallel-resonator topology,
+- **GE-7 PedalODE plan**: `recordings/data/ge7/GE7_PEDALODE_PLAN.md` (block-diagram model: summing EQ stage,
   learned parameters; replaces Ge7Sim as the GUI's model once rung A passes).
 - **PedalODE**: physics-grounded ODE circuit-topology discovery and parameter fitting. It uses these GE-7 and
   Notaklon captures as its rungs (`docs/pedalode_klonsim_spec.md`, `pedal_model/ode/`).

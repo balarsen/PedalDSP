@@ -1,0 +1,33 @@
+{
+  "id": "ge7",
+  "pedal": "boss_ge7",
+  "display_name": "Boss GE-7 Equalizer",
+  "pedal_class": "linear_eq",
+  "control_kind": "sliders",
+  "controls": [
+    {"key": "hz_100",  "label": "100",   "min": -15, "max": 15, "unit": "dB"},
+    {"key": "hz_200",  "label": "200",   "min": -15, "max": 15, "unit": "dB"},
+    {"key": "hz_400",  "label": "400",   "min": -15, "max": 15, "unit": "dB"},
+    {"key": "hz_800",  "label": "800",   "min": -15, "max": 15, "unit": "dB"},
+    {"key": "hz_1600", "label": "1.6k",  "min": -15, "max": 15, "unit": "dB"},
+    {"key": "hz_3200", "label": "3.2k",  "min": -15, "max": 15, "unit": "dB"},
+    {"key": "hz_6400", "label": "6.4k",  "min": -15, "max": 15, "unit": "dB"},
+    {"key": "level",   "label": "LEVEL", "min": -15, "max": 15, "unit": "dB"}
+  ],
+  "presets_dir": "recordings/data/ge7/presets",
+  "first_preset": "flat",
+  "calibration_preset": "flat",
+  "send_level_db": -10.0,
+  "send_level_note": "docs/ge7_plan.md: the passive reamp path saturates above about -12 dBFS; train_signal_v2 peaks at -2 dBFS, so send at -10 dB.",
+  "fit_hints": {
+    "recommended_models": ["FIR", "IIR"],
+    "skip_models": ["WienerHammerstein", "Volterra", "Hammerstein"],
+    "fir_length_ms": 100,
+    "iir_order": 14
+  },
+  "qc": {
+    "fr_band_hz": [100, 8000],
+    "fr_ok_db": 1.0,
+    "fr_warn_db": 2.0
+  }
+}

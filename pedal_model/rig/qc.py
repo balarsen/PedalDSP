@@ -1,0 +1,292 @@
+"""Quality checks on a finished take, and the expected-vs-measured frequency response for linear
+pedals.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+import numpy as np
+
+from pedal_model.rig.analysis import (
+    aligned,
+    find_lag,
+    log_grid,
+    peak_dbfs,
+    rms_dbfs,
+    smooth_octave,
+    transfer_function,
+)
+from pedal_model.rig.engine import Take
+from pedal_model.signals.manifest import Manifest
+
+LAG_TOLERANCE_SAMPLES = 2
+NOISE_OK_DBFS = -70.0  # docs/notaklon_capture_plan.md §8: noise floor < −70 dBFS in silent gaps
+NOISE_FAIL_DBFS = -55.0
+PRESENT_DBFS = -60.0
+CLIP_WARN_DBFS = -1.0
+CLIP_FAIL_DBFS = -0.1
+LEVEL_OFFSET_WARN_DB = 1.0
+LEVEL_OFFSET_FAIL_DB = 3.0
+FR_TYPES = ("log_sine_sweep", "pink_noise")  # broadband sections used for the response estimate
+DISPLAY_BAND_HZ = (20.0, 20_000.0)
+STATUS_ORDER = {"ok": 0, "warn": 1, "fail": 2}
+
+
+@dataclass
+class QCItem:
+    name: str
+    status: str  # "ok", "warn", "fail"
+    value: str
+    detail: str = ""
+
+
+@dataclass
+class FrequencyResponse:
+    """Pedal-only response on a log grid: measured (normalised by the chain gain) and expected."""
+
+    freqs_hz: np.ndarray
+    measured_db: np.ndarray
+    expected_db: np.ndarray | None
+
+
+@dataclass
+class QCReport:
+    """Result of check_take.
+
+    Attributes:
+        lag: Samples removed when aligning the return: the interface latency (this take's loopback)
+        plus
+            the chain's fixed analog offset from calibration. The pedal's own delay is NOT removed:
+            it is
+            part of what the model has to learn.
+        loop_lag: This take's loopback (interface-only) latency.
+        xcorr_lag: Lag at the peak of the send/return cross-correlation; includes the pedal's group
+        delay.
+    """
+
+    items: list[QCItem] = field(default_factory=list)
+    lag: int = 0
+    loop_lag: int = 0
+    xcorr_lag: int = 0
+    response: FrequencyResponse | None = None
+
+    @property
+    def verdict(self) -> str:
+        if not self.items:
+            return "ok"
+        return max((i.status for i in self.items), key=STATUS_ORDER.__getitem__)
+
+    def to_dict(self) -> dict:
+        return {
+            "verdict": self.verdict,
+            "lag_samples": self.lag,
+            "loop_lag_samples": self.loop_lag,
+            "xcorr_lag_samples": self.xcorr_lag,
+            "items": [vars(i) for i in self.items],
+        }
+
+
+def expected_response(
+    pedal: str, controls: dict[str, float], sr: int, grid: np.ndarray
+) -> np.ndarray | None:
+    """Model response of the pedal at these settings, or None if there is no linear model."""
+    if pedal != "boss_ge7":
+        return None
+    from pedal_model.synthetic.ge7 import Ge7Sim, Ge7Sliders
+
+    f, db = Ge7Sim.from_sliders(Ge7Sliders.from_dict(controls)).frequency_response(sr, n_fft=32768)
+    return np.interp(grid, f, db)
+
+
+def measure_response(
+    dry: np.ndarray, wet: np.ndarray, manifest: Manifest, sr: int, band: tuple[float, float]
+) -> tuple[np.ndarray, np.ndarray]:
+    """Response from the broadband sections only (sweeps + pink noise), 1/6-octave smoothed on a log
+    grid.
+    """
+    secs = manifest.sections_of_type_multi(list(FR_TYPES)) or manifest.sections
+    d = np.concatenate([dry[s.start_sample : s.end_sample] for s in secs])
+    w = np.concatenate([wet[s.start_sample : s.end_sample] for s in secs])
+    f, h_db, _ = transfer_function(d, w, sr, nperseg=min(16384, len(d)))
+    grid = log_grid(band[0], band[1])
+    return grid, smooth_octave(f, h_db, grid)
+
+
+def check_take(
+    take: Take,
+    dry: np.ndarray,
+    manifest: Manifest,
+    *,
+    pedal: str,
+    controls: dict[str, float] | None,
+    calibration: dict | None,
+    qc_limits: dict,
+) -> tuple[QCReport, np.ndarray]:
+    """Run every check on one take and return the report and the aligned return (the "wet" WAV).
+
+    Args:
+        take: The recorded take.
+        dry: The dry signal that was played (before the send level), shape (signal_len,).
+        manifest: The dry signal's manifest (section positions).
+        pedal: Profile pedal id, e.g. "boss_ge7".
+        controls: Control values for this preset (for the expected response), or None.
+        calibration: Session calibration dict ({"loopback": ..., "chain": ...}) or None.
+        qc_limits: The profile's "qc" block.
+    """
+    sr = take.sr
+    pre = take.pre_roll
+    rep = QCReport()
+    items = rep.items
+
+    cal_chain = (calibration or {}).get("chain")
+    cal_loop = (calibration or {}).get("loopback")
+
+    first = (manifest.sections_of_type("log_sine_sweep") or manifest.sections)[0]
+    w0 = pre + first.start_sample
+    w1 = pre + min(first.end_sample, first.start_sample + 10 * sr)
+    rep.xcorr_lag = find_lag(take.play[:, 0], take.rec[:, 0], sr, w0, w1)
+    rep.loop_lag = find_lag(take.play[:, 1], take.rec[:, 1], sr, w0, w1)
+    # Align on the interface latency, not on the correlation peak: an EQ boost or a tone stack adds
+    # group delay that belongs to the pedal, and the correlation peak would cut it out of the
+    # training data. Calibration (pedal at its neutral preset) gives the chain's fixed offset
+    # relative to the loopback.
+    chain_offset = (
+        cal_chain["lag_samples"] - cal_loop["lag_samples"] if cal_chain and cal_loop else None
+    )
+    rep.lag = rep.loop_lag + chain_offset if chain_offset is not None else rep.xcorr_lag
+    wet = aligned(take.rec[:, 0], pre, rep.lag, take.signal_len)
+
+    items.append(
+        QCItem(
+            "Dropouts",
+            "ok" if take.xruns == 0 else "fail",
+            str(take.xruns),
+            ""
+            if take.xruns == 0
+            else "Audio blocks were lost; retake (raise block size if it repeats).",
+        )
+    )
+    if take.aborted:
+        items.append(QCItem("Complete", "fail", "aborted", "The take was stopped early."))
+    level = rms_dbfs(wet)
+    items.append(
+        QCItem(
+            "Return present",
+            "ok" if level > PRESENT_DBFS else "fail",
+            f"{level:.1f} dBFS RMS",
+            "" if level > PRESENT_DBFS else "Almost nothing came back on In 1: pedal on? cables?",
+        )
+    )
+    pk = peak_dbfs(take.rec[:, 0])
+    st = "ok" if pk < CLIP_WARN_DBFS else ("warn" if pk < CLIP_FAIL_DBFS else "fail")
+    items.append(
+        QCItem(
+            "Return peak",
+            st,
+            f"{pk:+.1f} dBFS",
+            "" if st == "ok" else "Close to clipping: lower In 1 gain and recalibrate.",
+        )
+    )
+
+    ms = rep.lag / sr * 1e3
+    if chain_offset is not None:
+        items.append(
+            QCItem(
+                "Alignment",
+                "ok",
+                f"{rep.lag} samples ({ms:.2f} ms)",
+                f"Loopback {rep.loop_lag} + chain offset {chain_offset:+d} from calibration.",
+            )
+        )
+        d = rep.loop_lag - cal_loop["lag_samples"]
+        st = "ok" if abs(d) <= LAG_TOLERANCE_SAMPLES else "warn"
+        items.append(
+            QCItem(
+                "Interface latency",
+                st,
+                f"{rep.loop_lag} samples",
+                ""
+                if st == "ok"
+                else f"{d:+d} samples vs calibration: the driver latency moved "
+                "(buffer size changed?).",
+            )
+        )
+        pedal_delay = rep.xcorr_lag - rep.lag
+        items.append(
+            QCItem(
+                "Pedal delay",
+                "ok",
+                f"{pedal_delay:+d} samples ({pedal_delay / sr * 1e3:+.2f} ms)",
+                "Correlation peak minus alignment: the pedal's own group delay, kept in the data.",
+            )
+        )
+    else:
+        items.append(
+            QCItem(
+                "Alignment",
+                "warn",
+                f"{rep.lag} samples ({ms:.2f} ms)",
+                "No calibration: aligned on the correlation peak, which also removes the pedal's "
+                "own "
+                "delay. Calibrate for loopback-based alignment.",
+            )
+        )
+
+    noise = rms_dbfs(take.rec[int(0.1 * sr) : pre, 0])
+    st = "ok" if noise < NOISE_OK_DBFS else ("warn" if noise < NOISE_FAIL_DBFS else "fail")
+    items.append(
+        QCItem(
+            "Noise floor",
+            st,
+            f"{noise:.1f} dBFS RMS",
+            "" if st == "ok" else "Hum or hiss on the return: ground lift, power supply, cables.",
+        )
+    )
+
+    band = tuple(qc_limits.get("fr_band_hz", (100.0, 8000.0)))
+    # Measure over the whole audio band for display; score only inside the profile's band.
+    grid, measured = measure_response(
+        dry, wet, manifest, sr, (DISPLAY_BAND_HZ[0], min(DISPLAY_BAND_HZ[1], 0.95 * sr / 2))
+    )
+    measured = measured - take.send_level_db
+    chain_gain = cal_chain["gain_db"] if cal_chain else None
+    if chain_gain is not None:
+        measured = measured - chain_gain
+    expected = expected_response(pedal, controls or {}, sr, grid) if controls is not None else None
+    if expected is not None:
+        in_band = (grid >= band[0]) & (grid <= band[1])
+        err = (measured - expected)[in_band]
+        offset = float(np.median(err))
+        shape = float(np.sqrt(np.mean((err - offset) ** 2)))
+        ok_db, warn_db = qc_limits.get("fr_ok_db", 1.0), qc_limits.get("fr_warn_db", 2.0)
+        st = "ok" if shape < ok_db else ("warn" if shape < warn_db else "fail")
+        items.append(
+            QCItem(
+                "Response vs model",
+                st,
+                f"{shape:.2f} dB RMS",
+                f"{band[0]:.0f}–{band[1]:.0f} Hz after removing a {offset:+.2f} dB offset."
+                + ("" if st == "ok" else " Are the controls set as shown?"),
+            )
+        )
+        if chain_gain is not None:
+            st = (
+                "ok"
+                if abs(offset) < LEVEL_OFFSET_WARN_DB
+                else ("warn" if abs(offset) < LEVEL_OFFSET_FAIL_DB else "fail")
+            )
+            items.append(
+                QCItem(
+                    "Level vs calibration",
+                    st,
+                    f"{offset:+.2f} dB",
+                    ""
+                    if st == "ok"
+                    else "Overall level moved since calibration (LEVEL slider? a knob bumped?).",
+                )
+            )
+        else:
+            measured = measured - offset
+    rep.response = FrequencyResponse(grid, measured, expected)
+    return rep, wet

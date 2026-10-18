@@ -96,3 +96,6 @@ daisy/build/
 
 # Windows
 desktop.ini
+
+# Capture rig: demo (simulated) sessions are never committed
+recordings/data/*/sessions_demo/

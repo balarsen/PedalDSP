@@ -36,15 +36,39 @@ target), and an early Pi Muff stem pair.
 
 ## Environment
 
-- **Python runs in WSL2 Ubuntu**, as a **uv project** with Python 3.12 (CUDA 12.1, PyTorch ≥ 2.2 for the
-  neural models). The repo is at `/mnt/c/Users/Brian/Documents/GitHub/PedalDSP` from WSL.
-- The `.venv` is not in git. Create it with `uv sync` in WSL from the repo root. The old venv at
-  `/mnt/d/Projects/PedalDSP/.venv` still works for a quick run (`.../.venv/bin/python -m pytest tests`).
-- Run things with `uv run <command>`. Add dependencies with `uv add <package>`, never bare `pip install`, so
-  `pyproject.toml` and `uv.lock` stay in sync.
-- Windows-side Python (3.13) has no numpy/scipy. Don't use it for this project.
+- **All Python runs on Windows** (since 2026-10-17): capture, analysis, fitting, training, notebooks, tests.
+  The audio interface (ASIO) is only reachable from Windows, and the WAVs on C: load fast there. **WSL is used
+  only to build firmware.**
+- **uv project**, Python 3.12, the `.venv` at the repo root (Windows). `uv sync --extra rig` installs
+  everything, including the capture GUI. Run with `uv run <command>`, and add dependencies with `uv add`
+  (never bare `pip install`) so `pyproject.toml` and `uv.lock` stay in sync. `requirements.txt` is legacy.
+- PyTorch on Windows comes from the CUDA 13.0 index (`[tool.uv.sources]` in pyproject; PyPI's Windows torch is
+  CPU-only). GPU: RTX 2070 SUPER, 8 GB. On Linux, PyPI's torch is used.
+- Tests: `uv run pytest tests`. The 6 failures in `tests/synthetic/test_pedal.py` come from the
+  in-progress `pedal.py` edits brought over from D: (they failed there too); everything else passes.
+- Lint: `uv run ruff check` and `uv run ruff format`, line length 100. New code must be clean; much of the
+  older code is not yet.
+- From WSL, never run `uv sync` in this repo: it would put a Linux `.venv` on top of the Windows one. WSL can
+  run the Windows interpreter directly (`./.venv/Scripts/python.exe`), which the firmware Makefile does.
 - Use `pathlib.Path` everywhere and never hard-code absolute paths. Scripts use
   `Path(__file__).resolve().parent.parent`, and notebooks use `Path(__file__).resolve().parents[n]`.
+
+## Capture rig (`pedal_model/rig/`)
+
+- Closed-loop capture without Studio One: `uv run python -m pedal_model.rig` (demo; `--hardware` for ASIO).
+  Wiring, box settings, level primer and troubleshooting are in README.md and on the GUI's Setup page.
+- Core modules (no Qt): `config` (configs/rig.json), `profiles/` (one JSON per pedal), `signals` (session
+  signals from the 96 kHz masters: full or quick excerpt, resampled), `backends` (ASIO via sounddevice, and
+  `SimulatedBackend`), `engine` (duplex play/record), `calibrate`, `qc`, `session`, `compare`. GUI in `gui/`.
+- **Alignment rule:** takes are aligned on the interface latency measured on the loopback channel (Out 2 →
+  In 2) plus the chain's fixed offset from calibration, *not* on the cross-correlation peak. The difference
+  is the pedal's own delay, which belongs in the training data. QC reports it as "Pedal delay".
+- Never play audio on the hardware without the person there: Out 1/2 are the Main outputs and may drive
+  monitors. The GUI asks for confirmation before the first sound. Demo mode never opens the sound card.
+- Tests (`tests/rig/`) use synthetic masters in tmp_path and the simulated backend: no hardware, no repo audio.
+- Not verified yet (needs the person at the rig): the loopback latency and dropout test on the real 1824c,
+  whether BrianEQ/BrianLevel can listen on the Windows Audio device while the rig holds ASIO, and whether the
+  Main knob really controls Out 1/2.
 
 ## Recordings and data
 
@@ -63,7 +87,9 @@ target), and an early Pi Muff stem pair.
   The Daisy target is 48 kHz. Resample deliberately with `pedal_model/data/resample.py`, and state it.
 - Dry/wet pairs carry hardware round-trip latency. **Align before you compare** (`pedal_model/capture/align.py`,
   `hardware_delay.py`), and report the lag you found.
-- Capture rig: PreSonus "Studio USB" ASIO interface (20 in / 18 out), Studio One, sessions at 48 kHz.
+- Hardware: PreSonus Studio 1824c ("Studio USB ASIO Driver", 20 in / 18 out), Radial ProRMP re-amper, Radial
+  ProDI direct box. New captures come from the capture rig (`pedal_model/rig/`); the older ones were recorded in
+  Studio One. Once the rig is proven, the Studio One-era capture files will likely be cleared (not before).
 
 ## Git
 
@@ -71,19 +97,31 @@ target), and an early Pi Muff stem pair.
   One `Cache/` and `History/` folders, and firmware build output are ignored. GitHub rejects files over 100 MB.
   On 2026-10-17, multi-GB `results.pkl` files were stripped from unpushed history.
 - Plots (`*.png`) and small JSON/CSV results in `outputs/` and `results/` are tracked.
-- Line endings are LF (`.gitattributes`: `* text=auto eol=lf`), because the code runs in WSL.
+- Line endings are LF (`.gitattributes`: `* text=auto eol=lf`). Keep it that way: the firmware build runs in
+  WSL, and the history was written with LF.
+- Capture sessions: `session.json`, `params.json` and signal manifests are tracked (small, and they record how
+  each capture was made); their WAVs are not. Demo runs (`recordings/data/*/sessions_demo/`) are ignored.
+- Submodules in `external/` are pinned commits. Updating one is a deliberate commit that records the new
+  pin; rebuild and re-test the firmware when you do.
 
 ## Firmware (Daisy / Hothouse)
 
 - The source is in `daisy/` (`klonsim_pedal.cpp`, `klonsim_params.h`, `Makefile`). `scripts/export_daisy_coeffs.py`
   writes the params header and copies the sources into `results/pedalode/klonsim_v1/daisy/`, a complete
   build folder.
-- The libraries are standalone clones at `D:\Projects\{libDaisy,DaisySP,HothouseExamples}` (`/mnt/d/projects/...`
-  in WSL). The Makefile defaults point there.
-- Toolchain (WSL): `arm-none-eabi-gcc` 13.2, `make`, `dfu-util`. Build and flash from WSL with `make` and
-  `make program-dfu`. From the Windows side (VS Code / Claude Code), wrap the command:
-  `wsl.exe -e bash -lc 'cd /mnt/c/Users/Brian/Documents/GitHub/PedalDSP/daisy && make'`. Run Python the same
-  way (`... && uv run pytest tests`). `usbipd` 5.3 is installed on Windows for attaching the DFU device.
+- **Libraries are git submodules** in `external/` (since 2026-10-17): `libDaisy` (v9.0.0+), `DaisySP`, and
+  `HothouseExamples` (for `src/hothouse.h/.cpp` and the example effects). `git submodule update --init
+  --recursive` fetches everything, including HothouseExamples' own older nested libDaisy/DaisySP (pinned 2024);
+  those nested copies are **not** used: our firmware and the examples build against `external/libDaisy` and
+  `external/DaisySP` (examples: `make LIBDAISY_DIR=… DAISYSP_DIR=…`). The Makefile finds the repo root with
+  `git rev-parse`. The old clones in `D:\Projects` are no longer used.
+- Build check 2026-10-17 (libDaisy v9.0.0-5): KlonSim 89,440 B flash (68.2%); HelloWorld, BasicTremolo,
+  AmnesiaDelay, EchoKingMkII all build.
+- Toolchain (WSL): `arm-none-eabi-gcc` 13.2, `make`, `dfu-util`. From Windows, wrap the command:
+  `wsl.exe -e bash -lc 'cd /mnt/c/Users/Brian/Documents/GitHub/PedalDSP/daisy && make'` (from Git Bash, set
+  `MSYS_NO_PATHCONV=1` so `/mnt/c/...` paths are not rewritten). Build libraries once with
+  `make -C external/libDaisy` and `make -C external/DaisySP`. `usbipd` 5.3 is installed on Windows for
+  attaching the DFU device. Never flash without the person asking.
 - **DFU:** hold **both** footswitches for 2 s (the firmware must already be running), or hold BOOT on the Seed
   and tap RESET. USB reaches WSL through `usbipd attach --wsl --busid <id>`. Full steps are in
   `docs/daisy_programming.md`.

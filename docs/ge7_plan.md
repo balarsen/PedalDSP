@@ -171,6 +171,11 @@ so adding +6 to +12 dB of return gain is fine if desired.
 
 ### Session steps (per preset)
 
+> **Now automated:** the capture rig (`uv run python -m pedal_model.rig --hardware`, profile `ge7`) shows the
+> slider positions for each preset, plays the signal at the −10 dB send level from
+> `pedal_model/rig/profiles/ge7.json`, records, checks the response against Ge7Sim, and saves the preset folder.
+> The manual Studio One steps below are kept for reference.
+
 1. Open `recordings/data/signals/train_signal_v2.wav` in DAW, set playback track fader to **−10 dB**
 2. Route playback into GE-7 via reamp box, arm return track
 3. Run: `uv run python scripts/capture_ge7_checklist.py --preset preset_smile`

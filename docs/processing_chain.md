@@ -29,6 +29,12 @@ more training epochs without re-running slow classical fits.
 
 ## Step 1: Capture
 
+> **Use the capture rig (since 2026-10-17).** `uv run python -m pedal_model.rig --hardware` plays the signal,
+> records the return and a loopback in one ASIO stream, calibrates, checks every take, and writes the
+> preset folders with `params.json` already in the format Step 2 describes, so Steps 1 and 2 are done for
+> you. Wiring, box settings and troubleshooting: README.md, "Capture rig". The DAW procedure below is the
+> older manual method, kept for reference.
+
 ### Hardware rig
 
 ```

@@ -8,17 +8,20 @@ with the Studio One recording sessions. Rules are in `CLAUDE.md`. The older, mor
 
 ```
 PedalDSP/
+├── README.md                   setup, capture rig wiring + quickstart, troubleshooting
 ├── CLAUDE.md, PROJECT_MAP.md   working rules, this map
-├── pedal_model/                Python library (uv package "pedal-model")
+├── pedal_model/                Python library (uv package "pedal-model"), incl. the capture rig (rig/)
 ├── scripts/                    CLI entry points: analyze_*, fit_*, make_*, export_*, train_*
 ├── notebooks/                  marimo notebooks (.py); learning tiers, Pi Muff, Notaklon diagnostics
 ├── tests/                      pytest suite, mirrors pedal_model/
 ├── daisy/                      Hothouse firmware source: KlonSim ODE model (C++ / libDaisy)
-├── configs/                    experiment YAML
+├── external/                   git submodules: libDaisy (v9), DaisySP, HothouseExamples
+├── configs/                    experiment YAML; rig.json (capture rig: device, channels, box settings)
 ├── docs/                       plans, capture results, model/metric references
 ├── recordings/                 ALL audio (WAVs git-ignored, metadata tracked)
 │   ├── <Studio One sessions>/  the five DAW sessions (below)
 │   └── data/                   pipeline audio + JSON manifests/params (below)
+│       └── <pedal>/sessions/   capture-rig sessions (sessions_demo/ = simulated, git-ignored)
 ├── outputs/                    analysis plots + summaries per experiment (PNGs/JSON tracked, WAVs ignored)
 ├── results/                    model-zoo results (CSV tracked, *.pkl ignored), PedalODE fits, firmware build dir
 ├── checkpoints/                trained weights (ignored)
@@ -35,6 +38,7 @@ PedalDSP/
 | `signals/` | `generate.py` (parameterised, seeded signal generator; writes WAV + JSON manifest), `manifest.py` (Section/Manifest reader) |
 | `data/` | `dataset.py` (PedalDataset/ChunkDataset, `from_manifest()`), `resample.py` (96→48 kHz polyphase, float32↔int16 for the Daisy), `augment.py` |
 | `capture/` | `align.py` (cross-correlation latency), `hardware_delay.py`, `verify.py`, `generate_sweep.py` |
+| `rig/` | Closed-loop capture rig: `backends` (ASIO / simulated), `engine`, `signals`, `calibrate`, `qc`, `session`, `compare`, `profiles/` (ge7.json), `gui/` (PySide6). Run `uv run python -m pedal_model.rig` |
 | `models/classical/` | FIR, IIR, Hammerstein, Wiener-Hammerstein, Volterra, circuit dictionary |
 | `models/neural/` | MLP, LSTM, GRU, TCN, WaveNet, DDSP, DDSP-Klon, conditioned LSTM/TCN (knob inputs) |
 | `ode/` | PedalODE models: filters, nonlinearity, Wiener-Hammerstein ODE, fitting, identifiability, step0 |
@@ -44,6 +48,17 @@ PedalDSP/
 | `train/` | trainer, losses, scheduler |
 | `inference/` | streaming (block-by-block) runner, the way the Daisy would run it |
 | `utils/` | analysis, plotting, resampling, synthesis helpers |
+
+## Capture rig sessions
+
+`recordings/data/<pedal>/sessions/<YYYY-MM-DD_HHMM>_<sr>k/`: `session.json` (settings, rig snapshot,
+calibration, per-preset status, event log), `signals/` (the session's own train/val signals with manifests),
+and one folder per preset with `params.json` (loads in `scripts/fit_models.py --klon-sim-dir`),
+`wet_train.wav`/`wet_val.wav` (return aligned on the loopback latency) and `raw_*.wav` (return + loopback).
+Simulated runs go to `sessions_demo/` and are never committed.
+
+**To retire later:** once the rig is proven, the Studio One-era captures (`recordings/data/*/captures/`, the
+`recordings/<session>/Media` WAVs) will likely be cleared. Nothing has been removed yet.
 
 ## `recordings/data/` (pipeline audio)
 
@@ -96,7 +111,8 @@ Studio One names: `name(2).wav` is an automatic re-take suffix, and `name 2.wav`
 
 `results/pedalode/klonsim_v1/staged/stage3_params.json` → `scripts/export_daisy_coeffs.py` →
 `results/pedalode/klonsim_v1/daisy/` (header + copied `daisy/` sources) → `make && make program-dfu` in WSL.
-The libraries are at `D:\Projects\{libDaisy,DaisySP,HothouseExamples}`.
+The libraries are the submodules in `external/` (built once with `make -C external/libDaisy` and
+`make -C external/DaisySP` in WSL).
 
 ## `docs/`
 

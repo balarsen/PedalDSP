@@ -2,11 +2,14 @@
 	path = external/libDaisy
 	url = https://github.com/electro-smith/libDaisy.git
 	branch = master
+	ignore = dirty
 [submodule "external/DaisySP"]
 	path = external/DaisySP
 	url = https://github.com/electro-smith/DaisySP.git
 	branch = master
+	ignore = dirty
 [submodule "external/HothouseExamples"]
 	path = external/HothouseExamples
 	url = https://github.com/clevelandmusicco/HothouseExamples.git
 	branch = main
+	ignore = dirty

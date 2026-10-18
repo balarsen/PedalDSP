@@ -67,13 +67,15 @@ sudo apt install make gcc-arm-none-eabi binutils-arm-none-eabi dfu-util
 
 ### Build libDaisy and DaisySP (one time)
 
-```bash
-cd /mnt/d/projects/libDaisy
-git submodule update --init --recursive
-make
+The libraries are git submodules of this repo (`external/`). Fetch them on Windows, build them in WSL:
 
-cd /mnt/d/projects/DaisySP
-make
+```bash
+# Windows (any shell), from the repo root:
+git submodule update --init --recursive
+
+# WSL, from the repo root (/mnt/c/Users/Brian/Documents/GitHub/PedalDSP):
+make -C external/libDaisy
+make -C external/DaisySP
 ```
 
 ---
@@ -83,8 +85,8 @@ make
 The firmware sources live in `results/pedalode/klonsim_v1/daisy/` and are generated
 by the coefficient export script. To regenerate coefficients **and** copy sources:
 
-```bash
-# From repo root:
+```powershell
+# From the repo root, on Windows (Python lives there):
 uv run python scripts/export_daisy_coeffs.py
 ```
 

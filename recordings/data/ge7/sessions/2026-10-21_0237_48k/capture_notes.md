@@ -77,3 +77,18 @@ bright (09:03) also clips (linearity 7.3 dB, THD -10 dB).
   3. Recapture the boosting presets (all_up, bass_boost, bright, and the rest of the plan) with
      auto-level on; check each with `scripts/session_linearity.py`.
 - This session's good data: flat, all_down (and the cut-only presets if captured).
+
+## frown (captured on code 840e480, before auto-level)
+
+Mildly clipped at the loudest level only: sweep at -3 dBFS reads 0.5 dB (400 Hz) and 2.4 dB (800 Hz)
+low, exactly where frown boosts (+6 to +8 dB); loud tones there THD -15.5 dB. The other five sections
+(sweeps -24/-12, pink -24/-12/-3) agree within 0.02 dB, coherence 0.9994: usable. Auto-level would
+have sent it about 7 dB lower.
+
+## Salvage for rung A
+
+The clipped takes of this session still contain linear sections (frown: all but the -3 dBFS sweep;
+the quieter sections of bass_boost and bright; all_up's pink -24). The rung A fitter should take
+sections, not whole takes, and drop any section whose response disagrees with the take's quietest
+sections by more than the repeatability floor (about 0.15 dB). That keeps today's linear data and
+gives a two-session cross-check against tomorrow's auto-levelled recaptures.

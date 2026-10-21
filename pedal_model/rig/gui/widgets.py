@@ -36,23 +36,6 @@ def card(title: str | None = None) -> tuple[QFrame, QVBoxLayout]:
     return f, lay
 
 
-def auto_scale_box(plot: pg.PlotWidget, fixed: tuple[float, float], min_span: float) -> QCheckBox:
-    """An "Auto scale" checkbox for a plot (on by default): auto Y range, else a fixed range."""
-    box = QCheckBox("Auto scale")
-    box.setChecked(True)
-    plot.setLimits(minYRange=min_span)
-
-    def apply(on: bool) -> None:
-        if on:
-            plot.enableAutoRange(axis="y", enable=True)
-        else:
-            plot.setYRange(*fixed)
-
-    box.toggled.connect(apply)
-    apply(True)
-    return box
-
-
 def show_error(parent: QWidget, title: str, tb: str) -> None:
     """Error box: the last line of a traceback up front, the whole traceback under Show Details,
     and a Copy button that puts the whole traceback on the clipboard (for pasting into a report).
@@ -73,12 +56,13 @@ def show_error(parent: QWidget, title: str, tb: str) -> None:
     box.exec()
 
 
-class LiveAutoY:
-    """Auto scale for plots redrawn many times a second, with its "Auto scale" checkbox (``box``).
+class AutoY:
+    """Y auto scale for a plot, with its "Auto scale" checkbox (``box``). Call ``update()`` after
+    ``setData``: live plots get it at most every ``period_s``; ``update(force=True)`` rescales now.
 
     pyqtgraph's own auto range re-lays-out the axes on every update, which made one Run-page repaint
-    cost about 0.9 s at 2400x1300 (2026-10-20). This recomputes the range at most every
-    ``period_s``, snapped to ``step_db``, and only touches the axes when the snapped range changes.
+    cost about 0.9 s at 2400x1300 (2026-10-20). Here the range is snapped to ``step_db`` and the
+    axes are only touched when the snapped range changes.
     """
 
     def __init__(
@@ -252,6 +236,16 @@ class ControlPanel(QWidget):
         )
 
 
+def check_line_html(status: str, text: str, detail: str = "") -> str:
+    """One QC / advice line as rich text: a coloured status mark, the text, an optional detail."""
+    colour = theme.STATUS_COLOURS.get(status, theme.TEXT_DIM)
+    sym = {"ok": "●", "warn": "▲", "fail": "✖", "busy": "◌"}.get(status, "○")
+    body = f"<span style='color:{colour}'>{sym}</span>&nbsp; {text}"
+    if detail:
+        body += f"<br><span style='color:{theme.TEXT_DIM}'>{detail}</span>"
+    return body
+
+
 class CheckList(QWidget):
     """Coloured status dots with text: for calibration advice and QC items."""
 
@@ -274,14 +268,7 @@ class CheckList(QWidget):
         self.lay.addWidget(label(f"<b style='color:{theme.CYAN_BRIGHT}'>{text}</b>"))
 
     def add(self, status: str, text: str, detail: str = "") -> None:
-        colour = theme.STATUS_COLOURS.get(status, theme.TEXT_DIM)
-        sym = {"ok": "●", "warn": "▲", "fail": "✖", "busy": "◌"}.get(status, "○")
-        body = f"<span style='color:{colour}; font-size:12pt'>{sym}</span>&nbsp; {text}"
-        if detail:
-            body += (
-                f"<br><span style='color:{theme.TEXT_DIM}'>&nbsp;&nbsp;&nbsp;&nbsp;{detail}</span>"
-            )
-        self.lay.addWidget(label(body))
+        self.lay.addWidget(label(check_line_html(status, text, detail)))
 
 
 class CheckText(QTextBrowser):
@@ -308,10 +295,6 @@ class CheckText(QTextBrowser):
         self.setHtml("".join(self._parts))
 
     def add(self, status: str, text: str, detail: str = "") -> None:
-        colour = theme.STATUS_COLOURS.get(status, theme.TEXT_DIM)
-        sym = {"ok": "●", "warn": "▲", "fail": "✖", "busy": "◌"}.get(status, "○")
-        body = f"<span style='color:{colour}'>{sym}</span>&nbsp; {text}"
-        if detail:
-            body += f"<br><span style='color:{theme.TEXT_DIM}'>{detail}</span>"
+        body = check_line_html(status, text, detail)
         self._parts.append(f"<p style='margin:2px 0 4px 18px; text-indent:-18px'>{body}</p>")
         self.setHtml("".join(self._parts))

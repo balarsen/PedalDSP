@@ -19,15 +19,15 @@ from PySide6.QtWidgets import (
 
 from pedal_model.rig.analysis import log_bin_db, log_grid, peak_dbfs, spectrum_db
 from pedal_model.rig.bandfit import fit_band
+from pedal_model.rig.calibrate import ref_db_at
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import confirm_playback, demo_pedal
 from pedal_model.rig.gui.state import AppState
 from pedal_model.rig.gui.widgets import (
+    AutoY,
     CheckText,
     ControlPanel,
     LevelMeter,
-    LiveAutoY,
-    auto_scale_box,
     card,
     label,
     show_error,
@@ -118,9 +118,6 @@ def _capture_and_check(state: AppState, preset: Preset, role: str, report):
     report("Saving the WAV files and params.json")
     session.save_capture(preset, role, take, wet, rep.to_dict(), band_fit=fit)
     return role, rep
-
-
-_auto_box = auto_scale_box  # page_review imports it from here
 
 
 class RunPage(QWidget):
@@ -223,7 +220,7 @@ class RunPage(QWidget):
         )
         meters.addWidget(self.spec, 1)
         lay.addLayout(meters)
-        self.spec_y = LiveAutoY(self.spec, SPECTRUM_Y, SPECTRUM_MIN_SPAN_DB, step_db=10.0)
+        self.spec_y = AutoY(self.spec, SPECTRUM_Y, SPECTRUM_MIN_SPAN_DB, step_db=10.0)
         lay.addWidget(self.spec_y.box, 0, Qt.AlignRight)
         right.addWidget(f, 1)
 
@@ -238,7 +235,7 @@ class RunPage(QWidget):
         )
         self.c_measured = self.resp.plot(pen=pg.mkPen(theme.OK, width=2.5), name="measured")
         lay.addWidget(self.resp)
-        self.resp_y = LiveAutoY(self.resp, RESPONSE_Y, RESPONSE_MIN_SPAN_DB, step_db=3.0)
+        self.resp_y = AutoY(self.resp, RESPONSE_Y, RESPONSE_MIN_SPAN_DB, step_db=3.0)
         lay.addWidget(self.resp_y.box, 0, Qt.AlignRight)
         right.addWidget(f, 1)
 
@@ -505,7 +502,7 @@ class RunPage(QWidget):
         if self._live_corr is None:
             ref = calibration_reference(cal, self.state.profile.qc.get("reference", "chain"))
             if ref is not None:
-                self._live_corr = ref.db_at(grid)
+                self._live_corr = ref_db_at(ref, grid)
             else:
                 self._live_corr = cal["chain"]["gain_db"] if cal.get("chain") else 0.0
         self.c_live.setData(grid, live - self._live_corr, connect="finite")

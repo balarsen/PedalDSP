@@ -294,6 +294,6 @@ class PlanPage(QWidget):
             "preset, "
             f"{per_role['sweep'] / 60:.1f} min per map step)"
         )
-        if speed != 1.0:
+        if speed > 0 and speed != 1.0:
             txt += f"; demo at {speed:g}×: about {total / speed / 60:.1f} min"
         self.estimate.setText(txt + ", plus the time to set the controls.")

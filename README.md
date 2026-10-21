@@ -41,8 +41,8 @@ a stage-by-stage progress bar; accept or retake) → **Review** (per-step respon
 and the slider-map table). Close Studio One first: ASIO allows one program at a time.
 
 **Slider map (GE-7).** Each slider alone at +15, +7.5, −7.5 and −15 dB, with a ~1 min sweep-only signal.
-Every step is fitted with an RBJ peaking filter (centre frequency, Q, bandwidth in octaves, gain); the
-6.4k band as a high shelf (corner, slope, gain) and LEVEL as a flat gain. Review shows the measured
+Every step is fitted with the analog RBJ peaking filter |H(jω)| (centre frequency, Q, bandwidth in
+octaves, gain); the 6.4k band as an analog high shelf (corner, slope, gain) and LEVEL as a flat gain. Review shows the measured
 numbers next to the same fit applied to the Ge7Sim model.
 
 ### Wiring

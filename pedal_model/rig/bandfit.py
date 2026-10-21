@@ -1,7 +1,7 @@
 """Fit one EQ band to a measured response: centre frequency, Q / bandwidth, gain (slider map).
 
-The models are the RBJ Audio EQ Cookbook peaking filter and high shelf, the same family Ge7Sim uses,
-so a fitted band can be compared with the model directly.
+The models are the analog prototypes of the RBJ Audio EQ Cookbook peaking filter and high shelf,
+written as |H(jω)|: continuous time, like the GE-7 block model, so no sample rate is involved.
 """
 
 from __future__ import annotations
@@ -10,7 +10,6 @@ from dataclasses import asdict, dataclass
 
 import numpy as np
 from scipy.optimize import least_squares
-from scipy.signal import freqz
 
 # Fit range: above the DC-blocking region, below the converter roll-off.
 FIT_BAND_HZ = (30.0, 16_000.0)
@@ -69,48 +68,33 @@ def q_to_bw_oct(q: float) -> float:
     return float(2 / np.log(2) * np.arcsinh(1 / (2 * q)))
 
 
-def _peak_coeffs(fc: float, q: float, gain_db: float, sr: int) -> tuple[np.ndarray, np.ndarray]:
+def peak_db(f: np.ndarray, fc: float, q: float, gain_db: float) -> np.ndarray:
+    """|H(jω)| in dB of the analog peaking EQ (RBJ cookbook prototype), at frequencies f (Hz):
+
+        H(s) = (s² + (A/Q)·s + 1) / (s² + s/(A·Q) + 1),   s = j·f/fc,   A = 10^(gain_dB/40)
+
+    Gain is ``gain_db`` at fc and 0 dB far from it.
+    """
     a = 10 ** (gain_db / 40)
-    w0 = 2 * np.pi * fc / sr
-    alpha = np.sin(w0) / (2 * q)
-    b = np.array([1 + alpha * a, -2 * np.cos(w0), 1 - alpha * a])
-    den = np.array([1 + alpha / a, -2 * np.cos(w0), 1 - alpha / a])
-    return b, den
+    s = 1j * np.asarray(f) / fc
+    h = (s * s + s * a / q + 1) / (s * s + s / (a * q) + 1)
+    return 20 * np.log10(np.abs(h))
 
 
-def _shelf_coeffs(
-    fc: float, gain_db: float, slope: float, sr: int
-) -> tuple[np.ndarray, np.ndarray]:
+def shelf_db(f: np.ndarray, fc: float, gain_db: float, slope: float = 1.0) -> np.ndarray:
+    """|H(jω)| in dB of the analog high shelf (RBJ cookbook prototype), at frequencies f (Hz):
+
+        H(s) = A·(A·s² + (√A/Q)·s + 1) / (s² + (√A/Q)·s + A),   s = j·f/fc,
+        1/Q = √((A + 1/A)·(1/S − 1) + 2),   A = 10^(gain_dB/40)
+
+    0 dB at low frequency, ``gain_db`` at high frequency; slope S = 1 is the steepest without
+    overshoot.
+    """
     a = 10 ** (gain_db / 40)
-    w0 = 2 * np.pi * fc / sr
-    alpha = np.sin(w0) / 2 * np.sqrt((a + 1 / a) * (1 / slope - 1) + 2)
-    c, sq = np.cos(w0), 2 * np.sqrt(a) * alpha
-    b = np.array(
-        [
-            a * ((a + 1) + (a - 1) * c + sq),
-            -2 * a * ((a - 1) + (a + 1) * c),
-            a * ((a + 1) + (a - 1) * c - sq),
-        ]
-    )
-    den = np.array(
-        [(a + 1) - (a - 1) * c + sq, 2 * ((a - 1) - (a + 1) * c), (a + 1) - (a - 1) * c - sq]
-    )
-    return b, den
-
-
-def _response_db(b: np.ndarray, a: np.ndarray, f: np.ndarray, sr: int) -> np.ndarray:
-    _, h = freqz(b, a, worN=f, fs=sr)
-    return 20 * np.log10(np.abs(h) + 1e-12)
-
-
-def peak_db(f: np.ndarray, fc: float, q: float, gain_db: float, sr: int) -> np.ndarray:
-    """Magnitude (dB) of an RBJ peaking filter at frequencies *f* (Hz)."""
-    return _response_db(*_peak_coeffs(fc, q, gain_db, sr), f, sr)
-
-
-def shelf_db(f: np.ndarray, fc: float, gain_db: float, sr: int, slope: float = 1.0) -> np.ndarray:
-    """Magnitude (dB) of an RBJ high shelf at frequencies *f* (Hz)."""
-    return _response_db(*_shelf_coeffs(fc, gain_db, slope, sr), f, sr)
+    inv_q = np.sqrt((a + 1 / a) * (1 / slope - 1) + 2)
+    s = 1j * np.asarray(f) / fc
+    h = a * (a * s * s + np.sqrt(a) * inv_q * s + 1) / (s * s + np.sqrt(a) * inv_q * s + a)
+    return 20 * np.log10(np.abs(h))
 
 
 def fit_band(
@@ -126,7 +110,7 @@ def fit_band(
     Args:
         freqs_hz: Frequency grid (log-spaced is best), Hz.
         measured_db: Pedal-only response on that grid, dB (0 dB = unity).
-        sr: Sample rate in Hz (the filters are digital, as in Ge7Sim).
+        sr: Sample rate in Hz (only to keep the fit below the converter roll-off).
         nominal_hz: Panel frequency of the band (the starting point), or None for a level control.
         nominal_db: Slider setting in dB (the starting gain).
         try_shelf: The band is expected to be a high shelf (the GE-7's 6.4k band): fit both and
@@ -147,7 +131,7 @@ def fit_band(
     start_db = nominal_db or 1.0
 
     def peak_resid(p):
-        return peak_db(f, 10 ** p[0], np.exp(p[1]), p[2], sr) - m
+        return peak_db(f, 10 ** p[0], np.exp(p[1]), p[2]) - m
 
     r = least_squares(
         peak_resid,
@@ -159,7 +143,7 @@ def fit_band(
     if try_shelf:
 
         def shelf_resid(p):
-            return shelf_db(f, 10 ** p[0], p[1], sr, p[2]) - m
+            return shelf_db(f, 10 ** p[0], p[1], p[2]) - m
 
         s = least_squares(
             shelf_resid,

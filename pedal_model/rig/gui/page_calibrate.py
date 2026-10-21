@@ -27,14 +27,14 @@ from PySide6.QtWidgets import (
 )
 
 from pedal_model.rig.analysis import peak_dbfs
-from pedal_model.rig.calibrate import CAL_STEPS, CalStep, Reference, StepResult, run_step
+from pedal_model.rig.calibrate import CAL_STEPS, ref_db_at, run_step
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.diagram import BlockDiagram
 from pedal_model.rig.gui.state import AppState
 from pedal_model.rig.gui.widgets import (
+    AutoY,
     CheckList,
     ControlPanel,
-    auto_scale_box,
     card,
     label,
     show_error,
@@ -88,22 +88,23 @@ def demo_pedal(state: AppState, controls: dict[str, float] | None) -> None:
 class StepCard(QFrame):
     """One guided step: what to move, what the test checks, a Run button and the results."""
 
-    def __init__(self, step: CalStep, pedal: str, on_run) -> None:
+    def __init__(self, step: dict, pedal: str, on_run) -> None:
         super().__init__()
         self.step = step
         self.setObjectName("card")
         lay = QVBoxLayout(self)
         lay.setContentsMargins(14, 10, 14, 10)
         head = QHBoxLayout()
-        head.addWidget(label(f"<b>{step.id} · {step.title.format(pedal=pedal)}</b>"), 1)
+        sid = step["id"]
+        head.addWidget(label(f"<b>{sid} · {step['title'].format(pedal=pedal)}</b>"), 1)
         self.chip = label("", wrap=False)
         head.addWidget(self.chip)
         lay.addLayout(head)
-        moves = "".join(f"<li>{m.format(pedal=pedal)}</li>" for m in step.moves)
+        moves = "".join(f"<li>{m.format(pedal=pedal)}</li>" for m in step["moves"])
         lay.addWidget(label(f"<ol style='margin-left:-20px'>{moves}</ol>"))
-        lay.addWidget(label(f"Checks: {step.checks}", "dim"))
-        self.btn = QPushButton(f"Run {step.id} test")
-        self.btn.clicked.connect(lambda: on_run(step.id))
+        lay.addWidget(label(f"Checks: {step['checks']}", "dim"))
+        self.btn = QPushButton(f"Run {sid} test")
+        self.btn.clicked.connect(lambda: on_run(sid))
         lay.addWidget(self.btn, 0, Qt.AlignLeft)
         self.results = CheckList()
         lay.addWidget(self.results)
@@ -117,8 +118,7 @@ class StepCard(QFrame):
     def show_advice(self, advice: list) -> None:
         self.results.clear()
         for a in advice:
-            status, text = (a.status, a.text) if hasattr(a, "status") else (a["status"], a["text"])
-            self.results.add(status, text)
+            self.results.add(a["status"], a["text"])
 
 
 class CalibratePage(QWidget):
@@ -153,7 +153,7 @@ class CalibratePage(QWidget):
         self.cards: dict[str, StepCard] = {}
         for step in CAL_STEPS:
             c = StepCard(step, pedal, self._run)
-            self.cards[step.id] = c
+            self.cards[step["id"]] = c
             steps_lay.addWidget(c)
         steps_lay.addStretch()
         scroll = QScrollArea()
@@ -195,9 +195,8 @@ class CalibratePage(QWidget):
             pen=pg.mkPen(theme.OK, width=2), name="engaged ÷ bypassed (C4)"
         )
         lay.addWidget(self.plot)
-        lay.addWidget(
-            auto_scale_box(self.plot, REFERENCE_Y, REFERENCE_MIN_SPAN_DB), 0, Qt.AlignRight
-        )
+        self.plot_y = AutoY(self.plot, REFERENCE_Y, REFERENCE_MIN_SPAN_DB, step_db=1.0)
+        lay.addWidget(self.plot_y.box, 0, Qt.AlignRight)
         self.table = QTableWidget(0, 3)
         self.table.setHorizontalHeaderLabels(["C2 send (dBFS)", "Return (dBFS)", "Gain (dB)"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
@@ -227,32 +226,33 @@ class CalibratePage(QWidget):
         unlocked = True
         pending = None
         for step in CAL_STEPS:
-            st = self._status(step.id)
+            st = self._status(step["id"])
             shown = st if unlocked or st != "todo" else "locked"
-            self.cards[step.id].set_status(shown, unlocked and self.busy is None)
+            self.cards[step["id"]].set_status(shown, unlocked and self.busy is None)
             if pending is None and unlocked and st in ("todo", "fail"):
                 pending = step
             unlocked = unlocked and st in ("ok", "warn")
         cables = dict(self.state.cables)
         if pending is not None:
-            cables.update({c: "move" for c in pending.cables})
+            cables.update({c: "move" for c in pending["cables"]})
         self.diagram.set_cable_states(cables)
         self._plot()
 
     def _plot(self) -> None:
-        refs = {k: Reference.from_dict(v) for k, v in self.references.items()}
+        refs = self.references
         for curve in (self.c_chain, self.c_bypass, self.c_engaged):
             curve.setData([], [])
         if "chain" in refs:
             r = refs["chain"]
-            self.c_chain.setData(r.freqs_hz, np.asarray(r.mag_db) - r.gain_1k_db)
+            self.c_chain.setData(r["freqs_hz"], np.asarray(r["mag_db"]) - r["gain_1k_db"])
         for name, base, curve in (
             ("bypass", "chain", self.c_bypass),
             ("engaged_flat", "bypass", self.c_engaged),
         ):
             if name in refs and base in refs:
-                f = np.asarray(refs[name].freqs_hz)
-                curve.setData(f, np.asarray(refs[name].mag_db) - refs[base].db_at(f))
+                f = np.asarray(refs[name]["freqs_hz"])
+                curve.setData(f, np.asarray(refs[name]["mag_db"]) - ref_db_at(refs[base], f))
+        self.plot_y.update(force=True)
 
     def _run(self, step_id: str) -> None:
         st = self.state
@@ -263,17 +263,17 @@ class CalibratePage(QWidget):
             return
         if not confirm_playback(self, st):
             return
-        step = next(s for s in CAL_STEPS if s.id == step_id)
-        if st.simulated and step.pedal_state is not None:
+        step = next(s for s in CAL_STEPS if s["id"] == step_id)
+        if st.simulated and step["pedal_state"] is not None:
             cal_name = st.profile.raw.get("calibration_preset", "flat")
             try:
                 demo_pedal(st, st.profile.preset(cal_name).controls)
             except KeyError:
                 demo_pedal(st, None)
-            st.engine.backend.set_pedal_state(step.pedal_state)
+            st.engine.backend.set_pedal_state(step["pedal_state"])
         train = st.session.signal("train")
         train_peak = peak_dbfs(sf.read(str(train.wav_path), dtype="float32")[0])
-        refs = {k: Reference.from_dict(v) for k, v in self.references.items()}
+        refs = dict(self.references)
         self.busy = step_id
         self.cards[step_id].results.clear()
         self.cards[step_id].results.add("busy", "Running…")
@@ -290,30 +290,30 @@ class CalibratePage(QWidget):
             on_fail=self._failed,
         )
 
-    def _done(self, res: StepResult) -> None:
+    def _done(self, res: dict) -> None:
         self.busy = None
         s = self.state.session
-        later = [x.id for x in CAL_STEPS][[x.id for x in CAL_STEPS].index(res.step) + 1 :]
-        for sid in later:  # their cables and references no longer match
-            self.steps.pop(sid, None)
-            self.cards[sid].results.clear()
-            ref = next(x for x in CAL_STEPS if x.id == sid).reference
-            if ref:
-                self.references.pop(ref, None)
-        if res.loopback is not None:
-            self.loopback = res.loopback.to_dict()
-        if res.chain is not None:
-            self.chain = res.chain.to_dict()
+        ids = [x["id"] for x in CAL_STEPS]
+        for later in CAL_STEPS[ids.index(res["step"]) + 1 :]:  # cables and references now stale
+            self.steps.pop(later["id"], None)
+            self.cards[later["id"]].results.clear()
+            if later["reference"]:
+                self.references.pop(later["reference"], None)
+        if res["loopback"] is not None:
+            self.loopback = res["loopback"]
+        if res["chain"] is not None:
+            self.chain = res["chain"]
             self._show_tones(self.chain["steps"])
-        if res.reference is not None and res.passed:
-            res.reference.file = s.save_reference(res.reference.name, res.take)
-            self.references[res.reference.name] = res.reference.to_dict()
-        self.steps[res.step] = {
-            "status": res.status,
-            "advice": [{"status": a.status, "text": a.text} for a in res.advice],
+        ref = res["reference"]
+        if ref is not None and res["status"] != "fail":
+            ref["file"] = s.save_reference(ref["name"], res["take"])
+            self.references[ref["name"]] = ref
+        self.steps[res["step"]] = {
+            "status": res["status"],
+            "advice": res["advice"],
             "time_local": datetime.now().isoformat(timespec="seconds"),
         }
-        self.cards[res.step].show_advice(res.advice)
+        self.cards[res["step"]].show_advice(res["advice"])
         path = s.set_calibration(self.loopback, self.chain, self.references, self.steps)
         self.state.set_cables_from_calibration(s.data["calibration"])
         self.state.calibration_changed.emit()
@@ -336,7 +336,8 @@ class CalibratePage(QWidget):
             ok = all(a["status"] != "fail" for a in self.loopback["advice"])
             self.steps["C1"] = {"status": "ok" if ok else "fail", "advice": self.loopback["advice"]}
         for step in CAL_STEPS:
-            self.cards[step.id].show_advice(self.steps.get(step.id, {}).get("advice", []))
+            sid = step["id"]
+            self.cards[sid].show_advice(self.steps.get(sid, {}).get("advice", []))
         self.table.setRowCount(0)
         if self.chain and "C2" in self.steps:
             self._show_tones(self.chain["steps"])

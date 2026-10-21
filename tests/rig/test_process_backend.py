@@ -31,7 +31,7 @@ def test_take_through_a_child_process_matches_in_process():
 
 
 def test_loopback_lag_through_a_child_process():
-    assert run_loopback_test(_engine(), SR).lag_samples == 47
+    assert run_loopback_test(_engine(), SR)["lag_samples"] == 47
 
 
 def test_abort_stops_the_child():

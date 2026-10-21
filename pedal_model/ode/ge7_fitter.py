@@ -14,27 +14,24 @@ the time domain.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, field
 
 import numpy as np
 import torch
 from torch import Tensor
 
-from pedal_model.ode import blocks
 from pedal_model.ode.ge7_model import (
-    BYPASS_SPECS,
-    RATIO_SPECS,
+    BYPASS_NAMES,
+    PARAMS,
+    RATIO_NAMES,
     SLIDER_KEYS,
-    SPECS_BY_NAME,
     bypass_response,
     pack,
     ratio_response,
-    raw_labels,
+    theta_labels,
     unpack,
 )
 
-RATIO_NAMES: tuple[str, ...] = tuple(p.name for p in RATIO_SPECS)
-BYPASS_NAMES: tuple[str, ...] = tuple(p.name for p in BYPASS_SPECS)
+NEPER_TO_DB = 20.0 / np.log(10.0)
 
 
 def log_ratio_residual(h_model: Tensor, h_meas: Tensor, weight: Tensor | None, phase_weight: float):
@@ -42,20 +39,6 @@ def log_ratio_residual(h_model: Tensor, h_meas: Tensor, weight: Tensor | None, p
     lr = torch.log(h_model / h_meas)
     w = 1.0 if weight is None else weight
     return torch.cat([(w * lr.real).reshape(-1), (w * phase_weight * lr.imag).reshape(-1)])
-
-
-# ── Levenberg–Marquardt ──────────────────────────────────────────────────────
-
-
-@dataclass
-class LMResult:
-    theta: Tensor
-    cost: float  # 0.5 Σ r²
-    iterations: int
-    converged: bool
-    jacobian: Tensor
-    residual: Tensor
-    history: list[float] = field(default_factory=list)
 
 
 def levenberg_marquardt(
@@ -66,14 +49,21 @@ def levenberg_marquardt(
     ftol: float = 1e-15,
     xtol: float = 1e-12,
     mu0: float = 1e-3,
-) -> LMResult:
-    """Minimise ½‖fun(θ)‖² with Marquardt's diagonal scaling; Jacobian by forward-mode autodiff."""
+) -> dict:
+    """Minimise ½‖r(θ)‖² with r = ``fun(θ)``: Levenberg–Marquardt with Marquardt's scaling.
+
+    Each step solves (JᵀJ + μ·diag(JᵀJ)) δ = −Jᵀr. A step that lowers the cost is taken and μ
+    shrinks (towards Gauss–Newton); otherwise μ grows (towards a short gradient step). J comes from
+    forward-mode autodiff, exact to machine precision.
+
+    Returns:
+        dict with theta, cost (½Σr²), iterations, converged, jacobian and residual at the optimum.
+    """
     jac = torch.func.jacfwd(fun)
     theta = theta0.detach().clone().to(torch.float64)
     r = fun(theta)
     cost = 0.5 * float(r @ r)
     mu = mu0
-    history = [cost]
     converged = False
     it = 0
     J = jac(theta)
@@ -98,7 +88,6 @@ def levenberg_marquardt(
                 improved = True
                 break
             mu *= 4.0
-        history.append(cost)
         if not improved:
             converged = True  # no downhill step at any damping: at a minimum to working precision
             break
@@ -106,153 +95,112 @@ def levenberg_marquardt(
         if rel < ftol or float(step.abs().max()) < xtol:
             converged = True
             break
-    return LMResult(theta, cost, it, converged, J, r, history)
+    return {
+        "theta": theta,
+        "cost": cost,
+        "iterations": it,
+        "converged": converged,
+        "jacobian": J,
+        "residual": r,
+    }
 
 
-# ── Identifiability ──────────────────────────────────────────────────────────
+def identifiability(J: Tensor, names: tuple[str, ...], noise_std: float, n_weak: int = 3) -> dict:
+    """How well the data pin each parameter: linearised covariance cov = s²·(JᵀJ)⁻¹.
 
+    ``noise_std`` (s) is the std of one residual element (nepers for magnitude): the measurement
+    noise to assume, or the fit's own RMS residual for real data. JᵀJ is rescaled to unit diagonal
+    before the eigen-decomposition, so the condition number and the weakest directions do not depend
+    on the parameters' units.
 
-@dataclass
-class IdentifiabilityReport:
-    """Linearised uncertainty at the optimum: cov = s² (JᵀJ)⁻¹ with s the residual noise per
-    point."""
-
-    labels: list[str]
-    raw_std: np.ndarray  # std of each raw parameter (log params: ≈ relative std)
-    log_param: np.ndarray  # True where the raw parameter is a log
-    eigenvalues: np.ndarray  # of the scaled JᵀJ, ascending
-    weakest: list[tuple[float, list[tuple[str, float]]]]  # (eigenvalue, top components)
-    condition: float
-
-    def identifiable(self, rel_tol: float = 0.05) -> np.ndarray:
-        """Mask of parameters pinned to better than ``rel_tol`` (relative for log params, absolute
-        else)."""
-        return self.raw_std < rel_tol
-
-    def table(self, values: dict[str, Tensor] | None = None) -> str:
-        lines = [f"{'parameter':<18}{'value':>12}{'±1σ':>12}"]
-        flat = None
-        if values is not None:
-            names = _names_from_labels(self.labels)
-            flat = [v for n in names for v in values[n].tolist()]
-        for i, lab in enumerate(self.labels):
-            v = "" if flat is None else f"{flat[i]:12.5g}"
-            sd = (
-                f"{100 * self.raw_std[i]:10.3g} %"
-                if self.log_param[i]
-                else f"{self.raw_std[i]:12.3g}"
-            )
-            lines.append(f"{lab:<18}{v:>12}{sd:>12}")
-        lines.append(f"condition number (scaled JᵀJ): {self.condition:.3g}")
-        for ev, comps in self.weakest:
-            terms = " ".join(f"{c:+.2f}·{n}" for n, c in comps)
-            lines.append(f"weak direction (eig {ev:.3g}): {terms}")
-        return "\n".join(lines)
-
-
-def _names_from_labels(labels: list[str]) -> list[str]:
-    names: list[str] = []
-    for lab in labels:
-        n = lab.split("[")[0]
-        if not names or names[-1] != n:
-            names.append(n)
-    return names
-
-
-def identifiability(J: Tensor, names: tuple[str, ...], noise_std: float, n_weak: int = 3):
-    """Fisher-information report for raw parameters ``names`` given residual noise ``noise_std``.
-
-    ``noise_std`` is the std of one residual element (nepers for magnitude), i.e. the measurement
-    noise the report should assume; pass the fit's own RMS residual for a real-data fit.
+    Returns:
+        dict: labels (one per θ element), std (1σ of each θ element: for log parameters that is the
+        relative uncertainty), is_log, condition, weakest [(eigenvalue, [(label, weight), ...])].
     """
     J = J.detach().numpy()
     A = J.T @ J
     scale = np.sqrt(np.clip(np.diag(A), 1e-300, None))
-    As = A / np.outer(scale, scale)
-    evals, evecs = np.linalg.eigh(As)
+    evals, evecs = np.linalg.eigh(A / np.outer(scale, scale))
     inv = (evecs / np.clip(evals, 1e-300, None)) @ evecs.T
     cov = noise_std**2 * inv / np.outer(scale, scale)
-    labels = raw_labels(names)
-    log_param = np.array([SPECS_BY_NAME[lab.split("[")[0]].log for lab in labels])
+    labels = theta_labels(names)
     weakest = []
     for k in range(min(n_weak, len(evals))):
         v = evecs[:, k]
         top = np.argsort(-np.abs(v))[:4]
         weakest.append((float(evals[k]), [(labels[i], float(v[i])) for i in top]))
-    return IdentifiabilityReport(
-        labels=labels,
-        raw_std=np.sqrt(np.clip(np.diag(cov), 0.0, None)),
-        log_param=log_param,
-        eigenvalues=evals,
-        weakest=weakest,
-        condition=float(evals[-1] / max(evals[0], 1e-300)),
-    )
+    return {
+        "labels": labels,
+        "std": np.sqrt(np.clip(np.diag(cov), 0.0, None)),
+        "is_log": np.array([PARAMS[lab.split("[")[0]][1] for lab in labels]),
+        "condition": float(evals[-1] / max(evals[0], 1e-300)),
+        "weakest": weakest,
+    }
 
 
-# ── Fits ─────────────────────────────────────────────────────────────────────
+def fit_report(fit: dict, noise_std: float | None = None) -> dict:
+    """``identifiability`` at a fit's optimum; noise defaults to the fit's own RMS residual."""
+    if noise_std is None:
+        r, n_par = fit["residual"], fit["theta"].numel()
+        noise_std = float(torch.sqrt((r @ r) / max(r.numel() - n_par, 1)))
+    return identifiability(fit["jacobian"], fit["names"], noise_std)
 
 
-@dataclass
-class RatioData:
-    """Measured engaged ÷ bypassed responses: sliders (N, 8) panel dB, freqs (F,), H (N, F)
-    complex."""
-
-    sliders: Tensor
-    freqs_hz: Tensor
-    H: Tensor
-    weight: Tensor | None = None  # (N, F) or (F,), e.g. from coherence
-
-
-@dataclass
-class FitResult:
-    params: dict[str, Tensor]
-    names: tuple[str, ...]
-    lm: LMResult
-    rms_db: float  # RMS log-magnitude error over all points, dB
-    rms_phase_deg: float
-
-    def report(self, noise_std: float | None = None) -> IdentifiabilityReport:
-        """Identifiability at this optimum; default noise = the fit's own RMS residual."""
-        if noise_std is None:
-            r = self.lm.residual
-            noise_std = float(torch.sqrt((r @ r) / max(r.numel() - self.lm.theta.numel(), 1)))
-        return identifiability(self.lm.jacobian, self.names, noise_std)
-
-
-def _fit(residual_fn, names, init, *, max_iter) -> tuple[dict[str, Tensor], LMResult]:
-    theta0 = pack(init, names)
-    lm = levenberg_marquardt(residual_fn, theta0, max_iter=max_iter)
-    return unpack(lm.theta, names, init), lm
-
-
-def _rms(r: Tensor) -> tuple[float, float]:
-    half = r.numel() // 2
-    mag, ph = r[:half], r[half:]
-    return (
-        float(torch.sqrt((mag**2).mean())) * 20.0 / np.log(10.0),
-        float(torch.sqrt((ph**2).mean())) * 180.0 / np.pi,
-    )
+def report_table(rep: dict, theta: Tensor | None = None) -> str:
+    """The identifiability report as text: θ value, 1σ (% for log parameters), weak directions."""
+    lines = [f"{'parameter':<18}{'value':>12}{'±1σ':>12}"]
+    for i, lab in enumerate(rep["labels"]):
+        value = ""
+        if theta is not None:
+            t = float(theta[i])
+            value = f"{np.exp(t) if rep['is_log'][i] else t:12.5g}"
+        sd = rep["std"][i]
+        sd_text = f"{100 * sd:10.3g} %" if rep["is_log"][i] else f"{sd:12.3g}"
+        lines.append(f"{lab:<18}{value:>12}{sd_text:>12}")
+    lines.append(f"condition number (scaled JᵀJ): {rep['condition']:.3g}")
+    for ev, comps in rep["weakest"]:
+        terms = " ".join(f"{c:+.2f}·{n}" for n, c in comps)
+        lines.append(f"weak direction (eig {ev:.3g}): {terms}")
+    return "\n".join(lines)
 
 
 def fit_ratio(
-    data: RatioData,
+    sliders: Tensor,
+    freqs_hz: Tensor,
+    H: Tensor,
     init: dict[str, Tensor],
     *,
     names: tuple[str, ...] = RATIO_NAMES,
+    weight: Tensor | None = None,
     phase_weight: float = 1.0,
     max_iter: int = 200,
-) -> FitResult:
-    """Fit LEVEL + EQ parameters ``names`` to engaged ÷ bypassed data; others stay at ``init``."""
-    s = blocks.s_axis(data.freqs_hz)
+) -> dict:
+    """Fit the LEVEL + EQ parameters to measured engaged ÷ bypassed responses.
+
+    Args:
+        sliders: Panel positions, (N, 8) dB, one row per measured setting.
+        freqs_hz: Frequency grid, (F,).
+        H: Measured responses, (N, F) complex.
+        init: Starting parameters; those not in ``names`` stay fixed at these values.
+        weight: Optional per-point weight, (N, F) or (F,) (e.g. from coherence).
+        phase_weight: Weight of the phase residual relative to log-magnitude.
+
+    Returns:
+        The ``levenberg_marquardt`` dict plus params (fitted, physical units), names, rms_db and
+        rms_phase_deg (unweighted RMS errors over all points).
+    """
 
     def residual(theta: Tensor) -> Tensor:
         p = unpack(theta, names, init)
-        h = ratio_response(p, data.sliders, s)
-        return log_ratio_residual(h, data.H, data.weight, phase_weight)
+        return log_ratio_residual(ratio_response(p, freqs_hz, sliders), H, weight, phase_weight)
 
-    params, lm = _fit(residual, names, init, max_iter=max_iter)
-    rms_db, rms_ph = _rms(residual(lm.theta) if phase_weight != 1.0 else lm.residual)
-    return FitResult(params, names, lm, rms_db, rms_ph)
+    fit = levenberg_marquardt(residual, pack(init, names), max_iter=max_iter)
+    fit["params"] = unpack(fit["theta"], names, init)
+    fit["names"] = names
+    err = torch.log(ratio_response(fit["params"], freqs_hz, sliders) / H)
+    fit["rms_db"] = float(torch.sqrt((err.real**2).mean())) * NEPER_TO_DB
+    fit["rms_phase_deg"] = float(torch.sqrt((err.imag**2).mean())) * 180.0 / np.pi
+    return fit
 
 
 def fit_bypass(
@@ -263,17 +211,20 @@ def fit_bypass(
     names: tuple[str, ...] = BYPASS_NAMES,
     weight: Tensor | None = None,
     max_iter: int = 200,
-) -> FitResult:
-    """Fit the input/output blocks to bypassed ÷ chain data (F,) complex."""
-    s = blocks.s_axis(freqs_hz)
+) -> dict:
+    """Fit the input/output blocks to the measured bypassed ÷ chain response H, (F,) complex."""
 
     def residual(theta: Tensor) -> Tensor:
         p = unpack(theta, names, init)
-        return log_ratio_residual(bypass_response(p, s), H, weight, 1.0)
+        return log_ratio_residual(bypass_response(p, freqs_hz), H, weight, 1.0)
 
-    params, lm = _fit(residual, names, init, max_iter=max_iter)
-    rms_db, rms_ph = _rms(lm.residual)
-    return FitResult(params, names, lm, rms_db, rms_ph)
+    fit = levenberg_marquardt(residual, pack(init, names), max_iter=max_iter)
+    fit["params"] = unpack(fit["theta"], names, init)
+    fit["names"] = names
+    err = torch.log(bypass_response(fit["params"], freqs_hz) / H)
+    fit["rms_db"] = float(torch.sqrt((err.real**2).mean())) * NEPER_TO_DB
+    fit["rms_phase_deg"] = float(torch.sqrt((err.imag**2).mean())) * 180.0 / np.pi
+    return fit
 
 
 # ── Settings for known-answer runs (mirrors the R2 capture plan) ─────────────

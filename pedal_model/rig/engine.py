@@ -46,6 +46,22 @@ class Take:
     elapsed_s: float
 
 
+def copy_block(
+    play: np.ndarray, rec: np.ndarray, pos: int, out: np.ndarray, inp: np.ndarray
+) -> int:
+    """One audio block: send play[pos:] to the outputs, store the inputs at the same position.
+
+    This is all the real-time code does (in the audio callback): two slice copies, no allocation.
+    Returns the new position.
+    """
+    end = min(pos + len(out), len(play))
+    k = end - pos
+    out[:k] = play[pos:end]
+    out[k:] = 0.0
+    rec[pos:end] = inp[:k]
+    return end
+
+
 class CaptureEngine:
     """Owns the play/record buffers of the take in progress; the GUI reads them for its live views.
 
@@ -80,14 +96,8 @@ class CaptureEngine:
         self._abort = True
 
     def _callback(self, out: np.ndarray, inp: np.ndarray) -> bool:
-        p = self._pos
-        end = min(p + len(out), len(self.play))
-        k = end - p
-        out[:k] = self.play[p:end]
-        out[k:] = 0.0
-        self.rec[p:end] = inp[:k]
-        self._pos = end
-        return end >= len(self.play) or self._abort
+        self._pos = copy_block(self.play, self.rec, self._pos, out, inp)
+        return self._pos >= len(self.play) or self._abort
 
     def _run_shared(self, sr: int, play: np.ndarray) -> int:
         """Stream through an out-of-process backend; play/rec live in shared memory meanwhile."""

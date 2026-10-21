@@ -10,14 +10,7 @@ EPS = 1e-12
 # 1024-sample blocks (2026-10-18), far more than the Studio One-era 47 samples (Studio One
 # compensates its own latency). Bigger ASIO buffers add more, hence the margin.
 MAX_LAG_S = 0.5
-# Spectral densities are floored relative to their own peak, not by EPS: a −20 dBFS sweep has
-# densities near 1e-7 per Hz, so S_dd·S_ww ~ 1e-13 and an absolute EPS would swamp the coherence.
-# Bins with no excitation (below the floor) read as deep notches, as before.
-REL_FLOOR = 1e-12
-
-
-def _floor(x: np.ndarray) -> np.ndarray:
-    return np.maximum(x, REL_FLOOR * float(np.max(x)) + 1e-300)
+REL_FLOOR = 1e-12  # spectral floor, relative to the peak (see frequency_response)
 
 
 def peak_dbfs(x: np.ndarray) -> float:
@@ -59,62 +52,45 @@ def aligned(rec: np.ndarray, pre_roll: int, lag: int, length: int) -> np.ndarray
     return out
 
 
-def cross_spectra(
-    x: np.ndarray, y: np.ndarray, sr: int, nperseg: int
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Welch-averaged spectra of x and y: S_xx, S_yy and the cross-spectrum S_xy = <conj(X) Y>.
-
-    Hann-windowed segments of ``nperseg`` samples, 50 % overlap, each segment's mean removed: the
-    same estimate as scipy's welch/csd, but all three from one pass over the data. The overall scale
-    is left out; it cancels in every ratio taken from these (H = S_xy / S_xx, coherence).
-
-    Returns:
-        (frequencies in Hz, S_xx, S_yy, S_xy), each of length nperseg // 2 + 1.
-    """
-    n = np.arange(nperseg)
-    window = 0.5 - 0.5 * np.cos(2 * np.pi * n / nperseg)  # periodic Hann, as scipy uses
-    s_xx = np.zeros(nperseg // 2 + 1)
-    s_yy = np.zeros(nperseg // 2 + 1)
-    s_xy = np.zeros(nperseg // 2 + 1, dtype=complex)
-    for a in range(0, len(x) - nperseg + 1, nperseg // 2):
-        xs = x[a : a + nperseg].astype(np.float64)
-        ys = y[a : a + nperseg].astype(np.float64)
-        big_x = np.fft.rfft((xs - xs.mean()) * window)
-        big_y = np.fft.rfft((ys - ys.mean()) * window)
-        s_xx += np.abs(big_x) ** 2
-        s_yy += np.abs(big_y) ** 2
-        s_xy += np.conj(big_x) * big_y
-    return np.fft.rfftfreq(nperseg, 1 / sr), s_xx, s_yy, s_xy
-
-
-def transfer_function(
-    dry: np.ndarray, wet: np.ndarray, sr: int, nperseg: int = 8192
-) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """H1 estimate of the frequency response, |S_dw| / S_dd, plus coherence.
-
-    The H1 estimator averages over Welch segments, so uncorrelated noise on the return averages out
-    of the magnitude instead of biasing it upward (as a plain |FFT(wet)| / |FFT(dry)| would).
-
-    Returns:
-        (freqs_hz, magnitude_db, coherence in [0, 1]).
-    """
-    f, s_dd, s_ww, s_dw = cross_spectra(dry, wet, sr, nperseg)
-    h = np.abs(s_dw) / _floor(s_dd)
-    coh = np.abs(s_dw) ** 2 / _floor(s_dd * s_ww)
-    return f, 20 * np.log10(h + EPS), np.clip(coh, 0.0, 1.0)
-
-
-def transfer_function_complex(
+def frequency_response(
     dry: np.ndarray, wet: np.ndarray, sr: int, nperseg: int = 16384
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """Complex H1 estimate S_dw / S_dd (magnitude and phase), plus coherence.
+    """Measured frequency response H(f) = S_dw / S_dd (the H1 estimate), and the coherence.
 
-    The phase includes whatever delay is left between ``dry`` and ``wet`` after alignment.
+    Welch averaging: Hann-windowed segments of ``nperseg`` samples, 50 % overlap, each segment's
+    mean removed. Per segment D = FFT(dry), W = FFT(wet); then
+
+        S_dd = Σ |D|²,   S_ww = Σ |W|²,   S_dw = Σ conj(D)·W
+        H = S_dw / S_dd,   coherence = |S_dw|² / (S_dd·S_ww)
+
+    Averaging the cross-spectrum lets noise on the return average out instead of biasing |H| up.
+    H is complex: its phase holds whatever delay is left between dry and wet. Coherence near 1 means
+    the wet signal is a linear function of the dry one at that frequency.
+
+    Returns:
+        (frequencies in Hz, complex H, coherence in [0, 1]), each nperseg // 2 + 1 long.
     """
-    f, s_dd, s_ww, s_dw = cross_spectra(dry, wet, sr, nperseg)
-    h = s_dw / _floor(s_dd)
-    coh = np.abs(s_dw) ** 2 / _floor(s_dd * s_ww)
-    return f, h, np.clip(coh, 0.0, 1.0)
+    nperseg = min(nperseg, len(dry))
+    n = np.arange(nperseg)
+    window = 0.5 - 0.5 * np.cos(2 * np.pi * n / nperseg)  # periodic Hann, as scipy uses
+    s_dd = np.zeros(nperseg // 2 + 1)
+    s_ww = np.zeros(nperseg // 2 + 1)
+    s_dw = np.zeros(nperseg // 2 + 1, dtype=complex)
+    for a in range(0, len(dry) - nperseg + 1, nperseg // 2):
+        d = dry[a : a + nperseg].astype(np.float64)
+        w = wet[a : a + nperseg].astype(np.float64)
+        big_d = np.fft.rfft((d - d.mean()) * window)
+        big_w = np.fft.rfft((w - w.mean()) * window)
+        s_dd += np.abs(big_d) ** 2
+        s_ww += np.abs(big_w) ** 2
+        s_dw += np.conj(big_d) * big_w
+    # Floors relative to the peak, not an absolute EPS: a -20 dBFS sweep has S_dd·S_ww ~ 1e-13,
+    # which an absolute floor would swamp. Bins the signal never reached read as deep notches.
+    floor_dd = REL_FLOOR * s_dd.max() + 1e-300
+    floor_prod = REL_FLOOR * (s_dd * s_ww).max() + 1e-300
+    h = s_dw / np.maximum(s_dd, floor_dd)
+    coherence = np.abs(s_dw) ** 2 / np.maximum(s_dd * s_ww, floor_prod)
+    return np.fft.rfftfreq(nperseg, 1 / sr), h, np.clip(coherence, 0.0, 1.0)
 
 
 def log_grid(fmin: float, fmax: float, points_per_octave: int = 24) -> np.ndarray:

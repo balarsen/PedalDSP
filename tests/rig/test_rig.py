@@ -17,6 +17,7 @@ from pedal_model.rig.calibrate import (
     run_chain_test,
     run_loopback_test,
     simulate_guided_calibration,
+    worst_status,
 )
 from pedal_model.rig.config import RigConfig
 from pedal_model.rig.engine import CaptureEngine
@@ -48,6 +49,10 @@ def _ge7(controls):
 # A chain with no tone of its own (no re-amp tilt, transparent buffers): for tests of alignment and
 # level, where the chain's frequency response would only blur the check.
 IDEAL = dict(reamp_tilt_db=0.0, bypass_gain_db=0.0, bypass_hp_hz=0.0, engaged_gain_db=0.0)
+
+
+def _ok(res: dict) -> bool:
+    return worst_status(res["advice"]) != "fail"
 
 
 def _engine(rig=None):
@@ -90,18 +95,18 @@ def test_val_is_always_full(masters, tmp_path):
 @pytest.mark.parametrize("sr,expected_lag", [(48_000, 47), (96_000, 94)])
 def test_loopback_lag_recovered_exactly(sr, expected_lag):
     res = run_loopback_test(_engine(), sr)
-    assert res.lag_samples == expected_lag
-    assert res.gain_db == pytest.approx(SimulatedRig().loop_gain_db, abs=0.05)
-    assert res.ok
+    assert res["lag_samples"] == expected_lag
+    assert res["gain_db"] == pytest.approx(SimulatedRig().loop_gain_db, abs=0.05)
+    assert _ok(res)
 
 
 def test_loopback_clipping_fails_c1():
     """The 1824c's In 2 clipped far below full scale (2026-10-18); C1 must catch that."""
     res = run_loopback_test(_engine(SimulatedRig(loop_clip_dbfs=-50.0)), 48_000, hottest_dbfs=-10.0)
-    assert not res.ok and res.linearity_spread_db > 0.5
-    assert any("not linear" in a.text for a in res.advice)
+    assert not _ok(res) and res["linearity_spread_db"] > 0.5
+    assert any("not linear" in a["text"] for a in res["advice"])
     ok = run_loopback_test(_engine(), 48_000, hottest_dbfs=-10.0)
-    assert ok.ok and ok.linearity_spread_db < 0.1 and len(ok.level_gains_db) == 3
+    assert _ok(ok) and ok["linearity_spread_db"] < 0.1 and len(ok["level_gains_db"]) == 3
 
 
 def test_loopback_is_sent_quieter_than_the_pedal_send():
@@ -114,33 +119,33 @@ def test_long_interface_latency_is_found():
     """The real 1824c round trip is 3722 samples (77.5 ms) at 48 kHz with 1024-sample blocks. A
     ±50 ms search once returned −2105 for it."""
     eng = _engine(SimulatedRig(latency_ms=3722 / 48))
-    assert run_loopback_test(eng, 48_000).lag_samples == 3722
-    assert run_chain_test(eng, 48_000, -10.0, -2.0).lag_samples == 3722
+    assert run_loopback_test(eng, 48_000)["lag_samples"] == 3722
+    assert run_chain_test(eng, 48_000, -10.0, -2.0)["lag_samples"] == 3722
 
 
 def test_latency_beyond_the_search_fails():
     res = run_loopback_test(_engine(SimulatedRig(latency_ms=600.0)), 48_000)
-    assert not res.ok and any("longer than" in a.text for a in res.advice)
+    assert not _ok(res) and any("longer than" in a["text"] for a in res["advice"])
 
 
 def test_chain_gain_and_linearity():
     rig = SimulatedRig(**IDEAL)
     res = run_chain_test(_engine(rig), 48_000, send_level_db=-10.0, train_peak_dbfs=-2.0)
-    assert res.lag_samples == 47
-    assert res.gain_db == pytest.approx(rig.reamp_db + rig.return_gain_db, abs=0.05)
-    assert res.linearity_spread_db < 0.05
-    assert res.ok
+    assert res["lag_samples"] == 47
+    assert res["gain_db"] == pytest.approx(rig.reamp_db + rig.return_gain_db, abs=0.05)
+    assert res["linearity_spread_db"] < 0.05
+    assert _ok(res)
 
 
 def test_chain_test_reports_missing_return():
     res = run_chain_test(_engine(SimulatedRig(return_gain_db=-200.0)), 48_000, -10.0, -2.0)
-    assert not res.ok
-    assert any("No return" in a.text for a in res.advice)
+    assert not _ok(res)
+    assert any("No return" in a["text"] for a in res["advice"])
 
 
 def test_chain_test_flags_hot_return():
     res = run_chain_test(_engine(SimulatedRig(return_gain_db=30.0)), 48_000, -10.0, -2.0)
-    assert any(a.status in ("warn", "fail") and "In 1 gain" in a.text for a in res.advice)
+    assert any(a["status"] in ("warn", "fail") and "In 1 gain" in a["text"] for a in res["advice"])
 
 
 # ── QC ──────────────────────────────────────────────────────────────────── #
@@ -258,8 +263,8 @@ def test_alignment_keeps_the_pedals_own_delay(masters, tmp_path):
     dry = m.load_all()
     eng = _engine(SimulatedRig(**IDEAL))
     cal = {
-        "chain": run_chain_test(eng, sr, -10.0, -2.0).to_dict(),
-        "loopback": run_loopback_test(eng, sr).to_dict(),
+        "chain": run_chain_test(eng, sr, -10.0, -2.0),
+        "loopback": run_loopback_test(eng, sr),
     }
     eng.backend.set_pedal(
         lambda x, _sr: np.concatenate([np.zeros(pedal_delay, np.float32), x[:-pedal_delay]])

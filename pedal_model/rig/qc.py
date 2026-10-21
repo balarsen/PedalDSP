@@ -12,13 +12,13 @@ import numpy as np
 from pedal_model.rig.analysis import (
     aligned,
     find_lag,
+    frequency_response,
     log_grid,
     peak_dbfs,
     rms_dbfs,
     smooth_octave,
-    transfer_function,
 )
-from pedal_model.rig.calibrate import Reference
+from pedal_model.rig.calibrate import ref_db_at
 from pedal_model.rig.engine import Take
 from pedal_model.signals.manifest import Manifest
 
@@ -148,14 +148,13 @@ def loopback_integrity(
     return int(ratio.size), int(lost.sum()), first
 
 
-def calibration_reference(calibration: dict | None, name: str) -> Reference | None:
+def calibration_reference(calibration: dict | None, name: str) -> dict | None:
     """The named reference curve of a calibration, else "chain", else None."""
     refs = (calibration or {}).get("references") or {}
-    d = refs.get(name) or refs.get("chain")
-    return Reference.from_dict(d) if d else None
+    return refs.get(name) or refs.get("chain")
 
 
-def calibration_flat_level(calibration: dict | None, ref: Reference | None, band) -> float:
+def calibration_flat_level(calibration: dict | None, ref: dict | None, band) -> float:
     """The pedal's own level at its calibration preset (C4) relative to the normalising reference,
     in dB (median over ``band``); 0 if there is no C4 reference.
 
@@ -165,9 +164,8 @@ def calibration_flat_level(calibration: dict | None, ref: Reference | None, band
     refs = (calibration or {}).get("references") or {}
     if ref is None or "engaged_flat" not in refs:
         return 0.0
-    flat = Reference.from_dict(refs["engaged_flat"])
     f = np.geomspace(band[0], band[1], 64)
-    return float(np.median(flat.db_at(f) - ref.db_at(f)))
+    return float(np.median(ref_db_at(refs["engaged_flat"], f) - ref_db_at(ref, f)))
 
 
 def measure_response(
@@ -179,7 +177,8 @@ def measure_response(
     secs = manifest.sections_of_type_multi(list(FR_TYPES)) or manifest.sections
     d = np.concatenate([dry[s.start_sample : s.end_sample] for s in secs])
     w = np.concatenate([wet[s.start_sample : s.end_sample] for s in secs])
-    f, h_db, _ = transfer_function(d, w, sr, nperseg=min(16384, len(d)))
+    f, h, _ = frequency_response(d, w, sr)
+    h_db = 20 * np.log10(np.abs(h) + 1e-12)
     grid = log_grid(band[0], band[1])
     return grid, smooth_octave(f, h_db, grid)
 
@@ -346,14 +345,14 @@ def check_take(
     ref = calibration_reference(calibration, qc_limits.get("reference", "chain"))
     normalised = None
     if ref is not None:
-        measured = measured - ref.db_at(grid)
-        normalised = ref.name
+        measured = measured - ref_db_at(ref, grid)
+        normalised = ref["name"]
         items.append(
             QCItem(
                 "Normalised by",
                 "ok",
-                f"{ref.name} reference",
-                REFERENCE_NOTES.get(ref.name, ""),
+                f"{ref['name']} reference",
+                REFERENCE_NOTES.get(ref["name"], ""),
             )
         )
     elif chain_gain is not None:

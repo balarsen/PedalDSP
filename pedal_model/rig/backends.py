@@ -20,6 +20,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from pedal_model.rig.config import ChannelMap
+from pedal_model.rig.engine import copy_block
 
 BlockCallback = Callable[[np.ndarray, np.ndarray], bool]
 PedalFn = Callable[[np.ndarray, int], np.ndarray]
@@ -308,14 +309,9 @@ def _child_main(factory, kwargs, sr, play_name, rec_name, n, block_size, pos, st
 
         def cb(out: np.ndarray, inp: np.ndarray) -> bool:
             nonlocal p
-            end = min(p + len(out), n)
-            k = end - p
-            out[:k] = play[p:end]
-            out[k:] = 0.0
-            rec[p:end] = inp[:k]
-            p = end
-            pos.value = end
-            return end >= n or bool(stop.value)
+            p = copy_block(play, rec, p, out, inp)
+            pos.value = p
+            return p >= n or bool(stop.value)
 
         xruns = backend.run(sr, play, cb, block_size)
         conn.send(("ok", xruns))

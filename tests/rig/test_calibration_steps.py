@@ -10,7 +10,7 @@ import soundfile as sf
 from pedal_model.rig.backends import SimulatedBackend, SimulatedRig
 from pedal_model.rig.calibrate import (
     CAL_STEPS,
-    Reference,
+    ref_db_at,
     run_chain_test,
     run_loopback_test,
     run_step,
@@ -46,7 +46,7 @@ def _calibrate(eng):
 
 
 def _texts(res):
-    return " ".join(a.text for a in res.advice)
+    return " ".join(a["text"] for a in res["advice"])
 
 
 def _shelf_db(f, rig):
@@ -60,8 +60,8 @@ def _shelf_db(f, rig):
 
 def test_all_steps_pass_in_order():
     cal, results = _calibrate(_engine())
-    assert [r.step for r in results] == [s.id for s in CAL_STEPS]
-    assert all(r.status == "ok" for r in results), [(r.step, _texts(r)) for r in results]
+    assert [r["step"] for r in results] == [s["id"] for s in CAL_STEPS]
+    assert all(r["status"] == "ok" for r in results), [(r["step"], _texts(r)) for r in results]
     assert set(cal["references"]) == {"chain", "bypass", "engaged_flat"}
     assert cal["chain"]["lag_samples"] == cal["loopback"]["lag_samples"] == 47
 
@@ -69,16 +69,16 @@ def test_all_steps_pass_in_order():
 def test_references_measure_the_chain_bypass_and_engaged_paths():
     rig = SimulatedRig()
     cal, _ = _calibrate(_engine(rig))
-    refs = {k: Reference.from_dict(v) for k, v in cal["references"].items()}
+    refs = cal["references"]
     f = np.array([100.0, 1000.0, 10_000.0])
     # The chain's tilt is measured, not assumed flat (what the old scalar normalisation missed).
-    chain = refs["chain"].db_at(f)
+    chain = ref_db_at(refs["chain"], f)
     expected = _shelf_db(f, rig)
     assert np.allclose(chain - chain[0], expected - expected[0], atol=0.15)
     band = np.geomspace(100, 8000, 30)
-    bypass = refs["bypass"].db_at(band) - refs["chain"].db_at(band)
+    bypass = ref_db_at(refs["bypass"], band) - ref_db_at(refs["chain"], band)
     assert np.allclose(bypass, rig.bypass_gain_db, atol=0.1)
-    engaged = refs["engaged_flat"].db_at(band) - refs["bypass"].db_at(band)
+    engaged = ref_db_at(refs["engaged_flat"], band) - ref_db_at(refs["bypass"], band)
     assert np.allclose(engaged, rig.engaged_gain_db, atol=0.1)
 
 
@@ -92,9 +92,9 @@ def test_c3_warns_when_the_cables_were_not_moved():
         SR,
         send_level_db=-10.0,
         train_peak_dbfs=-2.0,
-        references={"chain": chain.reference},
+        references={"chain": chain["reference"]},
     )  # still "cable": the pedal never went back into the chain
-    assert c3.status == "warn" and "Identical to the chain" in _texts(c3)
+    assert c3["status"] == "warn" and "Identical to the chain" in _texts(c3)
 
 
 def _bypass_reference(eng):
@@ -103,7 +103,7 @@ def _bypass_reference(eng):
     for step, state in (("C2", "cable"), ("C3", "bypass")):
         eng.backend.set_pedal_state(state)
         res = run_step(step, eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0, references=refs)
-        refs[res.reference.name] = res.reference
+        refs[res["reference"]["name"]] = res["reference"]
     return refs
 
 
@@ -111,14 +111,14 @@ def test_c3_needs_the_chain_reference_first():
     eng = _engine()
     eng.backend.set_pedal_state("bypass")
     c3 = run_step("C3", eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0, references={})
-    assert c3.status == "fail" and "run C2 first" in _texts(c3)
+    assert c3["status"] == "fail" and "run C2 first" in _texts(c3)
 
 
 def test_c4_warns_when_the_footswitch_is_off():
     eng = _engine()
     refs = _bypass_reference(eng)  # pedal left bypassed for C4
     c4 = run_step("C4", eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0, references=refs)
-    assert c4.status == "warn" and "footswitch" in _texts(c4)
+    assert c4["status"] == "warn" and "footswitch" in _texts(c4)
 
 
 def test_c4_warns_when_the_controls_are_not_flat():
@@ -127,7 +127,7 @@ def test_c4_warns_when_the_controls_are_not_flat():
     eng.backend.set_pedal(_ge7({**FLAT, "hz_800": 12.0}))
     eng.backend.set_pedal_state("engaged")
     c4 = run_step("C4", eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0, references=refs)
-    assert c4.status == "warn" and "calibration preset" in _texts(c4)
+    assert c4["status"] == "warn" and "calibration preset" in _texts(c4)
 
 
 def test_c4_fails_when_c2_was_measured_through_the_engaged_pedal():
@@ -138,8 +138,8 @@ def test_c4_fails_when_c2_was_measured_through_the_engaged_pedal():
     for step, state in (("C2", "engaged"), ("C3", "bypass"), ("C4", "engaged")):
         eng.backend.set_pedal_state(state)
         res = run_step(step, eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0, references=refs)
-        refs[res.reference.name] = res.reference
-    assert res.status == "fail" and "Redo C2" in _texts(res)
+        refs[res["reference"]["name"]] = res["reference"]
+    assert res["status"] == "fail" and "Redo C2" in _texts(res)
 
 
 def test_chain_offset_comes_from_one_capture():
@@ -150,7 +150,7 @@ def test_chain_offset_comes_from_one_capture():
 
 def test_a_missing_return_fails_and_stops_the_sequence():
     cal, results = _calibrate(_engine(SimulatedRig(return_gain_db=-200.0)))
-    assert results[-1].step == "C2" and results[-1].status == "fail"
+    assert results[-1]["step"] == "C2" and results[-1]["status"] == "fail"
     assert cal["references"] == {}
 
 
@@ -191,8 +191,8 @@ def test_qc_divides_by_the_bypass_reference(masters, tmp_path):
 def test_scalar_calibration_still_works_but_warns(masters, tmp_path):
     eng = _engine()
     cal = {
-        "chain": run_chain_test(eng, SR, -10.0, -2.0).to_dict(),
-        "loopback": run_loopback_test(eng, SR).to_dict(),
+        "chain": run_chain_test(eng, SR, -10.0, -2.0),
+        "loopback": run_loopback_test(eng, SR),
     }
     rep, db = _flat_take_response(masters, tmp_path, cal)
     assert rep.response.reference == "chain_gain"
@@ -206,14 +206,15 @@ def test_session_stores_references_and_their_audio(masters, tmp_path):
     cal, results = _calibrate(_engine())
     files = {}
     for r in results:
-        if r.reference is not None:
-            files[r.reference.name] = s.save_reference(r.reference.name, r.take)
+        if r["reference"] is not None:
+            name = r["reference"]["name"]
+            files[name] = s.save_reference(name, r["take"])
     path = s.set_calibration(cal["loopback"], cal["chain"], cal["references"], cal["steps"])
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert set(saved["references"]) == {"chain", "bypass", "engaged_flat"}
     assert saved["steps"]["C4"]["status"] == "ok"
     reloaded = Session.load(s.root).data["calibration"]
-    assert Reference.from_dict(reloaded["references"]["bypass"]).gain_1k_db < 0
+    assert reloaded["references"]["bypass"]["gain_1k_db"] < 0
     assert saved["code_version"] == code_version() != "unknown"
     assert all(e["code"] == code_version() for e in Session.load(s.root).data["events"])
     for name, rel in files.items():

@@ -28,7 +28,7 @@ GRID = np.geomspace(20, 20_000, 240)
 
 @pytest.mark.parametrize("fc,q,gain", [(800.0, 1.4, 12.0), (150.0, 0.9, -9.0), (3200.0, 2.5, 6.0)])
 def test_fit_band_recovers_a_known_peak(fc, q, gain):
-    measured = peak_db(GRID, fc, q, gain, SR)
+    measured = peak_db(GRID, fc, q, gain)
     fit = fit_band(GRID, measured, SR, nominal_hz=fc * 1.3, nominal_db=gain * 0.8)
     assert fit.model == "peak"
     assert fit.fc_hz == pytest.approx(fc, rel=0.01)
@@ -38,7 +38,7 @@ def test_fit_band_recovers_a_known_peak(fc, q, gain):
 
 
 def test_fit_band_prefers_a_shelf_when_the_data_is_a_shelf():
-    measured = shelf_db(GRID, 6000.0, 10.0, SR)
+    measured = shelf_db(GRID, 6000.0, 10.0)
     fit = fit_band(GRID, measured, SR, nominal_hz=6400.0, nominal_db=10.0, try_shelf=True)
     assert fit.model == "shelf"
     assert fit.fc_hz == pytest.approx(6000.0, rel=0.02)
@@ -152,7 +152,7 @@ def test_rig_snapshot_is_dated(tmp_path):
 
 
 def test_fit_band_recovers_a_gentle_shelf_and_its_slope():
-    measured = shelf_db(GRID, 6400.0, 10.0, SR, slope=0.7)
+    measured = shelf_db(GRID, 6400.0, 10.0, slope=0.7)
     fit = fit_band(GRID, measured, SR, nominal_hz=6400.0, nominal_db=10.0, try_shelf=True)
     assert fit.model == "shelf"
     assert fit.slope == pytest.approx(0.7, abs=0.02)
@@ -161,7 +161,11 @@ def test_fit_band_recovers_a_gentle_shelf_and_its_slope():
 
 @pytest.mark.parametrize("key,fc,model", [("hz_800", 792.0, "peak"), ("hz_6400", 6400.0, "shelf")])
 def test_fit_band_on_ge7sim_returns_its_calibrated_bands(key, fc, model):
-    """The fit applied to the GE-7 model must give back the model's own band parameters."""
+    """The fit applied to the GE-7 model must give back the model's own band parameters.
+
+    Ge7Sim's filters are digital (bilinear transform at SR); the fit is analog. A digital corner f_d
+    behaves like an analog one at f_a = (SR/pi) tan(pi f_d / SR): 6400 Hz at 48 kHz -> ~6660 Hz.
+    """
     from pedal_model.rig.qc import expected_response
 
     controls = {
@@ -174,7 +178,8 @@ def test_fit_band_on_ge7sim_returns_its_calibrated_bands(key, fc, model):
         GRID, exp, SR, nominal_hz=float(key[3:]), nominal_db=15.0, try_shelf=key == "hz_6400"
     )
     assert fit.model == model
-    assert fit.fc_hz == pytest.approx(fc, rel=0.03)
+    warped = SR / np.pi * np.tan(np.pi * fc / SR)
+    assert fit.fc_hz == pytest.approx(warped, rel=0.03)
     assert fit.rms_err_db < 0.1
 
 

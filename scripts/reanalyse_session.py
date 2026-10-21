@@ -19,10 +19,10 @@ import soundfile as sf
 from pedal_model.rig.analysis import find_lag
 from pedal_model.rig.calibrate import (
     LAG_SEARCH_S,
-    Reference,
     check_bypass,
     check_engaged,
     check_reference,
+    ref_db_at,
     reference_from_take,
     reference_signal,
 )
@@ -57,7 +57,7 @@ def main() -> None:
 
     print(f"Session {root.name}: {sr} Hz, send level {data['send_level_db']} dB\n")
     print("References (recomputed from calibration/*.flac):")
-    refs: dict[str, Reference] = {}
+    refs: dict[str, dict] = {}
     lags = {}
     sweep = np.concatenate([reference_signal(sr), np.zeros(int(0.2 * sr), np.float32)])
     for name, old in (cal_old.get("references") or {}).items():
@@ -65,30 +65,32 @@ def main() -> None:
         ref = reference_from_take(take, name)
         pre, n = take.pre_roll, len(reference_signal(sr))
         lag_in1 = find_lag(take.play[:, 0], take.rec[:, 0], sr, pre, pre + n, LAG_SEARCH_S)
-        lags[name] = (ref.lag_samples, lag_in1)
+        lags[name] = (ref["lag_samples"], lag_in1)
         refs[name] = ref
-        coh = check_reference(ref)[0].text
+        coh = check_reference(ref)[0]["text"]
         print(
-            f"  {name:<13} loop lag {ref.lag_samples} (stored {old['lag_samples']}), "
-            f"In 1 lag {lag_in1}; 1 kHz {ref.gain_1k_db:+.2f} dB; {coh}"
+            f"  {name:<13} loop lag {ref['lag_samples']} (stored {old['lag_samples']}), "
+            f"In 1 lag {lag_in1}; 1 kHz {ref['gain_1k_db']:+.2f} dB; {coh}"
         )
     if "chain" in refs and "bypass" in refs:
-        print("  C3:", check_bypass(refs["bypass"], refs["chain"])[0].text)
+        print("  C3:", check_bypass(refs["bypass"], refs["chain"])[0]["text"])
     if "bypass" in refs and "engaged_flat" in refs:
         c4 = check_engaged(refs["engaged_flat"], refs["bypass"], refs.get("chain"))
-        print("  C4:", c4[0].text)
+        print("  C4:", c4[0]["text"])
     if "chain" in refs:
         r = refs["chain"]
-        row = "  ".join(f"{f}:{r.db_at(np.array([f]))[0] - r.gain_1k_db:+.1f}" for f in REPORT_HZ)
+        row = "  ".join(
+            f"{f}:{ref_db_at(r, np.array([f]))[0] - r['gain_1k_db']:+.1f}" for f in REPORT_HZ
+        )
         print(f"  chain response re 1 kHz (dB): {row}")
 
     loop_lag, chain_lag = lags.get("chain", (None, None))
     cal = {
         "loopback": {"lag_samples": loop_lag} if loop_lag is not None else None,
-        "chain": {"lag_samples": chain_lag, "gain_db": refs["chain"].gain_1k_db}
+        "chain": {"lag_samples": chain_lag, "gain_db": refs["chain"]["gain_1k_db"]}
         if chain_lag is not None
         else None,
-        "references": {k: v.to_dict() for k, v in refs.items()},
+        "references": refs,
     }
 
     for name, p in data["presets"].items():

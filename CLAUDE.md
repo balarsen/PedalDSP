@@ -60,7 +60,8 @@ target), and an early Pi Muff stem pair.
 - Core modules (no Qt): `config` (configs/rig.json), `profiles/` (one JSON per pedal: controls, presets
   and their notes, map positions), `signals` (session signals from the 96 kHz masters: full or quick train,
   val, and the sweep-only signal for map steps), `backends` (ASIO via sounddevice, and `SimulatedBackend`),
-  `engine` (duplex play/record), `calibrate`, `qc`, `bandfit` (RBJ peak/shelf fits for the slider map),
+  `engine` (duplex play/record), `calibrate`, `qc`, `bandfit` (analog RBJ peak/shelf fits for the
+  slider map),
   `session`, `compare`. GUI in `gui/`: one page per step, each ending in a Continue button.
 - **One GUI for every pedal.** A pedal is a profile JSON; the drawing adapts (sliders for the GE-7; knobs
   and switches for the Notaklon/RAT are planned after the GE-7 is proven on hardware, for the Klon + RAT
@@ -165,6 +166,13 @@ target), and an early Pi Muff stem pair.
   and keep large buffers in SDRAM (`DSY_SDRAM_BSS`). Test a model offline in Python before porting it.
 
 ## Code style
+
+- **Physicist code, not computer-science code** (owner, 2026-10-20). The math sits at most about three
+  calls below the operation the owner runs (check a take, calibrate a step, fit the model). Prefer
+  plain functions and dicts (results are stored as JSON anyway) over classes, factories and
+  wrappers; write the formula where it is used, with the equation in the docstring. Less "clean"
+  or slightly slower is fine if it is easier to follow. Qt pages and the audio-process plumbing
+  are the exceptions: their layers are forced by the GUI toolkit and Windows/ASIO.
 
 - PEP 8, `ruff check .` (line length 100). Type-annotate every function signature, with no `Any` unless unavoidable.
 - Prefer `np.ndarray` and `torch.Tensor` in signatures, and give shapes in docstrings. Constants are

@@ -24,9 +24,9 @@ from pedal_model.rig.analysis import log_grid
 from pedal_model.rig.bandfit import fit_band
 from pedal_model.rig.compare import agreement, preset_response
 from pedal_model.rig.gui import theme
-from pedal_model.rig.gui.page_run import RESPONSE_MIN_SPAN_DB, RESPONSE_Y, _auto_box
+from pedal_model.rig.gui.page_run import RESPONSE_MIN_SPAN_DB, RESPONSE_Y
 from pedal_model.rig.gui.state import AppState
-from pedal_model.rig.gui.widgets import card, label
+from pedal_model.rig.gui.widgets import AutoY, card, label
 from pedal_model.rig.gui.worker import run_async
 from pedal_model.rig.profiles import KIND_MAP
 from pedal_model.rig.qc import expected_response
@@ -119,7 +119,8 @@ class ReviewPage(QWidget):
         self.c_a = self.plot.plot(pen=pg.mkPen(theme.OK, width=2.5), name="this session")
         self.c_b = self.plot.plot(pen=pg.mkPen(theme.CYAN, width=2), name="compared session")
         lay.addWidget(self.plot, 1)
-        lay.addWidget(_auto_box(self.plot, RESPONSE_Y, RESPONSE_MIN_SPAN_DB), 0, Qt.AlignRight)
+        self.plot_y = AutoY(self.plot, RESPONSE_Y, RESPONSE_MIN_SPAN_DB, step_db=1.0)
+        lay.addWidget(self.plot_y.box, 0, Qt.AlignRight)
         self.agree = label("", "dim")
         lay.addWidget(self.agree)
         body.addWidget(f, 6)
@@ -151,7 +152,8 @@ class ReviewPage(QWidget):
         self.map_plot = theme.styled_plot("", "Frequency (Hz)", "Gain (dB)", log_x=True)
         self.map_plot.setXRange(np.log10(20), np.log10(20_000))
         lay.addWidget(self.map_plot, 1)
-        lay.addWidget(_auto_box(self.map_plot, RESPONSE_Y, RESPONSE_MIN_SPAN_DB), 0, Qt.AlignRight)
+        self.map_y = AutoY(self.map_plot, RESPONSE_Y, RESPONSE_MIN_SPAN_DB, step_db=1.0)
+        lay.addWidget(self.map_y.box, 0, Qt.AlignRight)
         self.map_note = label("", "dim")
         lay.addWidget(self.map_note)
         body.addWidget(f, 5)
@@ -246,12 +248,14 @@ class ReviewPage(QWidget):
         self.c_a.setData(a.freqs_hz, a.measured_db)
         if a.expected_db is not None:
             self.c_exp.setData(a.freqs_hz, a.expected_db)
+        self.plot_y.update(force=True)
         if b is None:
             self.agree.setText(
                 "" if self.other.currentData() is None else "Not captured in the compared session."
             )
             return
         self.c_b.setData(b.freqs_hz, b.measured_db)
+        self.plot_y.update(force=True)
         ag = agreement(a, b)
         self.agree.setText(
             f"{a.sample_rate // 1000} kHz vs {b.sample_rate // 1000} kHz: RMS difference "
@@ -345,6 +349,7 @@ class ReviewPage(QWidget):
                 self.map_plot.plot(
                     r.freqs_hz, r.expected_db, pen=pg.mkPen(colour, width=1, style=Qt.DashLine)
                 )
+        self.map_y.update(force=True)
         self.map_note.setText("Solid: measured. Dashed: Ge7Sim model at the same setting.")
 
     def _open_session(self) -> None:

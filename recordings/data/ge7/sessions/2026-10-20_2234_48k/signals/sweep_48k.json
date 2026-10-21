@@ -1,0 +1,182 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.2.0",
+  "signal_name": "sweep_48k",
+  "date_created": "2026-06-13T23:48:21Z",
+  "sample_rate": 48000,
+  "bit_depth": 32,
+  "format": "float",
+  "seed": 1234,
+  "total_samples": 2976000,
+  "total_duration_s": 62.0,
+  "params": {
+    "sample_rate": 96000,
+    "seed": 1234,
+    "silence_between_s": 0.5,
+    "sweep_f_start_hz": 20.0,
+    "sweep_f_end_hz": 20000.0,
+    "sweep_duration_s": 20.0,
+    "sweep_amplitudes_dbfs": [
+      -24.0,
+      -12.0,
+      -3.0
+    ],
+    "stepped_freqs_hz": [
+      82.4,
+      110.0,
+      165.0,
+      220.0,
+      330.0,
+      440.0,
+      660.0,
+      880.0,
+      1320.0,
+      2640.0,
+      5280.0,
+      10560.0
+    ],
+    "stepped_levels_dbfs": [
+      -24.0,
+      -18.0,
+      -12.0,
+      -6.0,
+      -3.0
+    ],
+    "stepped_tone_duration_s": 1.0,
+    "pink_amplitudes_dbfs": [
+      -24.0,
+      -12.0,
+      -3.0
+    ],
+    "pink_duration_s": 20.0,
+    "white_amplitudes_dbfs": [
+      -18.0,
+      -6.0
+    ],
+    "white_duration_s": 15.0,
+    "ramp_freqs_hz": [
+      110.0,
+      220.0,
+      440.0,
+      880.0
+    ],
+    "ramp_duration_s": 10.0,
+    "ramp_start_dbfs": -40.0,
+    "ramp_end_dbfs": -2.0,
+    "impulse_duration_s": 30.0,
+    "impulse_amplitude_dbfs": -6.0,
+    "impulse_spacings_s": [
+      0.05,
+      0.1,
+      0.2,
+      0.05,
+      0.15,
+      0.3,
+      0.05,
+      0.08
+    ],
+    "am_chirp_duration_s": 60.0,
+    "am_chirp_amplitude_dbfs": -9.0,
+    "am_chirp_f_carrier_hz": 440.0,
+    "am_chirp_f_mod_start_hz": 0.5,
+    "am_chirp_f_mod_end_hz": 20.0,
+    "am_chirp_mod_depth": 0.8,
+    "pluck_freqs_hz": [
+      82.4,
+      110.0,
+      165.0,
+      220.0,
+      330.0,
+      440.0,
+      880.0
+    ],
+    "pluck_decay_tau_s": 0.4,
+    "pluck_amplitude_dbfs": -6.0,
+    "pluck_total_duration_s": 40.0,
+    "two_tone_fixed_freqs_hz": [
+      110.0,
+      220.0,
+      440.0
+    ],
+    "two_tone_sweep_start_hz": 20.0,
+    "two_tone_sweep_end_hz": 8000.0,
+    "two_tone_subsection_duration_s": 10.0,
+    "two_tone_amplitude_dbfs": -9.0,
+    "multitone_freqs_hz": [
+      82.4,
+      165.0,
+      247.0,
+      330.0,
+      412.0,
+      495.0,
+      660.0,
+      880.0
+    ],
+    "multitone_amplitudes_dbfs": [
+      -18.0,
+      -9.0,
+      -3.0
+    ],
+    "multitone_duration_s": 30.0,
+    "layered_duration_s": 45.0
+  },
+  "sections": [
+    {
+      "index": 0,
+      "label": "sweep_low",
+      "type": "log_sine_sweep",
+      "start_sample": 24000,
+      "end_sample": 984000,
+      "start_s": 0.5,
+      "end_s": 20.5,
+      "amplitude_dbfs": -24.0,
+      "params": {
+        "f_start_hz": 20.0,
+        "f_end_hz": 20000.0,
+        "duration_s": 20.0,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 1,
+      "label": "sweep_mid",
+      "type": "log_sine_sweep",
+      "start_sample": 1008000,
+      "end_sample": 1968000,
+      "start_s": 21.0,
+      "end_s": 41.0,
+      "amplitude_dbfs": -12.0,
+      "params": {
+        "f_start_hz": 20.0,
+        "f_end_hz": 20000.0,
+        "duration_s": 20.0,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 2,
+      "label": "sweep_high",
+      "type": "log_sine_sweep",
+      "start_sample": 1992000,
+      "end_sample": 2952000,
+      "start_s": 41.5,
+      "end_s": 61.5,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "f_start_hz": 20.0,
+        "f_end_hz": 20000.0,
+        "duration_s": 20.0,
+        "amplitude_convention": "peak_dbfs"
+      }
+    }
+  ],
+  "derived_from": {
+    "manifest": "recordings/data/signals/train_signal_v2.json",
+    "role": "sweep",
+    "excerpt": "sweep",
+    "excerpt_types": [
+      "log_sine_sweep"
+    ],
+    "source_sample_rate": 96000
+  }
+}

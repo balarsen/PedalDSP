@@ -224,3 +224,16 @@ def test_log_bin_db_averages_power_and_thins_the_spectrum():
     f2 = np.array([1000.0, 1001.0])
     _, db2 = log_bin_db(f2, np.array([0.0, -300.0]), fmin=900.0)
     np.testing.assert_allclose(db2, [10 * np.log10(0.5)], atol=1e-6)
+
+
+def test_frequency_response_covers_the_end_of_a_sweep():
+    """A 3 s log sweep spends its last ~0.1 s above 15 kHz; whole-segment Welch steps skipped it
+    and the C2-C4 references read garbage up there (2026-10-20)."""
+    from pedal_model.rig.analysis import frequency_response
+    from pedal_model.rig.calibrate import reference_signal
+
+    x = reference_signal(SR).astype(np.float64)
+    f, h, coh = frequency_response(x, 0.5 * x, SR)
+    top = (f > 15_000) & (f < 19_000)
+    assert coh[top].min() > 0.99
+    np.testing.assert_allclose(np.abs(h[top]), 0.5, rtol=1e-3)

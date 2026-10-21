@@ -458,8 +458,14 @@ class RunPage(QWidget):
         self.m_loop.set_level(peak_dbfs(rec[a:pos, 1]))
         if pos < SPECTRUM_SAMPLES:
             return
+        # The return arrives one round trip after the send (about 3700 samples): compare it with
+        # the send from that long ago, or a sweep shows the return at a lower frequency.
+        cal = self.state.calibration or {}
+        lag = (cal.get("loopback") or {}).get("lag_samples", 0)
         b = pos - SPECTRUM_SAMPLES
-        f, s_db = spectrum_db(play[b:pos, 0], sr)
+        if b - lag < 0:
+            return
+        f, s_db = spectrum_db(play[b - lag : pos - lag, 0], sr)
         _, r_db = spectrum_db(rec[b:pos, 0], sr)
         sel = slice(1, None)
         self.c_send.setData(*log_bin_db(f[sel], s_db[sel]))

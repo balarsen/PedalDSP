@@ -76,7 +76,12 @@ def frequency_response(
     s_dd = np.zeros(nperseg // 2 + 1)
     s_ww = np.zeros(nperseg // 2 + 1)
     s_dw = np.zeros(nperseg // 2 + 1, dtype=complex)
-    for a in range(0, len(dry) - nperseg + 1, nperseg // 2):
+    starts = list(range(0, len(dry) - nperseg + 1, nperseg // 2))
+    # One more segment flush with the end, so the last samples are analysed too: a log sweep spends
+    # its last ~0.1 s on the top octave, which whole-segment Welch steps would skip (2026-10-20).
+    if starts and starts[-1] != len(dry) - nperseg:
+        starts.append(len(dry) - nperseg)
+    for a in starts:
         d = dry[a : a + nperseg].astype(np.float64)
         w = wet[a : a + nperseg].astype(np.float64)
         big_d = np.fft.rfft((d - d.mean()) * window)

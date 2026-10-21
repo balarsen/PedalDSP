@@ -36,7 +36,10 @@ FR_TYPES = ("log_sine_sweep", "pink_noise")  # broadband sections used for the r
 DISPLAY_BAND_HZ = (20.0, 19_000.0)  # sweeps end at 20 kHz
 STATUS_ORDER = {"ok": 0, "warn": 1, "fail": 2}
 INTEGRITY_RANGE_DB = 40.0  # only blocks within this of the loudest send block are judged
-INTEGRITY_DROP_DB = 6.0  # a loopback block this far below the typical ratio lost its audio
+# A loopback block this far below the take's typical ratio lost its audio. Real dropouts measured
+# 20-48 dB deep (sessions 1238/1307); pink-noise blocks heavy in sub-audio energy dip up to ~7 dB
+# on both inputs because the chain rolls off the lowest frequencies (2026-10-20).
+INTEGRITY_DROP_DB = 15.0
 REFERENCE_NOTES = {
     "chain": "Take ÷ the chain alone (C2): the pedal's whole response, buffers included.",
     "bypass": "Take ÷ the bypassed pedal (C3): what the engaged circuit adds (plan decision D1).",

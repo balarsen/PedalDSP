@@ -10,7 +10,9 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from pedal_model.rig.qc import expected_response, measure_response
+from pedal_model.rig.calibrate import ref_db_at
+from pedal_model.rig.profiles import load_profile
+from pedal_model.rig.qc import calibration_reference, expected_response, measure_response
 from pedal_model.rig.session import Session
 from pedal_model.signals.manifest import Manifest
 
@@ -38,7 +40,7 @@ def preset_role(session: Session, preset: str) -> str:
 def preset_response(
     session: Session, preset: str, role: str | None = None
 ) -> PresetResponse | None:
-    """Response of one saved capture, normalised as QC does (send level, chain gain)."""
+    """Response of one saved capture, normalised as QC does (send level, reference curve)."""
     role = role or preset_role(session, preset)
     wet_path = session.wet_path(preset, role)
     if wet_path is None or not wet_path.is_file():
@@ -50,9 +52,12 @@ def preset_response(
     nyquist_band = (COMPARE_BAND_HZ[0], min(COMPARE_BAND_HZ[1], sr / 2 * 0.95))
     grid, db = measure_response(dry, wet, manifest, sr, nyquist_band)
     db = db - session.data["send_level_db"]
-    chain = (session.data.get("calibration") or {}).get("chain")
-    if chain:
-        db = db - chain["gain_db"]
+    cal = session.data.get("calibration") or {}
+    ref = calibration_reference(cal, load_profile(session.profile_id).qc.get("reference", "chain"))
+    if ref is not None:
+        db = db - ref_db_at(ref, grid)
+    elif cal.get("chain"):
+        db = db - cal["chain"]["gain_db"]  # old sessions without reference curves
     controls = session.data["presets"][preset].get("controls")
     exp = expected_response(session.data["pedal"], controls, sr, grid) if controls else None
     return PresetResponse(session.root.name, preset, sr, grid, db, exp)

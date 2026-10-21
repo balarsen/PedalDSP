@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "pedal": "boss_ge7",
+    "preset_name": "all_up_pad15",
+    "description": "all up with the prodi pad on",
+    "sliders": {
+        "hz_100": 12.0,
+        "hz_200": 12.0,
+        "hz_400": 12.0,
+        "hz_800": 12.0,
+        "hz_1600": 12.0,
+        "hz_3200": 12.0,
+        "hz_6400": 12.0,
+        "level": 15.0
+    },
+    "notes": "Diagnostic (2026-10-21): all_up with the ProDI -15 dB pad ON, to find where all_up clips. Result: the rig's return path clips near -15 dBFS, not the pedal."
+}

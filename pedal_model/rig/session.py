@@ -205,6 +205,7 @@ class Session:
             "profile": self.profile_id,
             "sample_rate": self.sample_rate,
             "code_version": code_version(),
+            "file": f"calibration_{stamp}.json",
         }
         self.data["calibration"] = cal
         path = self.root / f"calibration_{stamp}.json"
@@ -256,6 +257,7 @@ class Session:
         wet: np.ndarray,
         qc: dict,
         band_fit: dict | None = None,
+        level_plan: dict | None = None,
     ) -> None:
         """Write one role of a preset (train, val or sweep) and refresh its params.json."""
         d = self.preset_dir(preset.name)
@@ -264,6 +266,7 @@ class Session:
         wet_name = self._file_name(preset.name, role, "wet", stamp)
         raw_name = self._file_name(preset.name, role, "raw", stamp)
         what = f"{self.root.name} {preset.name} {role}"
+        what += f", send level {take.send_level_db:+.1f} dB"
         write_capture(d / wet_name, wet, take.sr, f"{what}: aligned return")
         write_capture(d / raw_name, take.rec, take.sr, f"{what}: return, loopback (unaligned)")
         entry = {
@@ -279,6 +282,11 @@ class Session:
             "pre_roll": take.pre_roll,
             "verdict": qc["verdict"],
             "code_version": code_version(),
+            # The send level this take actually used (auto-level may lower it per take), the
+            # auto-level plan, and the calibration it was checked against.
+            "send_level_db": take.send_level_db,
+            "auto_level": level_plan,
+            "calibration_file": (self.data.get("calibration") or {}).get("file"),
             "qc": qc["items"],
             "band_fit": band_fit,
         }
@@ -314,6 +322,9 @@ class Session:
                 "duration_s": sig.duration_s,
                 "lag_samples": t.get("lag_samples"),
                 "captured": t.get("time_local"),
+                "send_level_db": t.get("send_level_db", self.data["send_level_db"]),
+                "auto_level": t.get("auto_level"),
+                "calibration_file": t.get("calibration_file"),
             }
         doc = {
             "schema_version": "1.2",

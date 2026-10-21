@@ -318,3 +318,44 @@ def test_uncalibrated_take_falls_back_to_correlation_and_warns(masters, tmp_path
     )
     assert rep.lag == rep.xcorr_lag == 47
     assert _item(rep, "Alignment").status == "warn"
+
+
+# ── return ceiling and auto-level ───────────────────────────────────────── #
+
+
+def test_c2_finds_the_return_ceiling():
+    """2026-10-21: the 1824c return path compressed near -15 dBFS whatever the In 1 gain."""
+    res = run_chain_test(_engine(SimulatedRig(clip_dbfs=-15.0, **IDEAL)), 48_000, -10.0, -3.0)
+    assert res["return_ceiling_dbfs"] is not None and -21.0 < res["return_ceiling_dbfs"] < -14.0
+    ok = run_chain_test(_engine(SimulatedRig(**IDEAL)), 48_000, -10.0, -3.0)
+    assert ok["return_ceiling_dbfs"] is None
+
+
+def _boost(db):
+    g = np.float32(10 ** (db / 20))
+    return lambda x, _sr: x * g
+
+
+def test_auto_level_keeps_a_hot_preset_under_the_ceiling():
+    from pedal_model.rig.calibrate import AUTO_LEVEL_HEADROOM_DB, plan_send_level
+
+    ceiling = -15.0
+    eng = _engine(SimulatedRig(clip_dbfs=ceiling, **IDEAL))
+    eng.backend.set_pedal(_boost(25.0))  # an all-up-like preset: +25 dB
+    plan = plan_send_level(eng, 48_000, -3.0, -10.0, ceiling)
+    assert plan["send_level_db"] < -10.0 and abs(plan["probe_max_gain_db"] - 25.0) < 1.0
+    rng = np.random.default_rng(0)
+    sig = (0.7 * np.sin(2 * np.pi * 440 * np.arange(48_000) / 48_000)).astype(np.float32)
+    sig += (0.01 * rng.standard_normal(48_000)).astype(np.float32)
+    take = eng.run(sig, 48_000, send_level_db=plan["send_level_db"])
+    peak = 20 * np.log10(np.abs(take.rec[:, 0]).max())
+    assert peak < ceiling - AUTO_LEVEL_HEADROOM_DB + 1.0
+
+
+def test_auto_level_leaves_a_cut_preset_at_the_default_send():
+    from pedal_model.rig.calibrate import plan_send_level
+
+    eng = _engine(SimulatedRig(**IDEAL))
+    eng.backend.set_pedal(_boost(-20.0))
+    plan = plan_send_level(eng, 48_000, -3.0, -10.0, -15.0)
+    assert plan["send_level_db"] == -10.0

@@ -273,6 +273,17 @@ def check_take(
     )
     pk = peak_dbfs(take.rec[:, 0])
     st = "ok" if pk < CLIP_WARN_DBFS else ("warn" if pk < CLIP_FAIL_DBFS else "fail")
+    ceiling = (cal_chain or {}).get("return_ceiling_dbfs")
+    if ceiling is not None and pk > ceiling - 1.0:
+        items.append(
+            QCItem(
+                "Return vs chain ceiling",
+                "fail" if pk > ceiling + 1.0 else "warn",
+                f"{pk:+.1f} dBFS (ceiling {ceiling:.0f})",
+                "The return reached the level where the DI path compresses (C2): this take partly "
+                "describes the DI boxes, not the pedal. Retake at a lower send level.",
+            )
+        )
     items.append(
         QCItem(
             "Return peak",

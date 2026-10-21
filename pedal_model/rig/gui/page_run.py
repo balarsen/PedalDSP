@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 
 from pedal_model.rig.analysis import log_bin_db, log_grid, peak_dbfs, spectrum_db
 from pedal_model.rig.bandfit import fit_band
-from pedal_model.rig.calibrate import ref_db_at
+from pedal_model.rig.calibrate import DEFAULT_CEILING_DBFS, plan_send_level, ref_db_at
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import confirm_playback, demo_pedal
 from pedal_model.rig.gui.state import AppState
@@ -91,8 +91,16 @@ def _capture_and_check(state: AppState, preset: Preset, role: str, report):
     sig = session.signal(role)
     manifest = Manifest(sig.manifest_path)
     dry = manifest.load_all()
+    send = state.profile.send_level_db
+    level_plan = None
+    if state.profile.qc.get("auto_level", False):
+        report("Measuring this step's gain (auto-level)")
+        chain = (session.data.get("calibration") or {}).get("chain") or {}
+        ceiling = chain.get("return_ceiling_dbfs") or DEFAULT_CEILING_DBFS
+        level_plan = plan_send_level(state.engine, sig.sample_rate, peak_dbfs(dry), send, ceiling)
+        send = level_plan["send_level_db"]
     report("capture")
-    take = state.engine.run(dry, sig.sample_rate, send_level_db=state.profile.send_level_db)
+    take = state.engine.run(dry, sig.sample_rate, send_level_db=send)
     if take.aborted:
         return role, None
     rep, wet = check_take(
@@ -116,7 +124,9 @@ def _capture_and_check(state: AppState, preset: Preset, role: str, report):
                 )
             )
     report("Saving the WAV files and params.json")
-    session.save_capture(preset, role, take, wet, rep.to_dict(), band_fit=fit)
+    session.save_capture(
+        preset, role, take, wet, rep.to_dict(), band_fit=fit, level_plan=level_plan
+    )
     return role, rep
 
 

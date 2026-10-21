@@ -94,6 +94,13 @@ target), and an early Pi Muff stem pair.
   QC's "Audio integrity (loopback)" check compares each loopback block with what was sent. It fails
   on a clipping loopback too, which is how the 'dropouts always at 21.0 s' were explained: sweep_mid
   starts there, the first section loud enough to clip. Never trust the driver's dropout count alone.
+- **The rig must never be the limiter.** The model is of the pedal: engaged ÷ bypassed cancels the
+  ProRMP, ProDI and In 1 only while that chain is linear. C2 measures the return ceiling (where the
+  chain compresses; 1 kHz and 60 Hz, transformers saturate low first; the 1824c In 1 sat near
+  -15 dBFS on 2026-10-21) and **auto-level** (profile `qc.auto_level`) probes each take with a quiet
+  sweep and lowers the digital send level so the return peaks 6 dB under it. Each take records its
+  send level, the plan and its calibration file (session.json, params.json, FLAC tags); fitting
+  must use the per-take send level. Do not change In 1 gain mid-session (it invalidates C2-C4).
 - **Live plots must stay cheap** (Run page): spectra are log-binned to about 240 points, the live
   curves skip antialiasing, and auto scale is throttled (`widgets.LiveAutoY`). Together they took a
   2400x1300 repaint from about 130 ms to 9 ms on real data (2026-10-20).

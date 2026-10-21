@@ -47,6 +47,7 @@
   },
   "qc": {
     "reference": "bypass",
+    "auto_level": true,
     "fr_band_hz": [100, 8000],
     "fr_ok_db": 1.0,
     "fr_warn_db": 2.0

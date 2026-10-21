@@ -31,7 +31,15 @@ TONE_HZ = 1000.0
 TONE_S = 0.4
 TONE_MEASURE_S = 0.2  # middle part of each tone, away from the on/off edges
 GAP_S = 0.2
-CHAIN_LEVELS_DBFS = (-36.0, -30.0, -24.0, -18.0, -12.0, -9.0)  # tone peaks at the send output
+# Tone peaks at the send output. The last two go beyond any take level, to find where the
+# return path starts to compress (its ceiling).
+CHAIN_LEVELS_DBFS = (-36.0, -30.0, -24.0, -18.0, -12.0, -9.0, -6.0, -3.0)
+CEILING_COMPRESSION_DB = 0.5  # a tone this far below the chain gain marks the ceiling
+# The ceiling is also measured at a low frequency: the ProRMP and ProDI transformers saturate
+# there first (flat's loudest pink noise compressed 0.6 dB at 50 Hz, 2026-10-21).
+LOW_TONE_HZ = 60.0
+LOW_LEVELS_DBFS = (-30.0, -18.0, -12.0, -9.0, -6.0, -3.0)
+DEFAULT_CEILING_DBFS = -15.0  # 1824c In 1, measured 2026-10-21; used until C2 measures it
 LOOP_TONE_DBFS = -20.0
 LOOP_LINEARITY_STEPS_DB = (-20.0, -10.0, 0.0)  # tones relative to the hottest send of a take
 LOOP_LINEARITY_LIMIT_DB = 0.5
@@ -135,10 +143,10 @@ def _sweep(sr: int, dbfs: float) -> np.ndarray:
     return (10 ** (dbfs / 20) * x * fade).astype(np.float32)
 
 
-def _tone(sr: int, dbfs: float, seconds: float) -> np.ndarray:
+def _tone(sr: int, dbfs: float, seconds: float, freq_hz: float = TONE_HZ) -> np.ndarray:
     t = np.arange(int(seconds * sr)) / sr
     fade = np.minimum(1.0, np.minimum(t, seconds - t) / 0.01)
-    return (10 ** (dbfs / 20) * np.sin(2 * np.pi * TONE_HZ * t) * fade).astype(np.float32)
+    return (10 ** (dbfs / 20) * np.sin(2 * np.pi * freq_hz * t) * fade).astype(np.float32)
 
 
 def _gap(sr: int, seconds: float = GAP_S) -> np.ndarray:
@@ -250,6 +258,21 @@ def run_loopback_test(engine: CaptureEngine, sr: int, hottest_dbfs: float = -10.
     }
 
 
+def _ceiling(heard: list[dict]) -> float | None:
+    """Return level (dBFS) of the loudest tone before the first one compressed by more than
+    CEILING_COMPRESSION_DB relative to the quietest heard tone; None if none is compressed."""
+    if not heard:
+        return None
+    for prev, st in zip(heard, heard[1:]):
+        if heard[0]["gain_db"] - st["gain_db"] > CEILING_COMPRESSION_DB:
+            return prev["return_dbfs"]
+    return None
+
+
+def _fmt(db: float | None) -> str:
+    return "not reached" if db is None else f"{db:.0f} dBFS"
+
+
 def run_chain_test(
     engine: CaptureEngine, sr: int, send_level_db: float, train_peak_dbfs: float
 ) -> dict:
@@ -270,6 +293,12 @@ def run_chain_test(
     for lvl in CHAIN_LEVELS_DBFS:
         tone = _tone(sr, lvl, TONE_S)
         starts.append(cursor)
+        parts += [tone, _gap(sr)]
+        cursor += len(tone) + len(_gap(sr))
+    low_starts = []
+    for lvl in LOW_LEVELS_DBFS:
+        tone = _tone(sr, lvl, TONE_S, LOW_TONE_HZ)
+        low_starts.append(cursor)
         parts += [tone, _gap(sr)]
         cursor += len(tone) + len(_gap(sr))
     take = engine.run(np.concatenate(parts), sr, send_level_db=0.0, route="both")
@@ -302,12 +331,36 @@ def run_chain_test(
     used = [st for st in heard if st["send_dbfs"] <= hottest + LINEARITY_MARGIN_DB]
     spread = max(abs(st["gain_db"] - gain) for st in used) if used else 0.0
     predicted = hottest + gain
-    peak_seen = peak_dbfs(take.rec[:, 0])
+    # Clipping is judged on the tones a take could produce; the louder ones probe the ceiling.
+    peak_seen = max((st["return_dbfs"] for st in used), default=peak_dbfs(take.rec[:, 0]))
+    # Ceiling: the return level of the loudest tone before the first one compressed by more than
+    # CEILING_COMPRESSION_DB. Above it the DI path, not the pedal, shapes the signal.
+    ceiling = _ceiling(heard)
+    low_steps = []
+    for lvl, s in zip(LOW_LEVELS_DBFS, low_starts):
+        send = take.play[pre + s + a : pre + s + b, 0]
+        ret = take.rec[pre + s + a + lag : pre + s + b + lag, 0]
+        low_steps.append(
+            {
+                "send_dbfs": lvl,
+                "return_dbfs": rms_dbfs(ret) + 3.01,
+                "gain_db": rms_dbfs(ret) - rms_dbfs(send),
+            }
+        )
+    low_heard = [st for st in low_steps if st["return_dbfs"] > noise + HEARD_ABOVE_NOISE_DB]
+    low_ceiling = _ceiling(low_heard)
+    found = [c for c in (ceiling, low_ceiling) if c is not None]
+    ceiling_1k = ceiling
+    ceiling = min(found) if found else None
     result = {
         "lag_samples": int(lag),
         "gain_db": gain,
         "linearity_spread_db": spread,
         "return_noise_dbfs": noise,
+        "return_ceiling_dbfs": ceiling,
+        "return_ceiling_1k_dbfs": ceiling_1k,
+        "return_ceiling_60hz_dbfs": low_ceiling,
+        "low_steps": low_steps,
         "predicted_train_peak_dbfs": predicted,
         "steps": steps,
         "advice": [],
@@ -381,6 +434,22 @@ def run_chain_test(
                 "ok",
                 f"Linear up to {hottest + LINEARITY_MARGIN_DB:.0f} dBFS sent (the loudest take "
                 f"level + {LINEARITY_MARGIN_DB:.0f} dB): gain spread {spread:.2f} dB.",
+            )
+        )
+    if ceiling is not None:
+        lines.append(
+            advice(
+                "ok",
+                f"Return ceiling: the chain compresses above about {ceiling:.0f} dBFS on In 1 "
+                f"(1 kHz: {_fmt(ceiling_1k)}, 60 Hz: {_fmt(low_ceiling)}). Auto-level keeps every "
+                f"take's peak {AUTO_LEVEL_HEADROOM_DB:.0f} dB under it.",
+            )
+        )
+    elif heard:
+        lines.append(
+            advice(
+                "ok",
+                f"Return ceiling not reached up to {heard[-1]['return_dbfs']:.0f} dBFS on In 1.",
             )
         )
     above = [st for st in heard if st["send_dbfs"] > hottest + LINEARITY_MARGIN_DB]
@@ -489,6 +558,63 @@ def reference_from_take(take: Take, name: str) -> dict:
         "noise_dbfs": rms_dbfs(take.rec[int(0.1 * sr) : pre, 0]),
         "gain_1k_db": float(np.interp(np.log(1000.0), np.log(grid), mag)),
         "file": None,  # the raw capture, relative to the session folder, once saved
+    }
+
+
+AUTO_LEVEL_PROBE_DBFS = -45.0  # probe sweep peak at the send: quiet, so nothing clips
+AUTO_LEVEL_HEADROOM_DB = 6.0  # a take's predicted return peak stays this far under the ceiling
+AUTO_LEVEL_BAND_HZ = (30.0, 16_000.0)  # where the probe's largest gain is looked for
+
+
+def plan_send_level(
+    engine: CaptureEngine,
+    sr: int,
+    signal_peak_dbfs: float,
+    default_send_db: float,
+    ceiling_dbfs: float,
+) -> dict:
+    """Auto-level: choose a take's send level so the rig's return path never clips.
+
+    A quiet probe sweep measures G, the largest gain from send to return (chain and pedal,
+    1/6-octave smoothed). The take's return peak is then about signal peak + send level + G, and
+    the send level is lowered until that is AUTO_LEVEL_HEADROOM_DB under the ceiling, never
+    raised above the profile's default. With the return linear, engaged ÷ bypassed still cancels
+    the DI boxes.
+
+    Args:
+        signal_peak_dbfs: Peak of the dry signal the take will play (before the send level).
+        default_send_db: The profile's send level (the most a take may use).
+        ceiling_dbfs: Return level where the chain starts to compress (C2), in dBFS.
+
+    Returns:
+        dict: send_level_db, default_send_db, probe_max_gain_db, probe_max_gain_hz,
+        predicted_peak_dbfs, ceiling_dbfs, headroom_db, probe_return_peak_dbfs.
+    """
+    probe_db = AUTO_LEVEL_PROBE_DBFS
+    for _ in range(2):  # a second, quieter try if the probe itself reached the ceiling
+        sweep = reference_signal(sr) * np.float32(10 ** ((probe_db - REFERENCE_DBFS) / 20))
+        take = engine.run(np.concatenate([sweep, _gap(sr)]), sr, send_level_db=0.0, route="both")
+        probe_peak = peak_dbfs(take.rec[:, 0])
+        if probe_peak < ceiling_dbfs - 3.0:
+            break
+        probe_db -= 15.0
+    ref = reference_from_take(take, "probe")
+    f = np.asarray(ref["freqs_hz"])
+    mag = np.asarray(ref["mag_db"])
+    band = (f >= AUTO_LEVEL_BAND_HZ[0]) & (f <= AUTO_LEVEL_BAND_HZ[1])
+    i = int(np.argmax(np.where(band, mag, -np.inf)))
+    gain_max = float(mag[i])
+    target = ceiling_dbfs - AUTO_LEVEL_HEADROOM_DB
+    send = min(default_send_db, target - signal_peak_dbfs - gain_max)
+    return {
+        "send_level_db": round(float(send), 2),
+        "default_send_db": float(default_send_db),
+        "probe_max_gain_db": round(gain_max, 2),
+        "probe_max_gain_hz": round(float(f[i]), 1),
+        "predicted_peak_dbfs": round(float(signal_peak_dbfs + send + gain_max), 2),
+        "ceiling_dbfs": float(ceiling_dbfs),
+        "headroom_db": AUTO_LEVEL_HEADROOM_DB,
+        "probe_return_peak_dbfs": round(float(probe_peak), 2),
     }
 
 

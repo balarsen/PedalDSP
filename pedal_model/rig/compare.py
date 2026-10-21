@@ -51,7 +51,8 @@ def preset_response(
     wet, sr = sf.read(str(wet_path), dtype="float32")
     nyquist_band = (COMPARE_BAND_HZ[0], min(COMPARE_BAND_HZ[1], sr / 2 * 0.95))
     grid, db = measure_response(dry, wet, manifest, sr, nyquist_band)
-    db = db - session.data["send_level_db"]
+    take = session.take(preset, role) or {}
+    db = db - take.get("send_level_db", session.data["send_level_db"])
     cal = session.data.get("calibration") or {}
     ref = calibration_reference(cal, load_profile(session.profile_id).qc.get("reference", "chain"))
     if ref is not None:

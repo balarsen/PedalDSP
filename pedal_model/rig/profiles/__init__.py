@@ -162,7 +162,7 @@ class Profile:
             "preset_name": preset.name,
             "description": preset.description,
             "sliders": preset.controls,
-            "notes": preset.notes,
+            "notes": preset.notes or preset.description,  # never empty: Plan shows the notes
         }
         path.write_text(json.dumps(doc, indent=4) + "\n", encoding="utf-8", newline="\n")
         return path

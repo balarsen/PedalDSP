@@ -256,6 +256,18 @@ section, so its curve sits between them. **Must be settled before rung A**, beca
 right H(f). The first check: compare a sweep-only H against a pink-only H on one take, against the
 references.
 
+**Gain staging (2026-10-21).** The capture chain must stay linear for engaged ÷ bypassed to cancel
+the DI boxes. In session 2026-10-21_0237 the 1824c's return path compressed near -15 dBFS, so every
+boosting preset (all_up, bass_boost, bright) captured the DI path's clipping, not the pedal's. Fixes:
+C2 now measures that ceiling at 1 kHz and 60 Hz, and auto-level sets a per-take send level so the
+return peaks 6 dB under it (recorded per take; the fit uses it). The GE-7's own clipping at
+guitar-level input is real sound and is captured separately later, with the rig's ceiling
+raised (pad / gain staging) so the pedal clips first.
+
+**For the Klon (nonlinear):** dividing by references only works for a linear pedal. A clipping
+pedal needs the input side (send → ProRMP → pedal input) and the output side (pedal output → ProDI
+→ In 1) measured separately, since C2 only gives their product. To plan before the Klon work.
+
 **R2. Capture session** (48 kHz, hardware, about 3 hours of audio, mostly unattended; agreed 2026-10-18):
 1. C1–C4.
 2. Flat ×3 and smile ×3, then one more of each after re-plugging (P0.4).

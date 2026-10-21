@@ -98,7 +98,8 @@ def main() -> None:
             sig_rel = data["signals"][t["role"]]
             m = Manifest(root / sig_rel)
             dry = m.load_all()
-            take = rebuild_take(root / name / t["raw_wav"], dry, data["send_level_db"])
+            send = t.get("send_level_db", data["send_level_db"])  # per take since auto-level
+            take = rebuild_take(root / name / t["raw_wav"], dry, send)
             rep, _ = check_take(
                 take,
                 dry,

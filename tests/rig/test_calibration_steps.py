@@ -223,3 +223,31 @@ def test_session_stores_references_and_their_audio(masters, tmp_path):
         audio, sr = sf.read(str(s.root / rel))
         assert sr == SR and audio.shape[1] == 2
         assert rel.startswith("calibration/") and f"_ref_{name}_raw_48k_" in rel
+
+
+def test_takes_record_their_send_level_plan_and_calibration(masters, tmp_path):
+    profile = load_profile("ge7")
+    s = Session.create(profile, SR, "quick", RigConfig(), "sim", True, [Preset("flat", "", FLAT)])
+    cal, _ = _calibrate(_engine())
+    s.set_calibration(cal["loopback"], cal["chain"], cal["references"], cal["steps"])
+    sig = s.signal("train")
+    m = Manifest(sig.manifest_path)
+    dry = m.load_all()
+    eng = _engine()
+    take = eng.run(dry, SR, send_level_db=-17.5)
+    rep, wet = check_take(
+        take,
+        dry,
+        m,
+        pedal="boss_ge7",
+        controls=FLAT,
+        calibration=s.data["calibration"],
+        qc_limits=profile.qc,
+    )
+    plan = {"send_level_db": -17.5, "probe_max_gain_db": 3.0}
+    s.save_capture(Preset("flat", "", FLAT), "train", take, wet, rep.to_dict(), level_plan=plan)
+    params = json.loads((s.preset_dir("flat") / "params.json").read_text(encoding="utf-8"))
+    cap = params["captures"]["train"]
+    assert cap["send_level_db"] == -17.5 and cap["auto_level"]["probe_max_gain_db"] == 3.0
+    assert cap["calibration_file"] == s.data["calibration"]["file"]
+    assert (s.root / cap["calibration_file"]).is_file()

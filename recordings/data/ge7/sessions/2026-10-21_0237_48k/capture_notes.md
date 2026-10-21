@@ -64,3 +64,16 @@ bright (09:03) also clips (linearity 7.3 dB, THD -10 dB).
    it, replacing the fixed -18 to -6 dBFS target.
 3. Hardware test: return on a rear input (e.g. In 3), C2 only, to see if the ceiling is In 1-specific.
 4. Meanwhile the cut-only presets (high_cut, low_cut, mid_scoop) can be captured as they are.
+
+## Owner's answers (2026-10-21) and the plan for tomorrow
+
+- Auto-level per take: yes. Built after this session (C2 measures the ceiling at 1 kHz and 60 Hz;
+  each take probes its gain and lowers the digital send level; recorded per take). Lowering In 1 gain
+  instead would invalidate C2-C4 and gains nothing (the ceiling is after the gain stage).
+- Tomorrow, at the rig:
+  1. Hardware test: move the ProDI XLR to a rear input (In 3), set the return channel to 3 on the
+     Setup page, run C2 only. Note the ceiling C2 reports; compare with In 1 (about -15 dBFS).
+  2. Use whichever input has the higher ceiling, then a **new session**: C1-C4 with the new code.
+  3. Recapture the boosting presets (all_up, bass_boost, bright, and the rest of the plan) with
+     auto-level on; check each with `scripts/session_linearity.py`.
+- This session's good data: flat, all_down (and the cut-only presets if captured).

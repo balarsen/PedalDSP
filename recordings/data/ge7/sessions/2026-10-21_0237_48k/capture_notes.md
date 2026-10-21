@@ -39,3 +39,28 @@ Retake **all_up (train)** with the **ProDI -15 dB pad ON**, In 1 gain unchanged,
   changes the chain.
 
 Either way, turn the pad back OFF before capturing anything for this session's calibration.
+
+## Result of the pad test (all_up_pad15, 09:09)
+
+- Quiet pink (-24 dBFS) section: -14.5 to -16 dB at every frequency with the pad: the pad works; the
+  pedal is linear there. The noise floor dropped 15.4 dB (-82.5 -> -97.9 dBFS): the hiss is the
+  GE-7's own, before the pad.
+- Loud sections (sweep -3 dBFS, -3 dBFS tones): only -0.1 to -2.7 dB with the pad, still clipped. Both
+  takes clip at the same return level, about -14 to -16 dBFS peak.
+- So the main limiter is the **rig's return path after the pad** (ProDI transformer or the 1824c In 1),
+  with a ceiling near -15 dBFS that does not move with In 1 gain (C2 at max gain and at gain 4 both
+  compressed there). Whether the GE-7 also clips at the loudest levels is masked by it.
+- C2's "saturation" warnings (0.37 / 0.95 dB at -9 dBFS sent) were this return ceiling, not the
+  ProRMP.
+
+bright (09:03) also clips (linearity 7.3 dB, THD -10 dB).
+
+## Proposed (waiting for the owner)
+
+1. Per-preset auto-level: a short probe before each take sets the digital send level so the return
+   peaks about 6 dB under the measured ceiling (never above the current -10 dB send). The references
+   stay valid; QC already divides by the send level.
+2. C2 measures the return ceiling (tones until the return compresses) and sets the take target from
+   it, replacing the fixed -18 to -6 dBFS target.
+3. Hardware test: return on a rear input (e.g. In 3), C2 only, to see if the ceiling is In 1-specific.
+4. Meanwhile the cut-only presets (high_cut, low_cut, mid_scoop) can be captured as they are.

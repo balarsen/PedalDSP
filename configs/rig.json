@@ -1,6 +1,6 @@
 {
-  "saved": "2026-10-20T22:18:19",
-  "code_version": "ef88bb1",
+  "saved": "2026-10-20T22:26:48",
+  "code_version": "4d8a4db",
   "asio_device": "Studio USB ASIO Driver",
   "block_size": 1024,
   "loop_send_db": -30.0,
@@ -15,7 +15,7 @@
       "main_knob": "max",
       "in1_gain": "set during calibration (note the knob position)",
       "in1_48v": "OFF",
-      "in2_gain": "3 line on",
+      "in2_gain": "3 line off",
       "in2_48v": "OFF"
     },
     "prormp": {

@@ -137,6 +137,19 @@ def test_chain_gain_and_linearity():
     assert _ok(res)
 
 
+def test_chain_test_fails_a_return_that_flattens_below_full_scale():
+    """2026-10-20: In 1 preamp at maximum gain flattened the return at about -15 dBFS."""
+    res = run_chain_test(_engine(SimulatedRig(clip_dbfs=-15.0)), 48_000, -10.0, -3.0)
+    text = " ".join(a["text"] for a in res["advice"])
+    assert not _ok(res) and "stops rising" in text
+
+
+def test_chain_test_judges_linearity_only_over_take_levels():
+    """Compression above the loudest take level is headroom information, not a failure."""
+    res = run_chain_test(_engine(SimulatedRig(**IDEAL)), 48_000, -10.0, -3.0)
+    assert _ok(res) and any("Headroom" in a["text"] for a in res["advice"])
+
+
 def test_chain_test_reports_missing_return():
     res = run_chain_test(_engine(SimulatedRig(return_gain_db=-200.0)), 48_000, -10.0, -2.0)
     assert not _ok(res)

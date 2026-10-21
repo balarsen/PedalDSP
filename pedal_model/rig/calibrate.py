@@ -37,6 +37,8 @@ LOOP_LINEARITY_STEPS_DB = (-20.0, -10.0, 0.0)  # tones relative to the hottest s
 LOOP_LINEARITY_LIMIT_DB = 0.5
 
 LINEARITY_LIMIT_DB = 0.25  # docs/ge7_plan.md: flat2 showed <= 0.25 dB gain variation across levels
+LINEARITY_FAIL_DB = 1.0  # more than this over the take's levels distorts the training data
+LINEARITY_MARGIN_DB = 3.0  # linearity is judged up to the loudest take level + this
 RETURN_PEAK_TARGET_DBFS = (-18.0, -6.0)  # where the loudest training section should land on In 1
 NO_SIGNAL_DBFS = -70.0
 HEARD_ABOVE_NOISE_DB = 30.0  # a chain tone this far above the return's noise is measured
@@ -289,10 +291,16 @@ def run_chain_test(
     noise = rms_dbfs(take.rec[int(0.1 * sr) : pre, 0])
     # A tone counts as heard 30 dB above the return's own noise (noise then shifts its level by
     # 0.004 dB). An absolute threshold called a clean but quiet return "no return" (2026-10-20).
-    gains = [st["gain_db"] for st in steps if st["return_dbfs"] > noise + HEARD_ABOVE_NOISE_DB]
-    gain = float(np.median(gains)) if gains else -200.0
-    spread = float(max(gains) - min(gains)) if len(gains) > 1 else 0.0
-    predicted = train_peak_dbfs + send_level_db + gain
+    heard = [st for st in steps if st["return_dbfs"] > noise + HEARD_ABOVE_NOISE_DB]
+    gains = [st["gain_db"] for st in heard]
+    # The chain gain is the quietest heard tone's: the one least likely to be compressed.
+    gain = gains[0] if gains else -200.0
+    # Linearity is judged over the levels a take really sends (its loudest peak plus a 3 dB
+    # margin); louder tones only tell how much headroom is left.
+    hottest = train_peak_dbfs + send_level_db
+    used = [st for st in heard if st["send_dbfs"] <= hottest + LINEARITY_MARGIN_DB]
+    spread = max(abs(st["gain_db"] - gain) for st in used) if used else 0.0
+    predicted = hottest + gain
     peak_seen = peak_dbfs(take.rec[:, 0])
     result = {
         "lag_samples": int(lag),
@@ -341,17 +349,48 @@ def run_chain_test(
             )
         )
     if spread > LINEARITY_LIMIT_DB:
+        # Where it saturates: if the return stops rising well below full scale, an analog stage
+        # before the converter is clipping (2026-10-20: the In 1 preamp at maximum gain).
+        # Flattening: the two loudest tones' returns differ by much less than their sends do.
+        tops = [st["return_dbfs"] for st in heard[-2:]]
+        sends = [st["send_dbfs"] for st in heard[-2:]]
+        flat = (
+            len(tops) == 2
+            and (tops[1] - tops[0]) < (sends[1] - sends[0]) - 1.5
+            and max(tops) < -3.0
+        )
+        where = (
+            f" The return stops rising at about {max(tops):.0f} dBFS, below full scale: an analog "
+            "stage before the converter is clipping, most likely the In 1 preamp near maximum "
+            "gain. Lower In 1 gain and get the level back with the ProRMP level knob or an "
+            "inline booster (e.g. a Cloudlifter) instead."
+            if flat
+            else " Lower the ProRMP level or the In 1 gain, then re-run."
+        )
         lines.append(
             advice(
-                "warn",
-                f"Gain changes by {spread:.2f} dB across levels (limit {LINEARITY_LIMIT_DB} dB): "
-                "something is saturating. Lower the 1824c Main knob or the ProRMP level, then "
-                "raise In 1 gain to compensate.",
+                "fail" if spread > LINEARITY_FAIL_DB else "warn",
+                f"Gain changes by {spread:.2f} dB over the levels a take sends (limit "
+                f"{LINEARITY_LIMIT_DB} dB): something saturates.{where}",
             )
         )
     else:
         lines.append(
-            advice("ok", f"Linear: gain spread {spread:.2f} dB across {len(gains)} levels.")
+            advice(
+                "ok",
+                f"Linear up to {hottest + LINEARITY_MARGIN_DB:.0f} dBFS sent (the loudest take "
+                f"level + {LINEARITY_MARGIN_DB:.0f} dB): gain spread {spread:.2f} dB.",
+            )
+        )
+    above = [st for st in heard if st["send_dbfs"] > hottest + LINEARITY_MARGIN_DB]
+    if above:
+        st = above[-1]
+        lines.append(
+            advice(
+                "ok",
+                f"Headroom: at {st['send_dbfs']:.0f} dBFS sent ({st['send_dbfs'] - hottest:.0f} dB "
+                f"above the loudest take level) the gain is {st['gain_db'] - gain:+.2f} dB off.",
+            )
         )
     if predicted > hi:
         lines.append(

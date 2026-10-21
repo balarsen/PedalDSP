@@ -1,0 +1,48 @@
+{
+  "loopback": {
+    "lag_samples": 3724,
+    "gain_db": 11.268201176213744,
+    "loop_noise_dbfs": -101.17337160929493,
+    "return_dbfs_while_loop_only": -109.987902434899,
+    "linearity_spread_db": 2.0166785125406506,
+    "level_gains_db": [
+      11.268201176213744,
+      11.266452019930064,
+      9.251522663673093
+    ],
+    "advice": [
+      {
+        "status": "ok",
+        "text": "Loopback found: 3724 samples (77.58 ms), gain +11.3 dB."
+      },
+      {
+        "status": "fail",
+        "text": "The loopback is not linear: its gain changes by 2.0 dB over 20 dB of level, so In 2 is clipping. Turn In 2 gain fully down and use a TRS line cable; if it persists, lower loop_send_db in configs/rig.json."
+      }
+    ]
+  },
+  "chain": null,
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "fail",
+      "advice": [
+        {
+          "status": "ok",
+          "text": "Loopback found: 3724 samples (77.58 ms), gain +11.3 dB."
+        },
+        {
+          "status": "fail",
+          "text": "The loopback is not linear: its gain changes by 2.0 dB over 20 dB of level, so In 2 is clipping. Turn In 2 gain fully down and use a TRS line cable; if it persists, lower loop_send_db in configs/rig.json."
+        }
+      ],
+      "time_local": "2026-10-20T22:26:58"
+    }
+  },
+  "t": "2026-10-21T04:26:58Z",
+  "time_local": "2026-10-20T22:26:58",
+  "session": "2026-10-20_2226_48k",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "4d8a4db"
+}

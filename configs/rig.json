@@ -1,8 +1,9 @@
 {
-  "saved": "2026-10-18T21:42:16",
-  "code_version": "cb78f34",
+  "saved": "2026-10-20T21:54:50",
+  "code_version": "fdc86ac",
   "asio_device": "Studio USB ASIO Driver",
   "block_size": 1024,
+  "loop_send_db": -30.0,
   "channels": {
     "send_out": 1,
     "loop_out": 2,
@@ -11,7 +12,7 @@
   },
   "boxes": {
     "interface": {
-      "main_knob": "mark it: the Main knob sets the Out 1/2 level (verify)",
+      "main_knob": "12",
       "in1_gain": "set during calibration (note the knob position)",
       "in1_48v": "OFF",
       "in2_gain": "9",

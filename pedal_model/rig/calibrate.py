@@ -172,27 +172,32 @@ def run_loopback_test(engine: CaptureEngine, sr: int, hottest_dbfs: float = -10.
 
     a = int((TONE_S - TONE_MEASURE_S) / 2 * sr)
     b = int((TONE_S + TONE_MEASURE_S) / 2 * sr)
-    gains = []
-    for s0 in starts:
-        got = take.rec[pre + s0 + a + lag : pre + s0 + b + lag, 1]
-        gains.append(rms_dbfs(got) - rms_dbfs(take.play[pre + s0 + a : pre + s0 + b, 1]))
-    gain = gains[0]  # the quietest tone: the least likely to be compressed
-    spread = float(max(gains) - min(gains))
-    loudest = take.rec[pre + starts[-1] + a + lag : pre + starts[-1] + b + lag, 1]
     noise = rms_dbfs(take.rec[int(0.1 * sr) : pre, 1])
     crosstalk = rms_dbfs(take.rec[:, 0])
+    gains, received = [], []
+    for s0 in starts:
+        got = rms_dbfs(take.rec[pre + s0 + a + lag : pre + s0 + b + lag, 1])
+        received.append(got)
+        gains.append(got - rms_dbfs(take.play[pre + s0 + a : pre + s0 + b, 1]))
+    # Linearity is only judged on tones well above In 2's noise: a tone lost in noise reads as a
+    # gain change that is not there.
+    heard = [g for g, r in zip(gains, received) if r > noise + 20.0]
+    gain = heard[0] if heard else gains[-1]  # the quietest clearly heard tone
+    spread = float(max(heard) - min(heard)) if len(heard) > 1 else 0.0
 
     lines = []
     if take.xruns:
         lines.append(advice("fail", DROPOUT_TEXT.format(take.xruns)))
     if lag > LAG_TRUST_FRACTION * LAG_SEARCH_S * sr:
         lines.append(advice("fail", LAG_TOO_LONG_TEXT))
-    if rms_dbfs(loudest) < NO_SIGNAL_DBFS:
+    if received[-1] < NO_SIGNAL_DBFS or len(heard) < 2:
         lines.append(
             advice(
                 "fail",
-                "No loopback signal on In 2. Check the Out 2 → In 2 cable, and that In 2 gain is "
-                "not fully off.",
+                f"Almost nothing reaches In 2 (loudest tone {received[-1]:.0f} dBFS, noise "
+                f"{noise:.0f} dBFS; loop gain {gains[-1]:+.0f} dB). Check the Main knob (Out 1/2 "
+                "are the Main outputs: turn it fully up), that the cable runs from Main Out R to "
+                "In 2, and the UC mixer (DAW 2 unmuted, Main not muted).",
             )
         )
     else:
@@ -210,7 +215,9 @@ def run_loopback_test(engine: CaptureEngine, sr: int, hottest_dbfs: float = -10.
                 "must go to different places.",
             )
         )
-    if spread > LOOP_LINEARITY_LIMIT_DB:
+    if len(heard) < 2:
+        pass  # no level to judge linearity at; reported above
+    elif spread > LOOP_LINEARITY_LIMIT_DB:
         lines.append(
             advice(
                 "fail",

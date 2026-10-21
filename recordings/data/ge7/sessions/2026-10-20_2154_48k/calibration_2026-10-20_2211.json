@@ -1,0 +1,48 @@
+{
+  "loopback": {
+    "lag_samples": 3722,
+    "gain_db": -46.35373350637191,
+    "loop_noise_dbfs": -114.82824614669099,
+    "return_dbfs_while_loop_only": -106.93855812660006,
+    "linearity_spread_db": 3.4410733335842423,
+    "level_gains_db": [
+      -46.35373350637191,
+      -49.32954083700032,
+      -49.79480683995615
+    ],
+    "advice": [
+      {
+        "status": "fail",
+        "text": "No loopback signal on In 2. Check the Out 2 \u2192 In 2 cable, and that In 2 gain is not fully off."
+      },
+      {
+        "status": "fail",
+        "text": "The loopback is not linear: its gain changes by 3.4 dB over 20 dB of level, so In 2 is clipping. Turn In 2 gain fully down and use a TRS line cable; if it persists, lower loop_send_db in configs/rig.json."
+      }
+    ]
+  },
+  "chain": null,
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "fail",
+      "advice": [
+        {
+          "status": "fail",
+          "text": "No loopback signal on In 2. Check the Out 2 \u2192 In 2 cable, and that In 2 gain is not fully off."
+        },
+        {
+          "status": "fail",
+          "text": "The loopback is not linear: its gain changes by 3.4 dB over 20 dB of level, so In 2 is clipping. Turn In 2 gain fully down and use a TRS line cable; if it persists, lower loop_send_db in configs/rig.json."
+        }
+      ],
+      "time_local": "2026-10-20T22:11:54"
+    }
+  },
+  "t": "2026-10-21T04:11:54Z",
+  "time_local": "2026-10-20T22:11:54",
+  "session": "2026-10-20_2154_48k",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "fdc86ac"
+}

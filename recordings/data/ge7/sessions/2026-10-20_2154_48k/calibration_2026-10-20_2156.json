@@ -1,0 +1,56 @@
+{
+  "loopback": {
+    "lag_samples": 5553,
+    "gain_db": 23.189886868574703,
+    "loop_noise_dbfs": -39.45204404134111,
+    "return_dbfs_while_loop_only": -78.6585672295133,
+    "linearity_spread_db": 36.42436892558762,
+    "level_gains_db": [
+      23.189886868574703,
+      15.024787468307409,
+      -13.234482057012919
+    ],
+    "advice": [
+      {
+        "status": "ok",
+        "text": "Loopback found: 5553 samples (115.69 ms), gain +23.2 dB."
+      },
+      {
+        "status": "fail",
+        "text": "The loopback is not linear: its gain changes by 36.4 dB over 20 dB of level, so In 2 is clipping. Turn In 2 gain fully down and use a TRS line cable; if it persists, lower loop_send_db in configs/rig.json."
+      },
+      {
+        "status": "warn",
+        "text": "In 2 noise is high (-39 dBFS RMS). Check the cable and ground."
+      }
+    ]
+  },
+  "chain": null,
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "fail",
+      "advice": [
+        {
+          "status": "ok",
+          "text": "Loopback found: 5553 samples (115.69 ms), gain +23.2 dB."
+        },
+        {
+          "status": "fail",
+          "text": "The loopback is not linear: its gain changes by 36.4 dB over 20 dB of level, so In 2 is clipping. Turn In 2 gain fully down and use a TRS line cable; if it persists, lower loop_send_db in configs/rig.json."
+        },
+        {
+          "status": "warn",
+          "text": "In 2 noise is high (-39 dBFS RMS). Check the cable and ground."
+        }
+      ],
+      "time_local": "2026-10-20T21:56:34"
+    }
+  },
+  "t": "2026-10-21T03:56:34Z",
+  "time_local": "2026-10-20T21:56:34",
+  "session": "2026-10-20_2154_48k",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "fdc86ac"
+}

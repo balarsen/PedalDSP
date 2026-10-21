@@ -130,6 +130,7 @@ The libraries are the submodules in `external/` (built once with `make -C extern
 | `pedal_classical_models.md`, `pedal_neural_models.md`, `pedal_metrics.md` | Model and metric references |
 | `klon_sim_explainer.md`, `pedalode_klonsim_spec.md` | KlonSim, and the PedalODE parameter-recovery experiment |
 | `daisy_programming.md` | Daisy/Hothouse build, DFU and usbipd setup |
+| `library_inventory.md` | Which older library code to keep, rework or drop for the Klon (2026-10-20 proposal) |
 
 ## Known loose ends
 

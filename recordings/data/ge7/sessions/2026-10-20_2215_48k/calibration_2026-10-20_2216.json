@@ -1,0 +1,48 @@
+{
+  "loopback": {
+    "lag_samples": 3724,
+    "gain_db": -5.0303968986810474,
+    "loop_noise_dbfs": -112.87365208013344,
+    "return_dbfs_while_loop_only": -104.68566260371274,
+    "linearity_spread_db": 0.0030590527632909925,
+    "level_gains_db": [
+      -5.0303968986810474,
+      -5.033348071024626,
+      -5.033455951444338
+    ],
+    "advice": [
+      {
+        "status": "ok",
+        "text": "Loopback found: 3724 samples (77.58 ms), gain -5.0 dB."
+      },
+      {
+        "status": "ok",
+        "text": "Loopback linear: gain spread 0.00 dB over 20 dB."
+      }
+    ]
+  },
+  "chain": null,
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "ok",
+      "advice": [
+        {
+          "status": "ok",
+          "text": "Loopback found: 3724 samples (77.58 ms), gain -5.0 dB."
+        },
+        {
+          "status": "ok",
+          "text": "Loopback linear: gain spread 0.00 dB over 20 dB."
+        }
+      ],
+      "time_local": "2026-10-20T22:16:39"
+    }
+  },
+  "t": "2026-10-21T04:16:39Z",
+  "time_local": "2026-10-20T22:16:39",
+  "session": "2026-10-20_2215_48k",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "ef88bb1"
+}

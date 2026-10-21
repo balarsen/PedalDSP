@@ -1,0 +1,102 @@
+{
+  "loopback": {
+    "lag_samples": 3721,
+    "gain_db": -11.911059949456416,
+    "loop_noise_dbfs": -114.2986997259821,
+    "return_dbfs_while_loop_only": -114.65725817738095,
+    "linearity_spread_db": 0.007896746198369442,
+    "level_gains_db": [
+      -11.911059949456416,
+      -11.916406792159378,
+      -11.918956695654785
+    ],
+    "advice": [
+      {
+        "status": "ok",
+        "text": "Loopback found: 3721 samples (77.52 ms), gain -11.9 dB."
+      },
+      {
+        "status": "ok",
+        "text": "Loopback linear: gain spread 0.01 dB over 20 dB."
+      }
+    ]
+  },
+  "chain": {
+    "lag_samples": 3724,
+    "gain_db": -200.0,
+    "linearity_spread_db": 0.0,
+    "return_noise_dbfs": -114.49297232031272,
+    "predicted_train_peak_dbfs": -212.97882795333862,
+    "steps": [
+      {
+        "send_dbfs": -36.0,
+        "return_dbfs": -79.50693350059187,
+        "gain_db": -43.506633624595125
+      },
+      {
+        "send_dbfs": -30.0,
+        "return_dbfs": -73.5087398460706,
+        "gain_db": -43.50843984282433
+      },
+      {
+        "send_dbfs": -24.0,
+        "return_dbfs": -67.51269771538676,
+        "gain_db": -43.51239765536669
+      },
+      {
+        "send_dbfs": -18.0,
+        "return_dbfs": -61.513522690436,
+        "gain_db": -43.513222660169774
+      },
+      {
+        "send_dbfs": -12.0,
+        "return_dbfs": -55.5148693208493,
+        "gain_db": -43.51456940121893
+      },
+      {
+        "send_dbfs": -9.0,
+        "return_dbfs": -52.88359631638811,
+        "gain_db": -43.883296409671104
+      }
+    ],
+    "advice": [
+      {
+        "status": "fail",
+        "text": "No return on In 1. Check: pedal powered and engaged, cables ProRMP \u2192 pedal \u2192 ProDI \u2192 In 1, ProRMP level not at zero, In 1 gain up."
+      }
+    ]
+  },
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "ok",
+      "advice": [
+        {
+          "status": "ok",
+          "text": "Loopback found: 3721 samples (77.52 ms), gain -11.9 dB."
+        },
+        {
+          "status": "ok",
+          "text": "Loopback linear: gain spread 0.01 dB over 20 dB."
+        }
+      ],
+      "time_local": "2026-10-20T22:18:30"
+    },
+    "C2": {
+      "status": "fail",
+      "advice": [
+        {
+          "status": "fail",
+          "text": "No return on In 1. Check: pedal powered and engaged, cables ProRMP \u2192 pedal \u2192 ProDI \u2192 In 1, ProRMP level not at zero, In 1 gain up."
+        }
+      ],
+      "time_local": "2026-10-20T22:19:51"
+    }
+  },
+  "t": "2026-10-21T04:19:51Z",
+  "time_local": "2026-10-20T22:19:51",
+  "session": "2026-10-20_2218_48k",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "ef88bb1"
+}

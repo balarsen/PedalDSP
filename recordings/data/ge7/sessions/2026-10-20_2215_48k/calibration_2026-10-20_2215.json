@@ -1,0 +1,40 @@
+{
+  "loopback": {
+    "lag_samples": 3728,
+    "gain_db": -43.519963360724404,
+    "loop_noise_dbfs": -114.78776852805233,
+    "return_dbfs_while_loop_only": -114.70160147144372,
+    "linearity_spread_db": 0.0,
+    "level_gains_db": [
+      -42.389215275186544,
+      -43.41401628254444,
+      -43.519963360724404
+    ],
+    "advice": [
+      {
+        "status": "fail",
+        "text": "Almost nothing reaches In 2 (loudest tone -90 dBFS, noise -115 dBFS; loop gain -44 dB). Check the Main knob (Out 1/2 are the Main outputs: turn it fully up), that the cable runs from Main Out R to In 2, and the UC mixer (DAW 2 unmuted, Main not muted)."
+      }
+    ]
+  },
+  "chain": null,
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "fail",
+      "advice": [
+        {
+          "status": "fail",
+          "text": "Almost nothing reaches In 2 (loudest tone -90 dBFS, noise -115 dBFS; loop gain -44 dB). Check the Main knob (Out 1/2 are the Main outputs: turn it fully up), that the cable runs from Main Out R to In 2, and the UC mixer (DAW 2 unmuted, Main not muted)."
+        }
+      ],
+      "time_local": "2026-10-20T22:15:48"
+    }
+  },
+  "t": "2026-10-21T04:15:48Z",
+  "time_local": "2026-10-20T22:15:48",
+  "session": "2026-10-20_2215_48k",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "ef88bb1"
+}

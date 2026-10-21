@@ -39,6 +39,8 @@ LOOP_LINEARITY_LIMIT_DB = 0.5
 LINEARITY_LIMIT_DB = 0.25  # docs/ge7_plan.md: flat2 showed <= 0.25 dB gain variation across levels
 RETURN_PEAK_TARGET_DBFS = (-18.0, -6.0)  # where the loudest training section should land on In 1
 NO_SIGNAL_DBFS = -70.0
+HEARD_ABOVE_NOISE_DB = 30.0  # a chain tone this far above the return's noise is measured
+TOO_QUIET_FAIL_DB = 12.0  # a return this far below RETURN_PEAK_TARGET_DBFS fails C2
 CROSSTALK_LIMIT_DBFS = -50.0
 LAG_SEARCH_S = MAX_LAG_S
 # A delay longer than the search still produces a partial-overlap peak just inside the edge, so
@@ -284,10 +286,12 @@ def run_chain_test(
                 "gain_db": rms_dbfs(ret) - rms_dbfs(send),
             }
         )
-    gains = [st["gain_db"] for st in steps if st["return_dbfs"] > NO_SIGNAL_DBFS + 20]
+    noise = rms_dbfs(take.rec[int(0.1 * sr) : pre, 0])
+    # A tone counts as heard 30 dB above the return's own noise (noise then shifts its level by
+    # 0.004 dB). An absolute threshold called a clean but quiet return "no return" (2026-10-20).
+    gains = [st["gain_db"] for st in steps if st["return_dbfs"] > noise + HEARD_ABOVE_NOISE_DB]
     gain = float(np.median(gains)) if gains else -200.0
     spread = float(max(gains) - min(gains)) if len(gains) > 1 else 0.0
-    noise = rms_dbfs(take.rec[int(0.1 * sr) : pre, 0])
     predicted = train_peak_dbfs + send_level_db + gain
     peak_seen = peak_dbfs(take.rec[:, 0])
     result = {
@@ -354,7 +358,7 @@ def run_chain_test(
     elif predicted < lo:
         lines.append(
             advice(
-                "warn",
+                "fail" if predicted < lo - TOO_QUIET_FAIL_DB else "warn",
                 f"The loudest training section would only reach {predicted:+.1f} dBFS on In 1 "
                 f"(target {lo:.0f} to {hi:.0f}). Raise the In 1 gain by about "
                 f"{(lo + hi) / 2 - predicted:.0f} dB.",

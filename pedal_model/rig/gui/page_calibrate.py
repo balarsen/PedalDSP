@@ -187,7 +187,9 @@ class CalibratePage(QWidget):
         self.plot.setXRange(np.log10(20), np.log10(20_000))
         self.plot.setMinimumHeight(220)
         self.plot.addLegend(offset=(10, 10))
-        self.c_chain = self.plot.plot(pen=pg.mkPen(theme.CYAN, width=2), name="chain (C2)")
+        self.c_chain = self.plot.plot(
+            pen=pg.mkPen(theme.CYAN, width=2), name="chain (C2), re 1 kHz"
+        )
         self.c_bypass = self.plot.plot(
             pen=pg.mkPen(theme.AMBER, width=2), name="bypassed ÷ chain (C3)"
         )

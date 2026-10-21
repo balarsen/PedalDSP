@@ -54,6 +54,7 @@ REFERENCE_DBFS = -20.0
 REFERENCE_F_LO = 20.0
 REFERENCE_F_HI = 19_000.0  # the sweep ends at 20 kHz, so its last bins are unreliable
 REFERENCE_NPERSEG = 16384  # 2.9 Hz bins at 48 kHz
+SWEPT_FRACTION = 0.975  # use bins up to this fraction of the sweep's top frequency
 COMPARE_BAND_HZ = (50.0, 10_000.0)  # where references are compared with each other
 # Two references closer than this everywhere (50 Hz-10 kHz) are the same path. Real differences seen
 # so far: bypassed vs cable 0.34 dB, engaged vs bypassed 1.5 dB (2026-10-18).
@@ -447,6 +448,12 @@ def reference_from_take(take: Take, name: str) -> dict:
     in the phase. The return's own lag in the same take, minus the loopback's, is the analog chain's
     delay, free of the few-sample latency jitter between separate stream opens.
 
+    H comes from one FFT over the whole sweep plus its tail, H = FFT(return) / FFT(send): exact for
+    a linear chain, with 0.2 Hz resolution. (Welch segments misread the bottom octave, which the
+    sweep covers in its first 0.1 s under the window taper: they showed a false dip at 30 Hz and
+    read 20 Hz 0.9 dB high, 2026-10-21.) Only frequencies the sweep excites are used. Welch is kept
+    for the coherence, which only checks that the capture is clean.
+
     Returns:
         dict: name, lag_samples (loopback), return_lag_samples, freqs_hz (log grid), mag_db
         (1/6-octave smoothed), phase_rad (unwrapped), coherence, noise_dbfs, gain_1k_db, file.
@@ -457,11 +464,20 @@ def reference_from_take(take: Take, name: str) -> dict:
     return_lag = find_lag(take.play[:, 0], take.rec[:, 0], sr, pre, pre + n, LAG_SEARCH_S)
     sent = take.play[pre : pre + n, 0]
     back = take.rec[pre + lag : pre + lag + n, 0]
-    f, h, coh = frequency_response(sent, back, sr, nperseg=REFERENCE_NPERSEG)
+    f_w, _, coh = frequency_response(sent, back, sr, nperseg=REFERENCE_NPERSEG)
+    # One FFT over the sweep and the gap after it (the chain's response tail lands in the gap).
+    m = min(n + int(GAP_S * sr), len(take.rec) - pre - lag)
+    x = np.zeros(m)
+    x[:n] = sent
+    y = take.rec[pre + lag : pre + lag + m, 0].astype(np.float64)
+    big_n = 1 << int(np.ceil(np.log2(2 * m)))
+    f = np.fft.rfftfreq(big_n, 1 / sr)
+    h = np.fft.rfft(y, big_n) / np.fft.rfft(x, big_n)
+    sweep_top = min(20_000.0, 0.45 * sr)
+    swept = (f >= REFERENCE_F_LO) & (f <= SWEPT_FRACTION * sweep_top)
     grid = log_grid(REFERENCE_F_LO, min(REFERENCE_F_HI, 0.45 * sr))
-    keep = f > 0
-    mag = smooth_octave(f[keep], 20 * np.log10(np.abs(h[keep]) + 1e-12), grid)
-    phase = np.interp(grid, f[keep], np.unwrap(np.angle(h[keep])))
+    mag = smooth_octave(f[swept], 20 * np.log10(np.abs(h[swept]) + 1e-12), grid)
+    phase = np.interp(grid, f[swept], np.unwrap(np.angle(h[swept])))
     return {
         "name": name,
         "lag_samples": int(lag),
@@ -469,7 +485,7 @@ def reference_from_take(take: Take, name: str) -> dict:
         "freqs_hz": [round(float(v), 5) for v in grid],
         "mag_db": [round(float(v), 5) for v in mag],
         "phase_rad": [round(float(v), 5) for v in phase],
-        "coherence": [round(float(v), 5) for v in np.interp(grid, f[keep], coh[keep])],
+        "coherence": [round(float(v), 5) for v in np.interp(grid, f_w, coh)],
         "noise_dbfs": rms_dbfs(take.rec[int(0.1 * sr) : pre, 0]),
         "gain_1k_db": float(np.interp(np.log(1000.0), np.log(grid), mag)),
         "file": None,  # the raw capture, relative to the session folder, once saved

@@ -129,24 +129,23 @@ def loopback_integrity(
         (blocks judged, blocks lost, time of the first lost block in seconds or None).
     """
     sr, pre = take.sr, take.pre_roll
-    blocks = range(pre, pre + take.signal_len - block, block)
-    send_db = np.array([rms_dbfs(take.play[a : a + block, 1]) for a in blocks])
-    if len(send_db) == 0:
+    # whole blocks of signal whose loopback still fits in the recording
+    nb = min(take.signal_len, len(take.rec) - pre - loop_lag) // block
+    if nb <= 0:
         return 0, 0, None
-    floor = send_db.max() - INTEGRITY_RANGE_DB
-    ratios, starts = [], []
-    for a, s_db in zip(blocks, send_db):
-        if s_db < floor:
-            continue
-        got = take.rec[a + loop_lag : a + loop_lag + block, 1]
-        ratios.append(rms_dbfs(got) - s_db)
-        starts.append(a - pre)
-    if not ratios:
+    send = take.play[pre : pre + nb * block, 1].astype(np.float64).reshape(nb, block)
+    got = take.rec[pre + loop_lag : pre + loop_lag + nb * block, 1].astype(np.float64)
+    got = got.reshape(nb, block)
+    send_db = 10 * np.log10(np.mean(send**2, axis=1) + 1e-30)
+    got_db = 10 * np.log10(np.mean(got**2, axis=1) + 1e-30)
+    judged = send_db >= send_db.max() - INTEGRITY_RANGE_DB
+    ratio = (got_db - send_db)[judged]
+    if ratio.size == 0:
         return 0, 0, None
-    r = np.asarray(ratios)
-    lost = r < np.median(r) - INTEGRITY_DROP_DB
-    first = float(starts[int(np.argmax(lost))]) / sr if lost.any() else None
-    return len(r), int(lost.sum()), first
+    lost = ratio < np.median(ratio) - INTEGRITY_DROP_DB
+    first_block = np.flatnonzero(judged)[np.argmax(lost)] if lost.any() else None
+    first = None if first_block is None else float(first_block * block) / sr
+    return int(ratio.size), int(lost.sum()), first
 
 
 def calibration_reference(calibration: dict | None, name: str) -> Reference | None:

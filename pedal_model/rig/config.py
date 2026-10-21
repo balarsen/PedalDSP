@@ -101,7 +101,7 @@ class RigConfig:
         """Write to JSON (pretty-printed so it diffs well in git), with the time it was saved."""
         path.parent.mkdir(parents=True, exist_ok=True)
         doc = {"saved": local_stamp(iso=True), "code_version": code_version(), **self.to_dict()}
-        path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8", newline="\n")
         return path
 
     def save_snapshot(self, folder: Path = DEFAULT_RIG_PATH.parent) -> Path:

@@ -171,7 +171,7 @@ class Session:
 
     def save(self) -> None:
         tmp = self.root / "session.json.tmp"
-        tmp.write_text(json.dumps(self.data, indent=2) + "\n", encoding="utf-8")
+        tmp.write_text(json.dumps(self.data, indent=2) + "\n", encoding="utf-8", newline="\n")
         os.replace(
             tmp, self.root / "session.json"
         )  # atomic: a crash never leaves a half-written log
@@ -208,7 +208,7 @@ class Session:
         }
         self.data["calibration"] = cal
         path = self.root / f"calibration_{stamp}.json"
-        path.write_text(json.dumps(cal, indent=2) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(cal, indent=2) + "\n", encoding="utf-8", newline="\n")
         self.log("calibrated", file=path.name)
         return path
 
@@ -342,5 +342,5 @@ class Session:
             },
         }
         path = d / "params.json"
-        path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8", newline="\n")
         return path

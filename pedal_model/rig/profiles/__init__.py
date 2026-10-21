@@ -164,7 +164,7 @@ class Profile:
             "sliders": preset.controls,
             "notes": preset.notes,
         }
-        path.write_text(json.dumps(doc, indent=4) + "\n", encoding="utf-8")
+        path.write_text(json.dumps(doc, indent=4) + "\n", encoding="utf-8", newline="\n")
         return path
 
 

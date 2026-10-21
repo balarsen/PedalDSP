@@ -219,4 +219,3 @@ def test_log_bin_db_averages_power_and_thins_the_spectrum():
     f2 = np.array([1000.0, 1001.0])
     _, db2 = log_bin_db(f2, np.array([0.0, -300.0]), fmin=900.0)
     np.testing.assert_allclose(db2, [10 * np.log10(0.5)], atol=1e-6)
-

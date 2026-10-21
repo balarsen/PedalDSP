@@ -160,5 +160,5 @@ def prepare_signal(role: str, kind: str, sr: int, out_dir: Path) -> SessionSigna
     }
     out_dir.mkdir(parents=True, exist_ok=True)
     sf.write(str(manifest_path.with_suffix(".wav")), audio, sr, subtype="FLOAT")
-    manifest_path.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+    manifest_path.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8", newline="\n")
     return SessionSignal(role, manifest_path, sr, int(len(audio)))

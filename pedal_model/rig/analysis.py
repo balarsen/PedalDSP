@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import numpy as np
-from scipy.signal import correlate, csd, welch
+from scipy.signal import correlate
 
 EPS = 1e-12
 # Lag search radius. The 1824c's ASIO round trip measured 3722 samples (77.5 ms) at 48 kHz with
@@ -59,6 +59,34 @@ def aligned(rec: np.ndarray, pre_roll: int, lag: int, length: int) -> np.ndarray
     return out
 
 
+def cross_spectra(
+    x: np.ndarray, y: np.ndarray, sr: int, nperseg: int
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Welch-averaged spectra of x and y: S_xx, S_yy and the cross-spectrum S_xy = <conj(X) Y>.
+
+    Hann-windowed segments of ``nperseg`` samples, 50 % overlap, each segment's mean removed: the
+    same estimate as scipy's welch/csd, but all three from one pass over the data. The overall scale
+    is left out; it cancels in every ratio taken from these (H = S_xy / S_xx, coherence).
+
+    Returns:
+        (frequencies in Hz, S_xx, S_yy, S_xy), each of length nperseg // 2 + 1.
+    """
+    n = np.arange(nperseg)
+    window = 0.5 - 0.5 * np.cos(2 * np.pi * n / nperseg)  # periodic Hann, as scipy uses
+    s_xx = np.zeros(nperseg // 2 + 1)
+    s_yy = np.zeros(nperseg // 2 + 1)
+    s_xy = np.zeros(nperseg // 2 + 1, dtype=complex)
+    for a in range(0, len(x) - nperseg + 1, nperseg // 2):
+        xs = x[a : a + nperseg].astype(np.float64)
+        ys = y[a : a + nperseg].astype(np.float64)
+        big_x = np.fft.rfft((xs - xs.mean()) * window)
+        big_y = np.fft.rfft((ys - ys.mean()) * window)
+        s_xx += np.abs(big_x) ** 2
+        s_yy += np.abs(big_y) ** 2
+        s_xy += np.conj(big_x) * big_y
+    return np.fft.rfftfreq(nperseg, 1 / sr), s_xx, s_yy, s_xy
+
+
 def transfer_function(
     dry: np.ndarray, wet: np.ndarray, sr: int, nperseg: int = 8192
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -70,9 +98,7 @@ def transfer_function(
     Returns:
         (freqs_hz, magnitude_db, coherence in [0, 1]).
     """
-    f, s_dd = welch(dry, sr, nperseg=nperseg)
-    _, s_ww = welch(wet, sr, nperseg=nperseg)
-    _, s_dw = csd(dry, wet, sr, nperseg=nperseg)
+    f, s_dd, s_ww, s_dw = cross_spectra(dry, wet, sr, nperseg)
     h = np.abs(s_dw) / _floor(s_dd)
     coh = np.abs(s_dw) ** 2 / _floor(s_dd * s_ww)
     return f, 20 * np.log10(h + EPS), np.clip(coh, 0.0, 1.0)
@@ -85,9 +111,7 @@ def transfer_function_complex(
 
     The phase includes whatever delay is left between ``dry`` and ``wet`` after alignment.
     """
-    f, s_dd = welch(dry, sr, nperseg=nperseg)
-    _, s_ww = welch(wet, sr, nperseg=nperseg)
-    _, s_dw = csd(dry, wet, sr, nperseg=nperseg)
+    f, s_dd, s_ww, s_dw = cross_spectra(dry, wet, sr, nperseg)
     h = s_dw / _floor(s_dd)
     coh = np.abs(s_dw) ** 2 / _floor(s_dd * s_ww)
     return f, h, np.clip(coh, 0.0, 1.0)

@@ -360,6 +360,7 @@ class RunPage(QWidget):
             m.reset()
         self.acc_dd = np.zeros(SPECTRUM_SAMPLES // 2 + 1)
         self.acc_dw = np.zeros(SPECTRUM_SAMPLES // 2 + 1, dtype=complex)
+        self._live_corr = None  # reference correction on the live grid, set on first use
         self.c_live.setData([], [])
         self._set_phase("capture")
         self._capture_started = False
@@ -501,12 +502,13 @@ class RunPage(QWidget):
         live[np.interp(grid, f, valid.astype(float)) < 0.5] = np.nan
         # play[] already contains the send level, so only the reference is removed here (QC, which
         # divides by the dry signal before the send level, removes both).
-        ref = calibration_reference(cal, self.state.profile.qc.get("reference", "chain"))
-        if ref is not None:
-            corr = ref.db_at(grid)
-        else:
-            corr = cal["chain"]["gain_db"] if cal.get("chain") else 0.0
-        self.c_live.setData(grid, live - corr, connect="finite")
+        if self._live_corr is None:
+            ref = calibration_reference(cal, self.state.profile.qc.get("reference", "chain"))
+            if ref is not None:
+                self._live_corr = ref.db_at(grid)
+            else:
+                self._live_corr = cal["chain"]["gain_db"] if cal.get("chain") else 0.0
+        self.c_live.setData(grid, live - self._live_corr, connect="finite")
         self.resp_y.update()
 
     def _section_at(self, sample: int):

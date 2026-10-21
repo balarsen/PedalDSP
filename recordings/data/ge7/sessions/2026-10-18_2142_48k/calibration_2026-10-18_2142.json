@@ -1,0 +1,34 @@
+{
+  "loopback": {
+    "lag_samples": 3726,
+    "gain_db": -14.066425976606613,
+    "loop_noise_dbfs": -110.45571204797726,
+    "return_dbfs_while_loop_only": -112.57579230935902,
+    "advice": [
+      {
+        "status": "ok",
+        "text": "Loopback found: 3726 samples (77.62 ms), gain -14.1 dB."
+      }
+    ]
+  },
+  "chain": null,
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "ok",
+      "advice": [
+        {
+          "status": "ok",
+          "text": "Loopback found: 3726 samples (77.62 ms), gain -14.1 dB."
+        }
+      ],
+      "time_local": "2026-10-18T21:42:38"
+    }
+  },
+  "t": "2026-10-19T03:42:38Z",
+  "time_local": "2026-10-18T21:42:38",
+  "session": "2026-10-18_2142_48k",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "cb78f34"
+}

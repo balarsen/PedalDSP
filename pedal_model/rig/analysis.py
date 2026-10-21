@@ -114,6 +114,29 @@ def smooth_octave(
     return out
 
 
+def log_bin_db(
+    f: np.ndarray, db: np.ndarray, points_per_octave: int = 24, fmin: float = 20.0
+) -> tuple[np.ndarray, np.ndarray]:
+    """Average a dB spectrum into log-spaced bins (in power), for display.
+
+    An 8192-point FFT has 4096 bins, almost all above 1 kHz on a log axis; drawing them costs far
+    more than the eye can use. Bins with no FFT line (low frequencies, at 1/24 octave) are dropped.
+
+    Returns:
+        (bin centre frequencies in Hz, power-averaged dB), about ``points_per_octave`` per octave.
+    """
+    fmax = float(f[-1])
+    n = int(np.ceil(np.log2(fmax / fmin) * points_per_octave)) + 1
+    edges = np.geomspace(fmin, fmax, n)
+    idx = np.minimum(np.digitize(f, edges) - 1, n - 2)  # the top edge belongs to the last bin
+    ok = (idx >= 0) & (idx < n - 1)
+    power = np.bincount(idx[ok], weights=10 ** (db[ok] / 10), minlength=n - 1)
+    count = np.bincount(idx[ok], minlength=n - 1)
+    keep = count > 0
+    centres = np.sqrt(edges[:-1] * edges[1:])
+    return centres[keep], 10 * np.log10(power[keep] / count[keep] + EPS)
+
+
 def spectrum_db(x: np.ndarray, sr: int) -> tuple[np.ndarray, np.ndarray]:
     """Hann-windowed magnitude spectrum of one block, in dBFS (full-scale sine ≈ 0 dB)."""
     n = len(x)

@@ -1,0 +1,106 @@
+{
+  "loopback": {
+    "lag_samples": 3720,
+    "gain_db": -14.127887401978892,
+    "loop_noise_dbfs": -33.433398708251325,
+    "return_dbfs_while_loop_only": -46.37407699391778,
+    "advice": [
+      {
+        "status": "ok",
+        "text": "Loopback found: 3720 samples (77.50 ms), gain -14.1 dB."
+      },
+      {
+        "status": "fail",
+        "text": "In 1 hears the loopback (-46 dBFS). Cables swapped? Out 1 and Out 2 must go to different places."
+      },
+      {
+        "status": "warn",
+        "text": "In 2 noise is high (-33 dBFS RMS). Check the cable and ground."
+      }
+    ]
+  },
+  "chain": {
+    "lag_samples": 3724,
+    "gain_db": -29.92721708353002,
+    "linearity_spread_db": 0.5049028554958817,
+    "return_noise_dbfs": -62.54480980330747,
+    "predicted_train_peak_dbfs": -42.90604503686865,
+    "steps": [
+      {
+        "send_dbfs": -36.0,
+        "return_dbfs": -61.48508084579212,
+        "gain_db": -25.484780969795366
+      },
+      {
+        "send_dbfs": -30.0,
+        "return_dbfs": -61.23247344185099,
+        "gain_db": -31.23217343860472
+      },
+      {
+        "send_dbfs": -24.0,
+        "return_dbfs": -55.20188016765325,
+        "gain_db": -31.20158010763317
+      },
+      {
+        "send_dbfs": -18.0,
+        "return_dbfs": -48.39007310102078,
+        "gain_db": -30.389773070754554
+      },
+      {
+        "send_dbfs": -12.0,
+        "return_dbfs": -41.885170134889044,
+        "gain_db": -29.884870215258672
+      },
+      {
+        "send_dbfs": -9.0,
+        "return_dbfs": -38.92751699024703,
+        "gain_db": -29.92721708353002
+      }
+    ],
+    "advice": [
+      {
+        "status": "ok",
+        "text": "Chain found: 3724 samples (77.58 ms), gain -29.9 dB at 1 kHz."
+      },
+      {
+        "status": "warn",
+        "text": "Gain changes by 0.50 dB across levels (limit 0.25 dB): something is saturating. Lower the 1824c Main knob or the ProRMP level, then raise In 1 gain to compensate."
+      },
+      {
+        "status": "warn",
+        "text": "The loudest training section would only reach -42.9 dBFS on In 1 (target -18 to -6). Raise the In 1 gain by about 31 dB."
+      },
+      {
+        "status": "warn",
+        "text": "Return noise is high (-63 dBFS RMS). Try the ProDI ground lift; check the pedal power supply."
+      }
+    ]
+  },
+  "references": {},
+  "steps": {
+    "C1": {
+      "status": "fail",
+      "advice": [
+        {
+          "status": "ok",
+          "text": "Loopback found: 3720 samples (77.50 ms), gain -14.1 dB."
+        },
+        {
+          "status": "fail",
+          "text": "In 1 hears the loopback (-46 dBFS). Cables swapped? Out 1 and Out 2 must go to different places."
+        },
+        {
+          "status": "warn",
+          "text": "In 2 noise is high (-33 dBFS RMS). Check the cable and ground."
+        }
+      ],
+      "time_local": "2026-10-18T16:49:59"
+    }
+  },
+  "t": "2026-10-18T22:49:59Z",
+  "time_local": "2026-10-18T16:49:59",
+  "session": "2026-10-18_1638_48k_2",
+  "profile": "ge7",
+  "sample_rate": 48000,
+  "code_version": "cb78f34"
+}

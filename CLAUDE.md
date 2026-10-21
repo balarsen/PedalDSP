@@ -85,10 +85,17 @@ target), and an early Pi Muff stem pair.
   `uv run python scripts/reanalyse_session.py <session folder>` recomputes the references and QC with the
   current code without changing the session. GUI errors and their tracebacks go into the session log.
 - **The hardware stream runs in its own process** (`backends.ProcessBackend` around `AsioBackend`,
-  shared-memory play/record buffers). In the GUI process the live views starved the Python audio
-  callback: about 30 % of every Run-page take came back silent while the driver reported no dropout
-  (2026-10-18). QC's "Audio integrity (loopback)" check compares each block of the loopback with
-  what was sent; never trust the driver's dropout count alone.
+  shared-memory play/record buffers). In the GUI process, repaints that took 130-900 ms starved the
+  Python audio callback, and audio went missing with no dropout reported (sessions 1238/1307, both
+  inputs incoherent with the send). From session 1422 on, the return is coherent to 1.000.
+- **The loopback is sent 30 dB below the pedal send** (`rig.json` `loop_send_db`): the 1824c's In 2
+  path clipped above about -31 dBFS of send. C1 now tests loop linearity at the hottest take level.
+  QC's "Audio integrity (loopback)" check compares each loopback block with what was sent. It fails
+  on a clipping loopback too, which is how the 'dropouts always at 21.0 s' were explained: sweep_mid
+  starts there, the first section loud enough to clip. Never trust the driver's dropout count alone.
+- **Live plots must stay cheap** (Run page): spectra are log-binned to about 240 points, the live
+  curves skip antialiasing, and auto scale is throttled (`widgets.LiveAutoY`). Together they took a
+  2400x1300 repaint from about 130 ms to 9 ms on real data (2026-10-20).
 - Never play audio on the hardware without the person there: Out 1/2 are the Main outputs and may drive
   monitors. The GUI asks for confirmation before the first sound. Demo mode never opens the sound card.
 - Tests (`tests/rig/`) use synthetic masters in tmp_path and the simulated backend: no hardware, no repo audio.

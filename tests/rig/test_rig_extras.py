@@ -206,3 +206,17 @@ def test_capture_flac_is_bit_exact_for_24_bit_audio(masters):
     assert sf.info(str(s.preset_dir("flat") / t["wet_wav"])).format == "FLAC"
     np.testing.assert_array_equal(raw, take.rec.astype(np.float64))
     np.testing.assert_array_equal(back, wet.astype(np.float64))
+
+
+def test_log_bin_db_averages_power_and_thins_the_spectrum():
+    from pedal_model.rig.analysis import log_bin_db
+
+    f = np.fft.rfftfreq(8192, 1 / 48_000)[1:]
+    fc, db = log_bin_db(f, np.full(len(f), -40.0))
+    assert len(fc) < 300 and np.allclose(db, -40.0, atol=1e-6)
+    assert fc.min() >= 20.0 and fc.max() <= 24_000.0
+    # two lines of equal width in one bin, at 0 and -inf dB, average to -3 dB in power
+    f2 = np.array([1000.0, 1001.0])
+    _, db2 = log_bin_db(f2, np.array([0.0, -300.0]), fmin=900.0)
+    np.testing.assert_allclose(db2, [10 * np.log10(0.5)], atol=1e-6)
+

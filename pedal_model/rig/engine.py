@@ -11,6 +11,10 @@ PRE_ROLL_S = (
     0.5  # silence before the signal: lets the converters settle and gives a noise-floor window
 )
 TAIL_S = 0.5  # silence after: catches the round-trip latency and any pedal decay
+# The loopback (Out 2 -> In 2) only carries timing, so it is sent quieter than Out 1. On the
+# 1824c the In 2 path clipped above about -31 dBFS of send (2026-10-18); takes send up to
+# -13 dBFS.
+LOOP_SEND_DB = -30.0
 
 
 @dataclass
@@ -50,9 +54,10 @@ class CaptureEngine:
     and bounded).
     """
 
-    def __init__(self, backend, block_size: int = 1024) -> None:
+    def __init__(self, backend, block_size: int = 1024, loop_send_db: float = LOOP_SEND_DB) -> None:
         self.backend = backend
         self.block_size = block_size
+        self.loop_send_db = loop_send_db
         self.play = np.zeros((0, 2), dtype=np.float32)
         self.rec = np.zeros((0, 2), dtype=np.float32)
         self.sr = 48_000
@@ -148,7 +153,8 @@ class CaptureEngine:
         if route in ("both", "send"):
             play[pre : pre + len(signal), 0] = signal * gain
         if route in ("both", "loop"):
-            play[pre : pre + len(signal), 1] = signal * gain
+            loop_gain = np.float32(10 ** ((send_level_db + self.loop_send_db) / 20))
+            play[pre : pre + len(signal), 1] = signal * loop_gain
         self.sr = sr
         self.pre_roll = pre
         self._pos = 0

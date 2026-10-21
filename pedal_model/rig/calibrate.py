@@ -37,6 +37,8 @@ TONE_MEASURE_S = 0.2  # middle part of each tone, away from the on/off edges
 GAP_S = 0.2
 CHAIN_LEVELS_DBFS = (-36.0, -30.0, -24.0, -18.0, -12.0, -9.0)  # tone peaks at the send output
 LOOP_TONE_DBFS = -20.0
+LOOP_LINEARITY_STEPS_DB = (-20.0, -10.0, 0.0)  # tones relative to the hottest send of a take
+LOOP_LINEARITY_LIMIT_DB = 0.5
 
 LINEARITY_LIMIT_DB = 0.25  # docs/ge7_plan.md: flat2 showed <= 0.25 dB gain variation across levels
 RETURN_PEAK_TARGET_DBFS = (-18.0, -6.0)  # where the loudest training section should land on In 1
@@ -63,6 +65,8 @@ class LoopbackResult:
     loop_noise_dbfs: float
     return_dbfs_while_loop_only: float
     advice: list[Advice] = field(default_factory=list)
+    linearity_spread_db: float = 0.0  # loop gain change over LOOP_LINEARITY_STEPS_DB
+    level_gains_db: list[float] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
@@ -122,19 +126,36 @@ def _lag_too_long(sr: int) -> Advice:
     )
 
 
-def run_loopback_test(engine: CaptureEngine, sr: int) -> LoopbackResult:
-    """Out 2 → In 2 only: interface latency and gain, and a check that In 1 stays quiet."""
-    sweep, tone = _sweep(sr, LOOP_TONE_DBFS), _tone(sr, LOOP_TONE_DBFS, TONE_S)
-    signal = np.concatenate([sweep, _gap(sr), tone, _gap(sr)])
-    take = engine.run(signal, sr, send_level_db=0.0, route="loop")
+def run_loopback_test(
+    engine: CaptureEngine, sr: int, hottest_dbfs: float = -10.0
+) -> LoopbackResult:
+    """Out 2 → In 2 only: interface latency, gain and linearity; In 1 must stay quiet.
+
+    Args:
+        hottest_dbfs: The loudest peak a take will send (training-signal peak + send level),
+            before the engine's loopback trim. The loop is tested at that level and 10 and 20 dB
+            below it: a clipping loopback makes alignment and the integrity check unreliable.
+    """
+    sweep = _sweep(sr, LOOP_TONE_DBFS)
+    parts, starts, cursor = [sweep, _gap(sr)], [], len(sweep) + len(_gap(sr))
+    for step in LOOP_LINEARITY_STEPS_DB:
+        tone = _tone(sr, hottest_dbfs + step, TONE_S)
+        starts.append(cursor)
+        parts += [tone, _gap(sr)]
+        cursor += len(tone) + len(_gap(sr))
+    take = engine.run(np.concatenate(parts), sr, send_level_db=0.0, route="loop")
     pre = take.pre_roll
     lag = find_lag(take.play[:, 1], take.rec[:, 1], sr, pre, pre + len(sweep), LAG_SEARCH_S)
 
-    t0 = pre + len(sweep) + len(_gap(sr)) + lag
-    mid = slice(
-        t0 + int((TONE_S - TONE_MEASURE_S) / 2 * sr), t0 + int((TONE_S + TONE_MEASURE_S) / 2 * sr)
-    )
-    gain = rms_dbfs(take.rec[mid, 1]) - rms_dbfs(take.play[mid.start - lag : mid.stop - lag, 1])
+    a = int((TONE_S - TONE_MEASURE_S) / 2 * sr)
+    b = int((TONE_S + TONE_MEASURE_S) / 2 * sr)
+    gains = []
+    for s0 in starts:
+        got = take.rec[pre + s0 + a + lag : pre + s0 + b + lag, 1]
+        gains.append(rms_dbfs(got) - rms_dbfs(take.play[pre + s0 + a : pre + s0 + b, 1]))
+    gain = gains[0]  # the quietest tone: the least likely to be compressed
+    spread = float(max(gains) - min(gains))
+    mid = slice(pre + starts[-1] + a + lag, pre + starts[-1] + b + lag)
     noise = rms_dbfs(take.rec[int(0.1 * sr) : pre, 1])
     crosstalk = rms_dbfs(take.rec[:, 0])
 
@@ -171,13 +192,24 @@ def run_loopback_test(engine: CaptureEngine, sr: int) -> LoopbackResult:
                 "2 must go to different places.",
             )
         )
+    if spread > LOOP_LINEARITY_LIMIT_DB:
+        advice.append(
+            Advice(
+                "fail",
+                f"The loopback is not linear: its gain changes by {spread:.1f} dB over 20 dB "
+                "of level, so In 2 is clipping. Turn In 2 gain fully down and use a TRS line "
+                "cable; if it persists, lower loop_send_db in configs/rig.json.",
+            )
+        )
+    else:
+        advice.append(Advice("ok", f"Loopback linear: gain spread {spread:.2f} dB over 20 dB."))
     if noise > -80:
         advice.append(
             Advice(
                 "warn", f"In 2 noise is high ({noise:.0f} dBFS RMS). Check the cable and ground."
             )
         )
-    return LoopbackResult(lag, gain, noise, crosstalk, advice)
+    return LoopbackResult(lag, gain, noise, crosstalk, advice, spread, gains)
 
 
 def run_chain_test(
@@ -601,7 +633,7 @@ def run_step(
     """Run one guided step's test. ``references`` holds the curves of the steps already passed."""
     step = STEPS_BY_ID[step_id]
     if step_id == "C1":
-        res = run_loopback_test(engine, sr)
+        res = run_loopback_test(engine, sr, hottest_dbfs=train_peak_dbfs + send_level_db)
         return StepResult(step_id, list(res.advice), loopback=res)
     if step_id == "C2":
         chain = run_chain_test(engine, sr, send_level_db, train_peak_dbfs)

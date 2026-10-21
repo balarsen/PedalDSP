@@ -32,7 +32,9 @@ class AppState(QObject):
         self.plan: list[Preset] = self.profile.presets()
         self.cables: dict[str, str] = {}
         self.hardware_confirmed = False  # user OK'd playing test signals out of Out 1/2
-        self.engine = CaptureEngine(self._make_backend(), self.rig.block_size)
+        self.engine = CaptureEngine(
+            self._make_backend(), self.rig.block_size, self.rig.loop_send_db
+        )
 
     def _make_backend(self):
         if self.simulated:
@@ -47,7 +49,9 @@ class AppState(QObject):
 
     def set_mode(self, simulated: bool, demo_speed: float) -> None:
         self.simulated, self.demo_speed = simulated, demo_speed
-        self.engine = CaptureEngine(self._make_backend(), self.rig.block_size)
+        self.engine = CaptureEngine(
+            self._make_backend(), self.rig.block_size, self.rig.loop_send_db
+        )
         self.hardware_confirmed = False
         self.rig_changed.emit()
 

@@ -59,12 +59,15 @@ class RigConfig:
     Attributes:
         asio_device: Name of the ASIO driver as PortAudio lists it.
         block_size: Audio callback size in frames; larger is safer against dropouts.
+        loop_send_db: Level of the loopback output (Out 2) relative to the send (Out 1),
+            in dB. The loopback only carries timing; sending it quieter keeps In 2 linear.
         channels: Which interface outputs/inputs carry send, loopback, and return.
         boxes: Free-text settings per box id ("interface", "prormp", "pedal", "prodi").
     """
 
     asio_device: str = "Studio USB ASIO Driver"
     block_size: int = 1024
+    loop_send_db: float = -30.0
     channels: ChannelMap = field(default_factory=ChannelMap)
     boxes: dict[str, dict[str, str]] = field(
         default_factory=lambda: {k: dict(v) for k, v in DEFAULT_BOXES.items()}
@@ -81,6 +84,7 @@ class RigConfig:
         d = {k: v for k, v in d.items() if k not in ("saved", "code_version")}
         cfg.asio_device = d.get("asio_device", cfg.asio_device)
         cfg.block_size = int(d.get("block_size", cfg.block_size))
+        cfg.loop_send_db = float(d.get("loop_send_db", cfg.loop_send_db))
         cfg.channels = ChannelMap(**{**asdict(cfg.channels), **d.get("channels", {})})
         for box, settings in d.get("boxes", {}).items():
             cfg.boxes.setdefault(box, {}).update(settings)

@@ -1,0 +1,297 @@
+{
+  "schema_version": "1.1",
+  "created": "2026-10-18T22:38:44Z",
+  "created_local": "2026-10-18T16:38:44",
+  "code_version": "cb78f34",
+  "profile": "ge7",
+  "pedal": "boss_ge7",
+  "sample_rate": 48000,
+  "signal_kind": "quick",
+  "backend": "ASIO: Studio USB ASIO Driver",
+  "simulated": false,
+  "send_level_db": -10.0,
+  "rig": {
+    "asio_device": "Studio USB ASIO Driver",
+    "block_size": 1024,
+    "channels": {
+      "send_out": 1,
+      "loop_out": 2,
+      "return_in": 1,
+      "loop_in": 2
+    },
+    "boxes": {
+      "interface": {
+        "main_knob": "mark it: the Main knob sets the Out 1/2 level (verify)",
+        "in1_gain": "set during calibration (note the knob position)",
+        "in1_48v": "OFF",
+        "in2_gain": "9",
+        "in2_48v": "OFF"
+      },
+      "prormp": {
+        "level": "note the knob position",
+        "ground_lift": "off"
+      },
+      "pedal": {
+        "engaged": "on (LED lit)",
+        "power": "9 V supply"
+      },
+      "prodi": {
+        "pad_15db": "off",
+        "ground_lift": "off"
+      }
+    }
+  },
+  "signals": {
+    "train": "signals/train_quick_48k.json",
+    "val": "signals/val_full_48k.json",
+    "sweep": "signals/sweep_48k.json"
+  },
+  "calibration": null,
+  "presets": {
+    "flat": {
+      "description": "All sliders at centre \u2014 baseline and null test",
+      "controls": {
+        "hz_100": 0.0,
+        "hz_200": 0.0,
+        "hz_400": 0.0,
+        "hz_800": 0.0,
+        "hz_1600": 0.0,
+        "hz_3200": 0.0,
+        "hz_6400": 0.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "Every slider at the centre detent. The pedal should be close to a wire: this is the reference every other preset is compared with, and the calibration preset. A good flat take nulls almost completely against the send.",
+      "status": "pending",
+      "takes": []
+    },
+    "all_down": {
+      "description": "All bands -12 dB, LEVEL -15 dB \u2014 stress test / maximum cut",
+      "controls": {
+        "hz_100": -12.0,
+        "hz_200": -12.0,
+        "hz_400": -12.0,
+        "hz_800": -12.0,
+        "hz_1600": -12.0,
+        "hz_3200": -12.0,
+        "hz_6400": -12.0,
+        "level": -15.0
+      },
+      "kind": "model",
+      "notes": "All seven bands at -12 dB and LEVEL at -15 dB. The most attenuation the pedal does: checks the noise floor and how the bands sum when they all cut together.",
+      "status": "pending",
+      "takes": []
+    },
+    "all_up": {
+      "description": "All bands +12 dB, LEVEL +15 dB \u2014 stress test / maximum gain",
+      "controls": {
+        "hz_100": 12.0,
+        "hz_200": 12.0,
+        "hz_400": 12.0,
+        "hz_800": 12.0,
+        "hz_1600": 12.0,
+        "hz_3200": 12.0,
+        "hz_6400": 12.0,
+        "level": 15.0
+      },
+      "kind": "model",
+      "notes": "All seven bands at +12 dB and LEVEL at +15 dB. The most gain the pedal does: the stress test for headroom and clipping inside the pedal.",
+      "status": "pending",
+      "takes": []
+    },
+    "all_up_2": {
+      "description": "All bands +12 dB, LEVEL +15 dB \u2014 recapture at -30 dB DAW fader to avoid ADC clip",
+      "controls": {
+        "hz_100": 12.0,
+        "hz_200": 12.0,
+        "hz_400": 12.0,
+        "hz_800": 12.0,
+        "hz_1600": 12.0,
+        "hz_3200": 12.0,
+        "hz_6400": 12.0,
+        "level": 15.0
+      },
+      "kind": "model",
+      "notes": "Same settings as all_up, recaptured in the Studio One days at a lower DAW fader to avoid ADC clipping. With the rig, the send level and calibration handle that; keep it for comparison with the old captures.",
+      "status": "pending",
+      "takes": []
+    },
+    "all_up_3": {
+      "description": "All bands +12, LEVEL +6 \u2014 clean recapture at -30 dB DAW fader",
+      "controls": {
+        "hz_100": 12.0,
+        "hz_200": 12.0,
+        "hz_400": 12.0,
+        "hz_800": 12.0,
+        "hz_1600": 12.0,
+        "hz_3200": 12.0,
+        "hz_6400": 12.0,
+        "level": 6.0
+      },
+      "kind": "model",
+      "notes": "All bands +12 dB with LEVEL only at +6 dB: the band boosts without the extra output gain, so the EQ shape is measured clean of any clipping.",
+      "status": "pending",
+      "takes": []
+    },
+    "bass_boost": {
+      "description": "Heavy low-end lift, fade into mids",
+      "controls": {
+        "hz_100": 12.0,
+        "hz_200": 8.0,
+        "hz_400": 4.0,
+        "hz_800": 0.0,
+        "hz_1600": 0.0,
+        "hz_3200": 0.0,
+        "hz_6400": 0.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "100 Hz +12, 200 Hz +8, 400 Hz +4, the rest flat: a broad low-end lift that fades into the mids. Tests how neighbouring low bands overlap.",
+      "status": "pending",
+      "takes": []
+    },
+    "bright": {
+      "description": "Presence and air boost \u2014 Strat-style sparkle",
+      "controls": {
+        "hz_100": 0.0,
+        "hz_200": 0.0,
+        "hz_400": 0.0,
+        "hz_800": 2.0,
+        "hz_1600": 6.0,
+        "hz_3200": 10.0,
+        "hz_6400": 12.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "800 Hz +2, 1.6k +6, 3.2k +10, 6.4k +12: a rising top end, 'Strat sparkle'. Exercises the 6.4k band, which behaves like a high shelf rather than a peak.",
+      "status": "pending",
+      "takes": []
+    },
+    "frown": {
+      "description": "Inverted smile \u2014 boost mids, cut lows + highs",
+      "controls": {
+        "hz_100": -6.0,
+        "hz_200": -2.0,
+        "hz_400": 6.0,
+        "hz_800": 8.0,
+        "hz_1600": 6.0,
+        "hz_3200": -2.0,
+        "hz_6400": -6.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "The inverse of smile: lows and highs cut, mids up to +8 dB at 800 Hz. A mid-forward voicing that tests boosts and cuts next to each other.",
+      "status": "pending",
+      "takes": []
+    },
+    "high_cut": {
+      "description": "Roll off highs \u2014 telephone / muffled / vintage",
+      "controls": {
+        "hz_100": 0.0,
+        "hz_200": 0.0,
+        "hz_400": 0.0,
+        "hz_800": 0.0,
+        "hz_1600": -6.0,
+        "hz_3200": -10.0,
+        "hz_6400": -14.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "1.6k -6, 3.2k -10, 6.4k -14: rolls off the highs (telephone, muffled, vintage). Checks the deepest top-end cut.",
+      "status": "pending",
+      "takes": []
+    },
+    "low_cut": {
+      "description": "High-pass approximation \u2014 thin out bass",
+      "controls": {
+        "hz_100": -14.0,
+        "hz_200": -10.0,
+        "hz_400": -6.0,
+        "hz_800": 0.0,
+        "hz_1600": 0.0,
+        "hz_3200": 0.0,
+        "hz_6400": 0.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "100 Hz -14, 200 Hz -10, 400 Hz -6: an approximate high-pass. Checks the deepest low-end cut.",
+      "status": "pending",
+      "takes": []
+    },
+    "mid_scoop": {
+      "description": "Classic metal tone: deep mid cut",
+      "controls": {
+        "hz_100": 0.0,
+        "hz_200": 0.0,
+        "hz_400": -8.0,
+        "hz_800": -12.0,
+        "hz_1600": -10.0,
+        "hz_3200": -4.0,
+        "hz_6400": 0.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "400 Hz -8, 800 Hz -12, 1.6k -10, 3.2k -4: the classic metal scoop. A deep notch made from three adjacent cuts.",
+      "status": "pending",
+      "takes": []
+    },
+    "presence": {
+      "description": "Upper-mid and high-freq lift for cut-through-mix clarity",
+      "controls": {
+        "hz_100": 0.0,
+        "hz_200": 0.0,
+        "hz_400": 0.0,
+        "hz_800": 0.0,
+        "hz_1600": 6.0,
+        "hz_3200": 10.0,
+        "hz_6400": 12.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "1.6k +6, 3.2k +10, 6.4k +12 (bright without the 800 Hz touch): upper-mid and treble lift for cutting through a mix.",
+      "status": "pending",
+      "takes": []
+    },
+    "smile": {
+      "description": "Classic V-shape \u2014 boost lows + highs, scoop mids",
+      "controls": {
+        "hz_100": 8.0,
+        "hz_200": 4.0,
+        "hz_400": -2.0,
+        "hz_800": -6.0,
+        "hz_1600": -6.0,
+        "hz_3200": 4.0,
+        "hz_6400": 8.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "The V shape: 100 Hz +8, 200 Hz +4, 400 Hz -2, 800 Hz and 1.6k -6, 3.2k +4, 6.4k +8. The most common GE-7 setting, and a good all-round test of the model.",
+      "status": "pending",
+      "takes": []
+    },
+    "warm": {
+      "description": "Warm and dark \u2014 old amp / jazz feel",
+      "controls": {
+        "hz_100": 6.0,
+        "hz_200": 4.0,
+        "hz_400": 2.0,
+        "hz_800": 0.0,
+        "hz_1600": -4.0,
+        "hz_3200": -8.0,
+        "hz_6400": -10.0,
+        "level": 0.0
+      },
+      "kind": "model",
+      "notes": "Lows up (+6/+4/+2), highs down (-4/-8/-10): warm and dark, an old-amp or jazz voicing. The tilt test.",
+      "status": "pending",
+      "takes": []
+    }
+  },
+  "events": [
+    {
+      "t": "2026-10-18T22:38:44Z",
+      "event": "session_created",
+      "code": "cb78f34"
+    }
+  ]
+}

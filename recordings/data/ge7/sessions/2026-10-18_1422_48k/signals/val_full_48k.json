@@ -1,0 +1,668 @@
+{
+  "schema_version": "1.0",
+  "generator_version": "0.1.0",
+  "signal_name": "val_full_48k",
+  "date_created": "2026-06-06T19:32:07Z",
+  "sample_rate": 48000,
+  "bit_depth": 32,
+  "format": "float",
+  "seed": 42,
+  "total_samples": 3119520,
+  "total_duration_s": 64.99,
+  "params": {
+    "sample_rate": 96000,
+    "seed": 42,
+    "silence_gap_s": 1.0,
+    "stepped_sweep_amplitudes_dbfs": [
+      -24.0,
+      -12.0,
+      -3.0
+    ],
+    "stepped_sweep_duration_s": 5.0,
+    "stepped_sweep_f_start_hz": 30.0,
+    "stepped_sweep_f_end_hz": 16000.0,
+    "val_stepped_freqs_hz": [
+      146.8,
+      196.0,
+      246.9,
+      293.7,
+      392.0,
+      523.3,
+      784.0,
+      987.8
+    ],
+    "val_stepped_levels_dbfs": [
+      -18.0,
+      -9.0,
+      -3.0
+    ],
+    "val_stepped_tone_duration_s": 0.5,
+    "val_pink_amplitudes_dbfs": [
+      -18.0,
+      -6.0
+    ],
+    "val_pink_duration_s": 5.0,
+    "val_two_tone_pairs": [
+      [
+        196.0,
+        293.7
+      ],
+      [
+        246.9,
+        369.9
+      ],
+      [
+        392.0,
+        523.3
+      ]
+    ],
+    "val_two_tone_duration_s": 3.33,
+    "val_impulse_duration_s": 3.0,
+    "val_impulse_amplitude_dbfs": -6.0,
+    "val_impulse_spacings_s": [
+      0.05,
+      0.1,
+      0.2,
+      0.05,
+      0.15
+    ],
+    "val_pluck_freqs_hz": [
+      146.8,
+      196.0,
+      246.9,
+      392.0,
+      659.3
+    ],
+    "val_pluck_decay_tau_s": 0.4,
+    "val_pluck_amplitude_dbfs": -6.0
+  },
+  "sections": [
+    {
+      "index": 0,
+      "label": "val_sweep_l-24",
+      "type": "log_sine_sweep",
+      "start_sample": 48000,
+      "end_sample": 288000,
+      "start_s": 1.0,
+      "end_s": 6.0,
+      "amplitude_dbfs": -24.0,
+      "params": {
+        "f_start_hz": 30.0,
+        "f_end_hz": 16000.0,
+        "duration_s": 5.0,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 1,
+      "label": "val_sweep_l-12",
+      "type": "log_sine_sweep",
+      "start_sample": 288000,
+      "end_sample": 528000,
+      "start_s": 6.0,
+      "end_s": 11.0,
+      "amplitude_dbfs": -12.0,
+      "params": {
+        "f_start_hz": 30.0,
+        "f_end_hz": 16000.0,
+        "duration_s": 5.0,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 2,
+      "label": "val_sweep_l-3",
+      "type": "log_sine_sweep",
+      "start_sample": 528000,
+      "end_sample": 768000,
+      "start_s": 11.0,
+      "end_s": 16.0,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "f_start_hz": 30.0,
+        "f_end_hz": 16000.0,
+        "duration_s": 5.0,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 3,
+      "label": "val_stepped_tone_f147_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 816000,
+      "end_sample": 840000,
+      "start_s": 17.0,
+      "end_s": 17.5,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 146.8,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 4,
+      "label": "val_stepped_tone_f147_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 840000,
+      "end_sample": 864000,
+      "start_s": 17.5,
+      "end_s": 18.0,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 146.8,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 5,
+      "label": "val_stepped_tone_f147_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 864000,
+      "end_sample": 888000,
+      "start_s": 18.0,
+      "end_s": 18.5,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 146.8,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 6,
+      "label": "val_stepped_tone_f196_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 888000,
+      "end_sample": 912000,
+      "start_s": 18.5,
+      "end_s": 19.0,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 196.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 7,
+      "label": "val_stepped_tone_f196_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 912000,
+      "end_sample": 936000,
+      "start_s": 19.0,
+      "end_s": 19.5,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 196.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 8,
+      "label": "val_stepped_tone_f196_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 936000,
+      "end_sample": 960000,
+      "start_s": 19.5,
+      "end_s": 20.0,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 196.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 9,
+      "label": "val_stepped_tone_f247_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 960000,
+      "end_sample": 984000,
+      "start_s": 20.0,
+      "end_s": 20.5,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 246.9,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 10,
+      "label": "val_stepped_tone_f247_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 984000,
+      "end_sample": 1008000,
+      "start_s": 20.5,
+      "end_s": 21.0,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 246.9,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 11,
+      "label": "val_stepped_tone_f247_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 1008000,
+      "end_sample": 1032000,
+      "start_s": 21.0,
+      "end_s": 21.5,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 246.9,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 12,
+      "label": "val_stepped_tone_f294_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 1032000,
+      "end_sample": 1056000,
+      "start_s": 21.5,
+      "end_s": 22.0,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 293.7,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 13,
+      "label": "val_stepped_tone_f294_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 1056000,
+      "end_sample": 1080000,
+      "start_s": 22.0,
+      "end_s": 22.5,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 293.7,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 14,
+      "label": "val_stepped_tone_f294_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 1080000,
+      "end_sample": 1104000,
+      "start_s": 22.5,
+      "end_s": 23.0,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 293.7,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 15,
+      "label": "val_stepped_tone_f392_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 1104000,
+      "end_sample": 1128000,
+      "start_s": 23.0,
+      "end_s": 23.5,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 392.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 16,
+      "label": "val_stepped_tone_f392_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 1128000,
+      "end_sample": 1152000,
+      "start_s": 23.5,
+      "end_s": 24.0,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 392.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 17,
+      "label": "val_stepped_tone_f392_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 1152000,
+      "end_sample": 1176000,
+      "start_s": 24.0,
+      "end_s": 24.5,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 392.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 18,
+      "label": "val_stepped_tone_f523_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 1176000,
+      "end_sample": 1200000,
+      "start_s": 24.5,
+      "end_s": 25.0,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 523.3,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 19,
+      "label": "val_stepped_tone_f523_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 1200000,
+      "end_sample": 1224000,
+      "start_s": 25.0,
+      "end_s": 25.5,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 523.3,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 20,
+      "label": "val_stepped_tone_f523_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 1224000,
+      "end_sample": 1248000,
+      "start_s": 25.5,
+      "end_s": 26.0,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 523.3,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 21,
+      "label": "val_stepped_tone_f784_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 1248000,
+      "end_sample": 1272000,
+      "start_s": 26.0,
+      "end_s": 26.5,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 784.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 22,
+      "label": "val_stepped_tone_f784_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 1272000,
+      "end_sample": 1296000,
+      "start_s": 26.5,
+      "end_s": 27.0,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 784.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 23,
+      "label": "val_stepped_tone_f784_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 1296000,
+      "end_sample": 1320000,
+      "start_s": 27.0,
+      "end_s": 27.5,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 784.0,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 24,
+      "label": "val_stepped_tone_f988_l-18",
+      "type": "stepped_sine_tone",
+      "start_sample": 1320000,
+      "end_sample": 1344000,
+      "start_s": 27.5,
+      "end_s": 28.0,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "freq_hz": 987.8,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 25,
+      "label": "val_stepped_tone_f988_l-9",
+      "type": "stepped_sine_tone",
+      "start_sample": 1344000,
+      "end_sample": 1368000,
+      "start_s": 28.0,
+      "end_s": 28.5,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "freq_hz": 987.8,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 26,
+      "label": "val_stepped_tone_f988_l-3",
+      "type": "stepped_sine_tone",
+      "start_sample": 1368000,
+      "end_sample": 1392000,
+      "start_s": 28.5,
+      "end_s": 29.0,
+      "amplitude_dbfs": -3.0,
+      "params": {
+        "freq_hz": 987.8,
+        "duration_s": 0.5,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 27,
+      "label": "val_pink_l-18",
+      "type": "pink_noise",
+      "start_sample": 1440000,
+      "end_sample": 1680000,
+      "start_s": 30.0,
+      "end_s": 35.0,
+      "amplitude_dbfs": -18.0,
+      "params": {
+        "duration_s": 5.0,
+        "amplitude_convention": "rms_dbfs"
+      }
+    },
+    {
+      "index": 28,
+      "label": "val_pink_l-6",
+      "type": "pink_noise",
+      "start_sample": 1680000,
+      "end_sample": 1920000,
+      "start_s": 35.0,
+      "end_s": 40.0,
+      "amplitude_dbfs": -6.0,
+      "params": {
+        "duration_s": 5.0,
+        "amplitude_convention": "rms_dbfs"
+      }
+    },
+    {
+      "index": 29,
+      "label": "val_two_tone_f196_f294",
+      "type": "two_tone",
+      "start_sample": 1968000,
+      "end_sample": 2127840,
+      "start_s": 41.0,
+      "end_s": 44.33,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "f1_hz": 196.0,
+        "f2_hz": 293.7,
+        "duration_s": 3.33,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 30,
+      "label": "val_two_tone_f247_f370",
+      "type": "two_tone",
+      "start_sample": 2127840,
+      "end_sample": 2287680,
+      "start_s": 44.33,
+      "end_s": 47.66,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "f1_hz": 246.9,
+        "f2_hz": 369.9,
+        "duration_s": 3.33,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 31,
+      "label": "val_two_tone_f392_f523",
+      "type": "two_tone",
+      "start_sample": 2287680,
+      "end_sample": 2447520,
+      "start_s": 47.66,
+      "end_s": 50.99,
+      "amplitude_dbfs": -9.0,
+      "params": {
+        "f1_hz": 392.0,
+        "f2_hz": 523.3,
+        "duration_s": 3.33,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 32,
+      "label": "val_impulse_train",
+      "type": "impulse_train",
+      "start_sample": 2495520,
+      "end_sample": 2639520,
+      "start_s": 51.99,
+      "end_s": 54.99,
+      "amplitude_dbfs": -6.0,
+      "params": {
+        "duration_s": 3.0,
+        "spacings_s": [
+          0.05,
+          0.1,
+          0.2,
+          0.05,
+          0.15
+        ],
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 33,
+      "label": "val_pluck_f147",
+      "type": "decaying_pluck",
+      "start_sample": 2639520,
+      "end_sample": 2735520,
+      "start_s": 54.99,
+      "end_s": 56.99,
+      "amplitude_dbfs": -6.0,
+      "params": {
+        "freq_hz": 146.8,
+        "decay_tau_s": 0.4,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 34,
+      "label": "val_pluck_f196",
+      "type": "decaying_pluck",
+      "start_sample": 2735520,
+      "end_sample": 2831520,
+      "start_s": 56.99,
+      "end_s": 58.99,
+      "amplitude_dbfs": -6.0,
+      "params": {
+        "freq_hz": 196.0,
+        "decay_tau_s": 0.4,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 35,
+      "label": "val_pluck_f247",
+      "type": "decaying_pluck",
+      "start_sample": 2831520,
+      "end_sample": 2927520,
+      "start_s": 58.99,
+      "end_s": 60.99,
+      "amplitude_dbfs": -6.0,
+      "params": {
+        "freq_hz": 246.9,
+        "decay_tau_s": 0.4,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 36,
+      "label": "val_pluck_f392",
+      "type": "decaying_pluck",
+      "start_sample": 2927520,
+      "end_sample": 3023520,
+      "start_s": 60.99,
+      "end_s": 62.99,
+      "amplitude_dbfs": -6.0,
+      "params": {
+        "freq_hz": 392.0,
+        "decay_tau_s": 0.4,
+        "amplitude_convention": "peak_dbfs"
+      }
+    },
+    {
+      "index": 37,
+      "label": "val_pluck_f659",
+      "type": "decaying_pluck",
+      "start_sample": 3023520,
+      "end_sample": 3119520,
+      "start_s": 62.99,
+      "end_s": 64.99,
+      "amplitude_dbfs": -6.0,
+      "params": {
+        "freq_hz": 659.3,
+        "decay_tau_s": 0.4,
+        "amplitude_convention": "peak_dbfs"
+      }
+    }
+  ],
+  "derived_from": {
+    "manifest": "recordings/data/signals/val_signal_v1.json",
+    "role": "val",
+    "excerpt": null,
+    "excerpt_types": null,
+    "source_sample_rate": 96000
+  }
+}

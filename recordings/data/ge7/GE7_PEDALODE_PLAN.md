@@ -230,7 +230,15 @@ from the raw FLACs. Measured:
 - **Return level is low:** the training signal peaks near −31 dBFS on In 1. C2 asks for about +19 dB
   more In 1 gain.
 
-**Resolved, same day: lost audio, not the estimator.** The pink-vs-sweep gap below came from audio
+**Corrected 2026-10-20: two causes, not one.** (1) Sessions 1238/1307 (stream in the GUI process)
+really lost audio: both inputs are equally incoherent with the send. The separate audio process fixed
+that; from session 1422 the return (In 1) is coherent to 1.000 in every section. (2) The loopback (In 2)
+clips above about -31 dBFS of send, in every session. That alone made the integrity check fail from
+21.0 s on, where sweep_mid starts. The 1422 and 1638_2 returns are good data despite their 'fail'
+verdicts. Fix: loopback sent 30 dB lower, and C1 tests loop linearity. The note below (now corrected)
+first blamed everything on cause (1).
+
+**Resolved, same day (partly wrong, see above): lost audio, not the estimator.** The pink-vs-sweep gap below came from audio
 silently missing in the Run-page takes: 28–32 % of 1024-sample blocks in every take of both sessions,
 with the driver reporting no dropout. All 13 calibration captures were clean. The Python audio callback
 was starved by the GUI's live views. Fixes: the stream now runs in its own process; a QC check compares

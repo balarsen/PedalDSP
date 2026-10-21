@@ -35,7 +35,7 @@ LEVEL_OFFSET_FAIL_DB = 3.0
 FR_TYPES = ("log_sine_sweep", "pink_noise")  # broadband sections used for the response estimate
 DISPLAY_BAND_HZ = (20.0, 19_000.0)  # sweeps end at 20 kHz
 STATUS_ORDER = {"ok": 0, "warn": 1, "fail": 2}
-INTEGRITY_MIN_DBFS = -60.0  # send blocks quieter than this are not judged
+INTEGRITY_RANGE_DB = 40.0  # only blocks within this of the loudest send block are judged
 INTEGRITY_DROP_DB = 6.0  # a loopback block this far below the typical ratio lost its audio
 REFERENCE_NOTES = {
     "chain": "Take ÷ the chain alone (C2): the pedal's whole response, buffers included.",
@@ -121,20 +121,25 @@ def loopback_integrity(
     The driver does not always report a dropout: on the 1824c, output blocks went silent mid-take
     while the stream reported no under/overflow. The loopback is a plain cable, so its level must
     follow the send's level block by block; a block more than ``INTEGRITY_DROP_DB`` below the
-    take's typical send-to-loopback ratio lost its audio. Quiet blocks (send below
-    ``INTEGRITY_MIN_DBFS``) are not judged.
+    take's typical send-to-loopback ratio lost its audio. Blocks more than
+    ``INTEGRITY_RANGE_DB`` below the loudest send block are not judged (the loopback is sent
+    30 dB below the pedal send, so an absolute floor would skip most of it).
 
     Returns:
         (blocks judged, blocks lost, time of the first lost block in seconds or None).
     """
     sr, pre = take.sr, take.pre_roll
+    blocks = range(pre, pre + take.signal_len - block, block)
+    send_db = np.array([rms_dbfs(take.play[a : a + block, 1]) for a in blocks])
+    if len(send_db) == 0:
+        return 0, 0, None
+    floor = send_db.max() - INTEGRITY_RANGE_DB
     ratios, starts = [], []
-    for a in range(pre, pre + take.signal_len - block, block):
-        send = take.play[a : a + block, 1]
-        if rms_dbfs(send) < INTEGRITY_MIN_DBFS:
+    for a, s_db in zip(blocks, send_db):
+        if s_db < floor:
             continue
         got = take.rec[a + loop_lag : a + loop_lag + block, 1]
-        ratios.append(rms_dbfs(got) - rms_dbfs(send))
+        ratios.append(rms_dbfs(got) - s_db)
         starts.append(a - pre)
     if not ratios:
         return 0, 0, None

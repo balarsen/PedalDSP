@@ -95,6 +95,21 @@ def test_loopback_lag_recovered_exactly(sr, expected_lag):
     assert res.ok
 
 
+def test_loopback_clipping_fails_c1():
+    """The 1824c's In 2 clipped far below full scale (2026-10-18); C1 must catch that."""
+    res = run_loopback_test(_engine(SimulatedRig(loop_clip_dbfs=-50.0)), 48_000, hottest_dbfs=-10.0)
+    assert not res.ok and res.linearity_spread_db > 0.5
+    assert any("not linear" in a.text for a in res.advice)
+    ok = run_loopback_test(_engine(), 48_000, hottest_dbfs=-10.0)
+    assert ok.ok and ok.linearity_spread_db < 0.1 and len(ok.level_gains_db) == 3
+
+
+def test_loopback_is_sent_quieter_than_the_pedal_send():
+    take = _engine().run(np.ones(100, np.float32) * 0.5, 48_000, send_level_db=-10.0)
+    ratio_db = 20 * np.log10(take.play[take.pre_roll, 1] / take.play[take.pre_roll, 0])
+    assert ratio_db == pytest.approx(-30.0, abs=1e-4)
+
+
 def test_long_interface_latency_is_found():
     """The real 1824c round trip is 3722 samples (77.5 ms) at 48 kHz with 1024-sample blocks. A
     ±50 ms search once returned −2105 for it."""

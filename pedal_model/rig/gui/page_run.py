@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from pedal_model.rig.analysis import log_grid, peak_dbfs, spectrum_db
+from pedal_model.rig.analysis import log_bin_db, log_grid, peak_dbfs, spectrum_db
 from pedal_model.rig.bandfit import fit_band
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import confirm_playback, demo_pedal
@@ -26,6 +26,7 @@ from pedal_model.rig.gui.widgets import (
     CheckText,
     ControlPanel,
     LevelMeter,
+    LiveAutoY,
     auto_scale_box,
     card,
     label,
@@ -213,11 +214,17 @@ class RunPage(QWidget):
             "Spectrum: send vs return", "Frequency (Hz)", "Level (dBFS)", log_x=True
         )
         self.spec.setXRange(np.log10(20), np.log10(20_000))
-        self.c_send = self.spec.plot(pen=pg.mkPen(theme.TEXT_DIM, width=1), name="send (Out 1)")
-        self.c_ret = self.spec.plot(pen=pg.mkPen(theme.CYAN, width=1.5), name="return (In 1)")
+        # Live curves skip antialiasing: on noisy spectra it multiplied the repaint time ~20x.
+        self.c_send = self.spec.plot(
+            pen=pg.mkPen(theme.TEXT_DIM, width=1), name="send (Out 1)", antialias=False
+        )
+        self.c_ret = self.spec.plot(
+            pen=pg.mkPen(theme.CYAN, width=1.5), name="return (In 1)", antialias=False
+        )
         meters.addWidget(self.spec, 1)
         lay.addLayout(meters)
-        lay.addWidget(_auto_box(self.spec, SPECTRUM_Y, SPECTRUM_MIN_SPAN_DB), 0, Qt.AlignRight)
+        self.spec_y = LiveAutoY(self.spec, SPECTRUM_Y, SPECTRUM_MIN_SPAN_DB, step_db=10.0)
+        lay.addWidget(self.spec_y.box, 0, Qt.AlignRight)
         right.addWidget(f, 1)
 
         f, lay = card("Pedal response (÷ the calibration reference)")
@@ -226,10 +233,13 @@ class RunPage(QWidget):
         self.c_expected = self.resp.plot(
             pen=pg.mkPen(theme.AMBER, width=2, style=Qt.DashLine), name="model (expected)"
         )
-        self.c_live = self.resp.plot(pen=pg.mkPen(theme.TEXT_DIM, width=1.5), name="live estimate")
+        self.c_live = self.resp.plot(
+            pen=pg.mkPen(theme.TEXT_DIM, width=1.5), name="live estimate", antialias=False
+        )
         self.c_measured = self.resp.plot(pen=pg.mkPen(theme.OK, width=2.5), name="measured")
         lay.addWidget(self.resp)
-        lay.addWidget(_auto_box(self.resp, RESPONSE_Y, RESPONSE_MIN_SPAN_DB), 0, Qt.AlignRight)
+        self.resp_y = LiveAutoY(self.resp, RESPONSE_Y, RESPONSE_MIN_SPAN_DB, step_db=3.0)
+        lay.addWidget(self.resp_y.box, 0, Qt.AlignRight)
         right.addWidget(f, 1)
 
         self.timer = QTimer(self)
@@ -296,6 +306,7 @@ class RunPage(QWidget):
         grid = log_grid(20, 20_000)
         exp = expected_response(self.state.profile.pedal, p.controls, self.state.sample_rate, grid)
         self.c_expected.setData(grid, exp if exp is not None else np.zeros_like(grid))
+        self.resp_y.update(force=True)
         if not (self.state.calibration or {}).get("chain"):
             self.status.setText(
                 f"<span style='color:{theme.AMBER}'>No calibration in this session yet: QC can't "
@@ -393,6 +404,7 @@ class RunPage(QWidget):
             self.qc.add(item.status, f"{item.name}: {item.value}", item.detail)
         if role == self.roles[0] and rep.response is not None:
             self.c_measured.setData(rep.response.freqs_hz, rep.response.measured_db)
+            self.resp_y.update(force=True)
         i = self.roles.index(role)
         if i + 1 < len(self.roles):
             self._start_role(self.roles[i + 1])
@@ -452,8 +464,9 @@ class RunPage(QWidget):
         f, s_db = spectrum_db(play[b:pos, 0], sr)
         _, r_db = spectrum_db(rec[b:pos, 0], sr)
         sel = slice(1, None)
-        self.c_send.setData(f[sel], s_db[sel])
-        self.c_ret.setData(f[sel], r_db[sel])
+        self.c_send.setData(*log_bin_db(f[sel], s_db[sel]))
+        self.c_ret.setData(*log_bin_db(f[sel], r_db[sel]))
+        self.spec_y.update()
 
         sec = self._section_at(pos - eng.pre_roll)
         if sec is not None:
@@ -494,6 +507,7 @@ class RunPage(QWidget):
         else:
             corr = cal["chain"]["gain_db"] if cal.get("chain") else 0.0
         self.c_live.setData(grid, live - corr, connect="finite")
+        self.resp_y.update()
 
     def _section_at(self, sample: int):
         if not self.manifest or sample < 0:

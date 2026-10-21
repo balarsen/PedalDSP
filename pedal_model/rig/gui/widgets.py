@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import time
+
+import numpy as np
 import pyqtgraph as pg
 from PySide6.QtCore import QRectF, Qt
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
@@ -68,6 +71,57 @@ def show_error(parent: QWidget, title: str, tb: str) -> None:
     copy.clicked.connect(lambda: QApplication.clipboard().setText(title + "\n" + tb))
     box.addButton(QMessageBox.Ok)
     box.exec()
+
+
+class LiveAutoY:
+    """Auto scale for plots redrawn many times a second, with its "Auto scale" checkbox (``box``).
+
+    pyqtgraph's own auto range re-lays-out the axes on every update, which made one Run-page repaint
+    cost about 0.9 s at 2400x1300 (2026-10-20). This recomputes the range at most every
+    ``period_s``, snapped to ``step_db``, and only touches the axes when the snapped range changes.
+    """
+
+    def __init__(
+        self,
+        plot: pg.PlotWidget,
+        fixed: tuple[float, float],
+        min_span: float,
+        step_db: float,
+        period_s: float = 0.5,
+    ) -> None:
+        self.plot, self.fixed, self.min_span = plot, fixed, min_span
+        self.step, self.period = step_db, period_s
+        self._last = 0.0
+        self._range: tuple[float, float] | None = None
+        plot.disableAutoRange(axis="y")
+        self._set(fixed)
+        self.box = QCheckBox("Auto scale")
+        self.box.setChecked(True)
+        self.box.toggled.connect(lambda on: self.update(force=True) if on else self._set(fixed))
+
+    def _set(self, rng: tuple[float, float]) -> None:
+        if rng != self._range:
+            self.plot.setYRange(*rng, padding=0)
+            self._range = rng
+
+    def update(self, force: bool = False) -> None:
+        """Rescale to the plotted data if due (call after setData)."""
+        if not self.box.isChecked():
+            return
+        now = time.monotonic()
+        if not force and now - self._last < self.period:
+            return
+        self._last = now
+        ys = [np.asarray(c.yData) for c in self.plot.listDataItems() if c.yData is not None]
+        ys = np.concatenate([y[np.isfinite(y)] for y in ys]) if ys else np.empty(0)
+        if ys.size == 0:
+            return
+        lo = np.floor(ys.min() / self.step) * self.step
+        hi = np.ceil(ys.max() / self.step) * self.step
+        if hi - lo < self.min_span:
+            mid = (hi + lo) / 2
+            lo, hi = mid - self.min_span / 2, mid + self.min_span / 2
+        self._set((float(lo), float(hi)))
 
 
 def label(text: str, kind: str = "", wrap: bool = True) -> QLabel:

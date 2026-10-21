@@ -51,7 +51,8 @@ class SimulatedRig:
         bypass_gain_db, bypass_hp_hz: The pedal's buffers when bypassed (illustrative).
         engaged_gain_db: Engaged path vs bypassed at the flat setting (illustrative).
         dropout_prob: Chance that each 1024-sample output block is silently lost (the driver
-            plays silence and reports nothing), as seen on the 1824c on 2026-10-18.
+            plays silence and reports nothing).
+        loop_clip_dbfs: If set, the loopback input clips at this level (as the 1824c In 2 did).
     """
 
     latency_ms: float = 0.98
@@ -66,6 +67,7 @@ class SimulatedRig:
     bypass_hp_hz: float = 8.0
     engaged_gain_db: float = 0.4
     dropout_prob: float = 0.0
+    loop_clip_dbfs: float | None = None
 
 
 def _first_order(b_s: tuple[float, float], a_s: tuple[float, float], x: np.ndarray, sr: int):
@@ -142,6 +144,9 @@ class SimulatedBackend:
         ret = self._through_pedal(self._chain_in(play[:, 0], sr), sr)
         ret = ret * 10 ** (r.return_gain_db / 20)
         loop = play[:, 1] * 10 ** (r.loop_gain_db / 20)
+        if r.loop_clip_dbfs is not None:
+            c = 10 ** (r.loop_clip_dbfs / 20)
+            loop = np.clip(loop, -c, c)
         inp = np.zeros((n, 2), dtype=np.float32)
         inp[lag:, 0] = ret[: n - lag]
         inp[lag:, 1] = loop[: n - lag]

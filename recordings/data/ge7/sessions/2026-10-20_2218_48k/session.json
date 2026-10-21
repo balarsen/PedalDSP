@@ -71,41 +71,41 @@
       ]
     },
     "chain": {
-      "lag_samples": 3720,
+      "lag_samples": 3724,
       "gain_db": -200.0,
       "linearity_spread_db": 0.0,
-      "return_noise_dbfs": -114.41256206047524,
+      "return_noise_dbfs": -114.42486165230977,
       "predicted_train_peak_dbfs": -212.97882795333862,
       "steps": [
         {
           "send_dbfs": -36.0,
-          "return_dbfs": -79.48715972100945,
-          "gain_db": -43.4868598450127
+          "return_dbfs": -111.49201570777848,
+          "gain_db": -75.49171583178173
         },
         {
           "send_dbfs": -30.0,
-          "return_dbfs": -73.48971935186863,
-          "gain_db": -43.48941934862236
+          "return_dbfs": -111.57090029274458,
+          "gain_db": -81.57060028949832
         },
         {
           "send_dbfs": -24.0,
-          "return_dbfs": -67.49009914829207,
-          "gain_db": -43.489799088272
+          "return_dbfs": -111.41615560905193,
+          "gain_db": -87.41585554903185
         },
         {
           "send_dbfs": -18.0,
-          "return_dbfs": -61.49106028524809,
-          "gain_db": -43.490760254981865
+          "return_dbfs": -111.45777250242568,
+          "gain_db": -93.45747247215947
         },
         {
           "send_dbfs": -12.0,
-          "return_dbfs": -55.492362076429934,
-          "gain_db": -43.49206215679956
+          "return_dbfs": -111.50029511458075,
+          "gain_db": -99.49999519495039
         },
         {
           "send_dbfs": -9.0,
-          "return_dbfs": -52.86114173905192,
-          "gain_db": -43.86084183233491
+          "return_dbfs": -111.36969626741835,
+          "gain_db": -102.36939636070134
         }
       ],
       "advice": [
@@ -139,11 +139,11 @@
             "text": "No return on In 1. Check: pedal powered and engaged, cables ProRMP \u2192 pedal \u2192 ProDI \u2192 In 1, ProRMP level not at zero, In 1 gain up."
           }
         ],
-        "time_local": "2026-10-20T22:20:38"
+        "time_local": "2026-10-20T22:24:03"
       }
     },
-    "t": "2026-10-21T04:20:38Z",
-    "time_local": "2026-10-20T22:20:38",
+    "t": "2026-10-21T04:24:03Z",
+    "time_local": "2026-10-20T22:24:03",
     "session": "2026-10-20_2218_48k",
     "profile": "ge7",
     "sample_rate": 48000,
@@ -448,6 +448,12 @@
       "event": "calibrated",
       "code": "ef88bb1",
       "file": "calibration_2026-10-20_2220.json"
+    },
+    {
+      "t": "2026-10-21T04:24:03Z",
+      "event": "calibrated",
+      "code": "ef88bb1",
+      "file": "calibration_2026-10-20_2224.json"
     }
   ]
 }

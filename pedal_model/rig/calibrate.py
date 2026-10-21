@@ -311,11 +311,18 @@ def run_chain_test(
     if lag > LAG_TRUST_FRACTION * LAG_SEARCH_S * sr:
         lines.append(advice("fail", LAG_TOO_LONG_TEXT))
     if not gains:
+        loudest = steps[-1]
         lines.append(
             advice(
                 "fail",
-                "No return on In 1. Check: pedal powered and engaged, cables ProRMP → pedal → "
-                "ProDI → In 1, ProRMP level not at zero, In 1 gain up.",
+                f"Nothing measurable reached In 1: the loudest tone "
+                f"({loudest['send_dbfs']:.0f} dBFS sent) came back at "
+                f"{loudest['return_dbfs']:.0f} dBFS, against a noise floor of {noise:.0f} dBFS "
+                f"(it must be {HEARD_ABOVE_NOISE_DB:.0f} dB above it). Check, in "
+                "order: (1) cable A from ProRMP OUTPUT into ProDI INPUT; (2) ProDI XLR OUT into "
+                "the XLR of In 1; (3) Universal Control: 'Inputs 1-2 Line' OFF (with Line on the "
+                "XLR is ignored), DAW 1 unmuted, Main not muted; (4) Main knob up, ProRMP level "
+                "up, In 1 gain up.",
             )
         )
         return result

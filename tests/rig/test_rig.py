@@ -140,7 +140,7 @@ def test_chain_gain_and_linearity():
 def test_chain_test_reports_missing_return():
     res = run_chain_test(_engine(SimulatedRig(return_gain_db=-200.0)), 48_000, -10.0, -2.0)
     assert not _ok(res)
-    assert any("No return" in a["text"] for a in res["advice"])
+    assert any("Nothing measurable reached In 1" in a["text"] for a in res["advice"])
 
 
 def test_chain_test_flags_hot_return():

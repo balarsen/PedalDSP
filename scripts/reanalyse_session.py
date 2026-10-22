@@ -15,7 +15,6 @@ import sys
 from pathlib import Path
 
 import numpy as np
-import soundfile as sf
 
 from pedal_model.rig.calibrate import (
     check_bypass,
@@ -25,23 +24,12 @@ from pedal_model.rig.calibrate import (
     reference_from_take,
     reference_signal,
 )
-from pedal_model.rig.engine import PRE_ROLL_S, Take
+from pedal_model.rig.dataset import rebuild_take
 from pedal_model.rig.profiles import load_profile
 from pedal_model.rig.qc import check_take
 from pedal_model.signals.manifest import Manifest
 
 REPORT_HZ = (30, 50, 100, 200, 500, 1000, 2000, 5000, 10_000, 15_000)
-
-
-def rebuild_take(raw_path: Path, signal: np.ndarray, send_level_db: float) -> Take:
-    """A Take from a raw capture: the played signal is rebuilt (both outputs, as route "both")."""
-    rec, sr = sf.read(str(raw_path), dtype="float32")
-    pre = int(round(PRE_ROLL_S * sr))
-    play = np.zeros_like(rec)
-    gain = np.float32(10 ** (send_level_db / 20))
-    play[pre : pre + len(signal), 0] = signal * gain
-    play[pre : pre + len(signal), 1] = signal * gain
-    return Take(sr, play, rec, pre, len(signal), send_level_db, 0, False, 0.0)
 
 
 def main() -> None:

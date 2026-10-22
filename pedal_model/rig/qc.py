@@ -297,9 +297,12 @@ def check_take(
     cal_chain = (calibration or {}).get("chain")
     cal_loop = (calibration or {}).get("loopback")
 
+    # The lags come from the whole first sweep. Its first 10 s (train_signal_v2: 20-630 Hz only)
+    # gave a broad, low-frequency correlation peak: the loopback lag read 3 samples short on every
+    # train take and the return lag wandered -7..+11 (session 2026-10-21_0237, found 2026-10-22).
     first = (manifest.sections_of_type("log_sine_sweep") or manifest.sections)[0]
     w0 = pre + first.start_sample
-    w1 = pre + min(first.end_sample, first.start_sample + 10 * sr)
+    w1 = pre + first.end_sample
     say = report or (lambda _msg: None)
     say("Aligning: measuring the loopback latency")
     xcorr_lag = find_lag(take.play[:, 0], take.rec[:, 0], sr, w0, w1)

@@ -4170,8 +4170,233 @@
       "kind": "model",
       "notes": "All seven bands at -12 dB and LEVEL at -15 dB. The most attenuation the pedal does: checks the noise floor and how the bands sum when they all cut together.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:02:50Z",
+          "time_local": "2026-10-22T17:02:50",
+          "wet_wav": "ge7_all_down_train_wet_48k_2026-10-22_1702.flac",
+          "raw_wav": "ge7_all_down_train_raw_48k_2026-10-22_1702.flac",
+          "lag_samples": 3000,
+          "loop_lag_samples": 3000,
+          "xcorr_lag_samples": 3000,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -12.02,
+          "auto_level": {
+            "send_level_db": -12.02,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": -24.28,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -39.28,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -68.12,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-53.7 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-38.8 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3000 samples (62.50 ms)",
+              "detail": "Loopback 3000 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3000 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-99.3 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.02 dB at 274 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "warn",
+              "value": "26 dB at 3569 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz. The quiet section is close to the noise: a low send level (auto-level) or low return gain. It adds little to the fit."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.37 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +4.18 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+5.46 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:04:05Z",
+          "time_local": "2026-10-22T17:04:05",
+          "wet_wav": "ge7_all_down_val_wet_48k_2026-10-22_1704.flac",
+          "raw_wav": "ge7_all_down_val_raw_48k_2026-10-22_1704.flac",
+          "lag_samples": 3005,
+          "loop_lag_samples": 3005,
+          "xcorr_lag_samples": 3005,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "fail",
+          "code_version": "21f8cdd",
+          "send_level_db": -15.0,
+          "auto_level": {
+            "send_level_db": -15.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": -24.3,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -39.3,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -68.37,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "fail",
+              "value": "-60.4 dBFS RMS",
+              "detail": "Almost nothing came back on In 1: pedal on? cables?"
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-41.2 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3005 samples (62.60 ms)",
+              "detail": "Loopback 3005 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3005 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-99.4 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.03 dB at 173 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "warn",
+              "value": "17 dB at 3467 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz. The quiet section is close to the noise: a low send level (auto-level) or low return gain. It adds little to the fit."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.36 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +4.17 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+5.45 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "all_up": {
       "description": "All bands +12 dB, LEVEL +15 dB \u2014 stress test / maximum gain",
@@ -4188,8 +4413,244 @@
       "kind": "model",
       "notes": "All seven bands at +12 dB and LEVEL at +15 dB. The most gain the pedal does: the stress test for headroom and clipping inside the pedal.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:06:59Z",
+          "time_local": "2026-10-22T17:06:59",
+          "wet_wav": "ge7_all_up_train_wet_48k_2026-10-22_1706.flac",
+          "raw_wav": "ge7_all_up_train_raw_48k_2026-10-22_1706.flac",
+          "lag_samples": 3000,
+          "loop_lag_samples": 3000,
+          "xcorr_lag_samples": 3001,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -41.27,
+          "auto_level": {
+            "send_level_db": -35.27,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 31.25,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -38.25,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -13.06,
+            "retakes": [
+              {
+                "send_level_db": -35.27,
+                "linearity": "1.73 dB at 797 Hz"
+              }
+            ]
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-25.3 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-12.3 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3000 samples (62.50 ms)",
+              "detail": "Loopback 3000 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3000 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-77.4 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.06 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "55 dB at 7552 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.16 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +2.08 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+3.36 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            },
+            {
+              "name": "Auto-level retakes",
+              "status": "warn",
+              "value": "1, kept -41.3 dB",
+              "detail": "Not linear at -35.3 dB (1.73 dB at 797 Hz). A limit C2 did not see (the pedal's own output on a big boost?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:08:14Z",
+          "time_local": "2026-10-22T17:08:14",
+          "wet_wav": "ge7_all_up_val_wet_48k_2026-10-22_1708.flac",
+          "raw_wav": "ge7_all_up_val_raw_48k_2026-10-22_1708.flac",
+          "lag_samples": 3004,
+          "loop_lag_samples": 3004,
+          "xcorr_lag_samples": 3005,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -38.25,
+          "auto_level": {
+            "send_level_db": -38.25,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 31.25,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -38.25,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -13.05,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-25.1 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-8.3 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3004 samples (62.58 ms)",
+              "detail": "Loopback 3004 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3004 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-77.5 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.12 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "52 dB at 8000 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.15 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +2.07 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+3.36 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "all_up_2": {
       "description": "All bands +12 dB, LEVEL +15 dB \u2014 recapture at -30 dB DAW fader to avoid ADC clip",
@@ -4206,7 +4667,7 @@
       "kind": "model",
       "notes": "Same settings as all_up, recaptured in the Studio One days at a lower DAW fader to avoid ADC clipping. With the rig, the send level and calibration handle that; keep it for comparison with the old captures.",
       "signal": null,
-      "status": "pending",
+      "status": "skipped",
       "takes": []
     },
     "all_up_3": {
@@ -4224,8 +4685,244 @@
       "kind": "model",
       "notes": "All bands +12 dB with LEVEL only at +6 dB: the band boosts without the extra output gain, so the EQ shape is measured clean of any clipping.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:10:49Z",
+          "time_local": "2026-10-22T17:10:49",
+          "wet_wav": "ge7_all_up_3_train_wet_48k_2026-10-22_1710.flac",
+          "raw_wav": "ge7_all_up_3_train_raw_48k_2026-10-22_1710.flac",
+          "lag_samples": 3004,
+          "loop_lag_samples": 3004,
+          "xcorr_lag_samples": 3005,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -36.09,
+          "auto_level": {
+            "send_level_db": -30.09,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 26.06,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -33.06,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -18.32,
+            "retakes": [
+              {
+                "send_level_db": -30.09,
+                "linearity": "2.16 dB at 797 Hz"
+              }
+            ]
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-25.0 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-12.3 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3004 samples (62.58 ms)",
+              "detail": "Loopback 3004 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3004 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-82.2 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.07 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "56 dB at 7552 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.11 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +7.16 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+8.45 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            },
+            {
+              "name": "Auto-level retakes",
+              "status": "warn",
+              "value": "1, kept -36.1 dB",
+              "detail": "Not linear at -30.1 dB (2.16 dB at 797 Hz). A limit C2 did not see (the pedal's own output on a big boost?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:12:04Z",
+          "time_local": "2026-10-22T17:12:04",
+          "wet_wav": "ge7_all_up_3_val_wet_48k_2026-10-22_1712.flac",
+          "raw_wav": "ge7_all_up_3_val_raw_48k_2026-10-22_1712.flac",
+          "lag_samples": 2999,
+          "loop_lag_samples": 2999,
+          "xcorr_lag_samples": 3000,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -33.07,
+          "auto_level": {
+            "send_level_db": -33.07,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 26.07,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -33.07,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -18.31,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-24.6 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-8.1 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "2999 samples (62.48 ms)",
+              "detail": "Loopback 2999 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "2999 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-82.2 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.16 dB at 797 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "53 dB at 8000 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.10 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +7.16 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+8.44 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "all_up_pad15": {
       "description": "all up with the prodi pad on",
@@ -4242,7 +4939,7 @@
       "kind": "model",
       "notes": "Diagnostic (2026-10-21): all_up with the ProDI -15 dB pad ON, to find where all_up clips. Result: the rig's return path clips near -15 dBFS, not the pedal.",
       "signal": null,
-      "status": "pending",
+      "status": "skipped",
       "takes": []
     },
     "bass_boost": {
@@ -4260,8 +4957,244 @@
       "kind": "model",
       "notes": "100 Hz +12, 200 Hz +8, 400 Hz +4, the rest flat: a broad low-end lift that fades into the mids. Tests how neighbouring low bands overlap.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:14:59Z",
+          "time_local": "2026-10-22T17:14:59",
+          "wet_wav": "ge7_bass_boost_train_wet_48k_2026-10-22_1714.flac",
+          "raw_wav": "ge7_bass_boost_train_raw_48k_2026-10-22_1714.flac",
+          "lag_samples": 3007,
+          "loop_lag_samples": 3007,
+          "xcorr_lag_samples": 3008,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -18.02,
+          "auto_level": {
+            "send_level_db": -12.02,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 3.22,
+            "probe_max_gain_hz": 89.5,
+            "predicted_peak_dbfs": -11.78,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -41.7,
+            "retakes": [
+              {
+                "send_level_db": -12.02,
+                "linearity": "3.16 dB at 100 Hz"
+              }
+            ]
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-29.3 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-17.6 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3007 samples (62.65 ms)",
+              "detail": "Loopback 3007 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3007 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-97.9 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.14 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "51 dB at 7552 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "ok",
+              "value": "0.63 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a -0.08 dB offset. The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.20 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            },
+            {
+              "name": "Auto-level retakes",
+              "status": "warn",
+              "value": "1, kept -18.0 dB",
+              "detail": "Not linear at -12.0 dB (3.16 dB at 100 Hz). A limit C2 did not see (the pedal's own output on a big boost?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:16:14Z",
+          "time_local": "2026-10-22T17:16:14",
+          "wet_wav": "ge7_bass_boost_val_wet_48k_2026-10-22_1716.flac",
+          "raw_wav": "ge7_bass_boost_val_raw_48k_2026-10-22_1716.flac",
+          "lag_samples": 3004,
+          "loop_lag_samples": 3004,
+          "xcorr_lag_samples": 3005,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -15.0,
+          "auto_level": {
+            "send_level_db": -15.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 3.23,
+            "probe_max_gain_hz": 89.5,
+            "predicted_peak_dbfs": -11.77,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -41.67,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-28.5 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-12.1 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3004 samples (62.58 ms)",
+              "detail": "Loopback 3004 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3004 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-97.8 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "warn",
+              "value": "0.83 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz. Something compresses at the loud level: the return path (C2's ceiling) or the pedal. Retake at a lower send level (auto-level)."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "48 dB at 8000 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "ok",
+              "value": "0.60 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a -0.12 dB offset. The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.17 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "bright": {
       "description": "Presence and air boost \u2014 Strat-style sparkle",
@@ -4278,8 +5211,244 @@
       "kind": "model",
       "notes": "800 Hz +2, 1.6k +6, 3.2k +10, 6.4k +12: a rising top end, 'Strat sparkle'. Exercises the 6.4k band, which behaves like a high shelf rather than a peak.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:18:55Z",
+          "time_local": "2026-10-22T17:18:55",
+          "wet_wav": "ge7_bright_train_wet_48k_2026-10-22_1718.flac",
+          "raw_wav": "ge7_bright_train_raw_48k_2026-10-22_1718.flac",
+          "lag_samples": 3004,
+          "loop_lag_samples": 3004,
+          "xcorr_lag_samples": 3005,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -26.0,
+          "auto_level": {
+            "send_level_db": -20.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 15.98,
+            "probe_max_gain_hz": 3373.4,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -22.98,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -28.49,
+            "retakes": [
+              {
+                "send_level_db": -20.0,
+                "linearity": "2.18 dB at 3273 Hz"
+              }
+            ]
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-27.0 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-12.4 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3004 samples (62.58 ms)",
+              "detail": "Loopback 3004 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3004 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-90.5 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.01 dB at 7552 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "46 dB at 100 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "2.56 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +5.28 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+6.57 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            },
+            {
+              "name": "Auto-level retakes",
+              "status": "warn",
+              "value": "1, kept -26.0 dB",
+              "detail": "Not linear at -20.0 dB (2.18 dB at 3273 Hz). A limit C2 did not see (the pedal's own output on a big boost?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:20:10Z",
+          "time_local": "2026-10-22T17:20:10",
+          "wet_wav": "ge7_bright_val_wet_48k_2026-10-22_1720.flac",
+          "raw_wav": "ge7_bright_val_raw_48k_2026-10-22_1720.flac",
+          "lag_samples": 3004,
+          "loop_lag_samples": 3004,
+          "xcorr_lag_samples": 3004,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -22.99,
+          "auto_level": {
+            "send_level_db": -22.99,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 15.99,
+            "probe_max_gain_hz": 3373.4,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -22.99,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -28.47,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-28.4 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-8.8 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3004 samples (62.58 ms)",
+              "detail": "Loopback 3004 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3004 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-90.6 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.18 dB at 3273 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "48 dB at 163 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "2.56 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +5.28 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+6.57 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "frown": {
       "description": "Inverted smile \u2014 boost mids, cut lows + highs",
@@ -4296,8 +5465,244 @@
       "kind": "model",
       "notes": "The inverse of smile: lows and highs cut, mids up to +8 dB at 800 Hz. A mid-forward voicing that tests boosts and cuts next to each other.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:22:59Z",
+          "time_local": "2026-10-22T17:22:59",
+          "wet_wav": "ge7_frown_train_wet_48k_2026-10-22_1722.flac",
+          "raw_wav": "ge7_frown_train_raw_48k_2026-10-22_1722.flac",
+          "lag_samples": 3007,
+          "loop_lag_samples": 3007,
+          "xcorr_lag_samples": 3008,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -18.02,
+          "auto_level": {
+            "send_level_db": -12.02,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 3.77,
+            "probe_max_gain_hz": 798.9,
+            "predicted_peak_dbfs": -11.23,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -41.17,
+            "retakes": [
+              {
+                "send_level_db": -12.02,
+                "linearity": "1.17 dB at 774 Hz"
+              }
+            ]
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-31.0 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-17.2 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3007 samples (62.65 ms)",
+              "detail": "Loopback 3007 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3007 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-97.1 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.03 dB at 752 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "47 dB at 7552 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.36 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +0.14 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.43 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            },
+            {
+              "name": "Auto-level retakes",
+              "status": "warn",
+              "value": "1, kept -18.0 dB",
+              "detail": "Not linear at -12.0 dB (1.17 dB at 774 Hz). A limit C2 did not see (the pedal's own output on a big boost?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:24:14Z",
+          "time_local": "2026-10-22T17:24:14",
+          "wet_wav": "ge7_frown_val_wet_48k_2026-10-22_1724.flac",
+          "raw_wav": "ge7_frown_val_raw_48k_2026-10-22_1724.flac",
+          "lag_samples": 3002,
+          "loop_lag_samples": 3002,
+          "xcorr_lag_samples": 3003,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -15.0,
+          "auto_level": {
+            "send_level_db": -15.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 3.78,
+            "probe_max_gain_hz": 798.9,
+            "predicted_peak_dbfs": -11.22,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -41.15,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-29.3 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-13.7 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3002 samples (62.54 ms)",
+              "detail": "Loopback 3002 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3002 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-97.2 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.04 dB at 731 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "44 dB at 8000 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.38 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a +0.12 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.40 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "high_cut": {
       "description": "Roll off highs \u2014 telephone / muffled / vintage",
@@ -4314,8 +5719,233 @@
       "kind": "model",
       "notes": "1.6k -6, 3.2k -10, 6.4k -14: rolls off the highs (telephone, muffled, vintage). Checks the deepest top-end cut.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:25:54Z",
+          "time_local": "2026-10-22T17:25:54",
+          "wet_wav": "ge7_high_cut_train_wet_48k_2026-10-22_1725.flac",
+          "raw_wav": "ge7_high_cut_train_raw_48k_2026-10-22_1725.flac",
+          "lag_samples": 3003,
+          "loop_lag_samples": 3003,
+          "xcorr_lag_samples": 3004,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -12.02,
+          "auto_level": {
+            "send_level_db": -12.02,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": -8.96,
+            "probe_max_gain_hz": 388.8,
+            "predicted_peak_dbfs": -23.96,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -53.86,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-33.6 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-23.9 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3003 samples (62.56 ms)",
+              "detail": "Loopback 3003 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3003 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-99.1 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.04 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "45 dB at 3569 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.18 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a -2.72 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "-1.44 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:27:09Z",
+          "time_local": "2026-10-22T17:27:09",
+          "wet_wav": "ge7_high_cut_val_wet_48k_2026-10-22_1727.flac",
+          "raw_wav": "ge7_high_cut_val_raw_48k_2026-10-22_1727.flac",
+          "lag_samples": 3003,
+          "loop_lag_samples": 3003,
+          "xcorr_lag_samples": 3004,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -15.0,
+          "auto_level": {
+            "send_level_db": -15.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": -8.95,
+            "probe_max_gain_hz": 388.8,
+            "predicted_peak_dbfs": -23.95,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -53.85,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-37.7 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-22.4 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3003 samples (62.56 ms)",
+              "detail": "Loopback 3003 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3003 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-99.2 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.02 dB at 126 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "36 dB at 8000 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.16 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a -2.74 dB offset. Are the controls set as shown? The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "-1.45 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "low_cut": {
       "description": "High-pass approximation \u2014 thin out bass",
@@ -4332,8 +5962,233 @@
       "kind": "model",
       "notes": "100 Hz -14, 200 Hz -10, 400 Hz -6: an approximate high-pass. Checks the deepest low-end cut.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:28:38Z",
+          "time_local": "2026-10-22T17:28:38",
+          "wet_wav": "ge7_low_cut_train_wet_48k_2026-10-22_1728.flac",
+          "raw_wav": "ge7_low_cut_train_raw_48k_2026-10-22_1728.flac",
+          "lag_samples": 3004,
+          "loop_lag_samples": 3004,
+          "xcorr_lag_samples": 3005,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "ok",
+          "code_version": "21f8cdd",
+          "send_level_db": -12.02,
+          "auto_level": {
+            "send_level_db": -12.02,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 1.76,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -13.24,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -42.72,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-27.5 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-12.7 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3004 samples (62.58 ms)",
+              "detail": "Loopback 3004 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3004 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-98.1 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.02 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "44 dB at 100 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "ok",
+              "value": "0.62 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a -1.35 dB offset. The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "ok",
+              "value": "-0.07 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:29:53Z",
+          "time_local": "2026-10-22T17:29:53",
+          "wet_wav": "ge7_low_cut_val_wet_48k_2026-10-22_1729.flac",
+          "raw_wav": "ge7_low_cut_val_raw_48k_2026-10-22_1729.flac",
+          "lag_samples": 3001,
+          "loop_lag_samples": 3001,
+          "xcorr_lag_samples": 3001,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "ok",
+          "code_version": "21f8cdd",
+          "send_level_db": -15.0,
+          "auto_level": {
+            "send_level_db": -15.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 1.76,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -13.24,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -42.72,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-34.6 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-15.8 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3001 samples (62.52 ms)",
+              "detail": "Loopback 3001 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3001 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-98.1 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.01 dB at 503 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "41 dB at 100 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "ok",
+              "value": "0.64 dB RMS",
+              "detail": "Model Ge7Sim, 100\u20138000 Hz after removing a -1.36 dB offset. The model is not fitted to this pedal: graded warn at most."
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "ok",
+              "value": "-0.07 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "mid_scoop": {
       "description": "Classic metal tone: deep mid cut",
@@ -4350,8 +6205,233 @@
       "kind": "model",
       "notes": "400 Hz -8, 800 Hz -12, 1.6k -10, 3.2k -4: the classic metal scoop. A deep notch made from three adjacent cuts.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:31:23Z",
+          "time_local": "2026-10-22T17:31:23",
+          "wet_wav": "ge7_mid_scoop_train_wet_48k_2026-10-22_1731.flac",
+          "raw_wav": "ge7_mid_scoop_train_raw_48k_2026-10-22_1731.flac",
+          "lag_samples": 3003,
+          "loop_lag_samples": 3003,
+          "xcorr_lag_samples": 3003,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "fail",
+          "code_version": "21f8cdd",
+          "send_level_db": -12.02,
+          "auto_level": {
+            "send_level_db": -12.02,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 0.74,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -14.26,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -43.59,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-29.2 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-13.6 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3003 samples (62.56 ms)",
+              "detail": "Loopback 3003 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3003 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-98.4 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.02 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "46 dB at 797 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "fail",
+              "value": "2.62 dB RMS",
+              "detail": "Model ge7_pedalode_v1, 100\u20138000 Hz after removing a +0.35 dB offset. Are the controls set as shown?"
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.63 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:32:38Z",
+          "time_local": "2026-10-22T17:32:38",
+          "wet_wav": "ge7_mid_scoop_val_wet_48k_2026-10-22_1732.flac",
+          "raw_wav": "ge7_mid_scoop_val_raw_48k_2026-10-22_1732.flac",
+          "lag_samples": 3001,
+          "loop_lag_samples": 3001,
+          "xcorr_lag_samples": 3001,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "fail",
+          "code_version": "21f8cdd",
+          "send_level_db": -15.0,
+          "auto_level": {
+            "send_level_db": -15.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 0.74,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -14.26,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -43.56,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-36.6 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-17.3 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3001 samples (62.52 ms)",
+              "detail": "Loopback 3001 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3001 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-98.4 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.01 dB at 6352 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "37 dB at 774 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "fail",
+              "value": "2.63 dB RMS",
+              "detail": "Model ge7_pedalode_v1, 100\u20138000 Hz after removing a +0.33 dB offset. Are the controls set as shown?"
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.61 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "presence": {
       "description": "Upper-mid and high-freq lift for cut-through-mix clarity",
@@ -4368,7 +6448,7 @@
       "kind": "model",
       "notes": "1.6k +6, 3.2k +10, 6.4k +12 (bright without the 800 Hz touch): upper-mid and treble lift for cutting through a mix.",
       "signal": null,
-      "status": "pending",
+      "status": "skipped",
       "takes": []
     },
     "smile": {
@@ -4386,8 +6466,233 @@
       "kind": "model",
       "notes": "The V shape: 100 Hz +8, 200 Hz +4, 400 Hz -2, 800 Hz and 1.6k -6, 3.2k +4, 6.4k +8. The most common GE-7 setting, and a good all-round test of the model.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:34:17Z",
+          "time_local": "2026-10-22T17:34:17",
+          "wet_wav": "ge7_smile_train_wet_48k_2026-10-22_1734.flac",
+          "raw_wav": "ge7_smile_train_raw_48k_2026-10-22_1734.flac",
+          "lag_samples": 3008,
+          "loop_lag_samples": 3008,
+          "xcorr_lag_samples": 3008,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -13.49,
+          "auto_level": {
+            "send_level_db": -13.49,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 9.46,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -16.46,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -34.65,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-22.9 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-6.1 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3008 samples (62.67 ms)",
+              "detail": "Loopback 3008 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3008 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-95.3 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.14 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "51 dB at 797 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.41 dB RMS",
+              "detail": "Model ge7_pedalode_v1, 100\u20138000 Hz after removing a -1.36 dB offset. Are the controls set as shown?"
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "ok",
+              "value": "-0.07 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:35:32Z",
+          "time_local": "2026-10-22T17:35:32",
+          "wet_wav": "ge7_smile_val_wet_48k_2026-10-22_1735.flac",
+          "raw_wav": "ge7_smile_val_raw_48k_2026-10-22_1735.flac",
+          "lag_samples": 3008,
+          "loop_lag_samples": 3008,
+          "xcorr_lag_samples": 3008,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -16.47,
+          "auto_level": {
+            "send_level_db": -16.47,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": 9.47,
+            "probe_max_gain_hz": 15984.0,
+            "predicted_peak_dbfs": -7.0,
+            "predicted_send_peak_dbfs": -16.47,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -34.65,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-30.5 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-10.1 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3008 samples (62.67 ms)",
+              "detail": "Loopback 3008 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3008 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+0 samples (+0.00 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-95.4 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.07 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "42 dB at 1339 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.40 dB RMS",
+              "detail": "Model ge7_pedalode_v1, 100\u20138000 Hz after removing a -1.36 dB offset. Are the controls set as shown?"
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "ok",
+              "value": "-0.08 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     },
     "warm": {
       "description": "Warm and dark \u2014 old amp / jazz feel",
@@ -4404,8 +6709,233 @@
       "kind": "model",
       "notes": "Lows up (+6/+4/+2), highs down (-4/-8/-10): warm and dark, an old-amp or jazz voicing. The tilt test.",
       "signal": null,
-      "status": "pending",
-      "takes": []
+      "status": "accepted",
+      "takes": [
+        {
+          "role": "train",
+          "signal": "train",
+          "t": "2026-10-22T23:37:22Z",
+          "time_local": "2026-10-22T17:37:22",
+          "wet_wav": "ge7_warm_train_wet_48k_2026-10-22_1737.flac",
+          "raw_wav": "ge7_warm_train_raw_48k_2026-10-22_1737.flac",
+          "lag_samples": 2999,
+          "loop_lag_samples": 2999,
+          "xcorr_lag_samples": 3000,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -12.02,
+          "auto_level": {
+            "send_level_db": -12.02,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": -1.32,
+            "probe_max_gain_hz": 92.1,
+            "predicted_peak_dbfs": -16.32,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -46.22,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2814 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-28.5 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-16.2 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "2999 samples (62.48 ms)",
+              "detail": "Loopback 2999 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "2999 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-98.6 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.15 dB at 122 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "46 dB at 7552 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.38 dB RMS",
+              "detail": "Model ge7_pedalode_v1, 100\u20138000 Hz after removing a -0.19 dB offset. Are the controls set as shown?"
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.09 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        },
+        {
+          "role": "val",
+          "signal": "val",
+          "t": "2026-10-22T23:38:37Z",
+          "time_local": "2026-10-22T17:38:37",
+          "wet_wav": "ge7_warm_val_wet_48k_2026-10-22_1738.flac",
+          "raw_wav": "ge7_warm_val_raw_48k_2026-10-22_1738.flac",
+          "lag_samples": 3000,
+          "loop_lag_samples": 3000,
+          "xcorr_lag_samples": 3001,
+          "xruns": 0,
+          "pre_roll": 24000,
+          "verdict": "warn",
+          "code_version": "21f8cdd",
+          "send_level_db": -15.0,
+          "auto_level": {
+            "send_level_db": -15.0,
+            "default_send_db": -10.0,
+            "probe_max_gain_db": -1.31,
+            "probe_max_gain_hz": 92.1,
+            "predicted_peak_dbfs": -16.31,
+            "predicted_send_peak_dbfs": -15.0,
+            "limit_kind": "send",
+            "send_ceiling_dbfs": -9.0,
+            "ceiling_dbfs": -1.0,
+            "headroom_db": 6.0,
+            "probe_return_peak_dbfs": -46.22,
+            "retakes": []
+          },
+          "calibration_file": "calibration_2026-10-22_1627.json",
+          "qc": [
+            {
+              "name": "Dropouts",
+              "status": "ok",
+              "value": "0",
+              "detail": ""
+            },
+            {
+              "name": "Audio integrity (loopback)",
+              "status": "ok",
+              "value": "0 of 2555 blocks lost",
+              "detail": ""
+            },
+            {
+              "name": "Return present",
+              "status": "ok",
+              "value": "-33.0 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Return peak",
+              "status": "ok",
+              "value": "-16.4 dBFS",
+              "detail": ""
+            },
+            {
+              "name": "Alignment",
+              "status": "ok",
+              "value": "3000 samples (62.50 ms)",
+              "detail": "Loopback 3000 + chain offset +0 from calibration."
+            },
+            {
+              "name": "Interface latency",
+              "status": "ok",
+              "value": "3000 samples",
+              "detail": ""
+            },
+            {
+              "name": "Pedal delay",
+              "status": "ok",
+              "value": "+1 samples (+0.02 ms)",
+              "detail": "Correlation peak minus alignment: the pedal's own group delay, kept in the data."
+            },
+            {
+              "name": "Noise floor",
+              "status": "ok",
+              "value": "-98.6 dBFS RMS",
+              "detail": ""
+            },
+            {
+              "name": "Linearity (sweeps)",
+              "status": "ok",
+              "value": "0.11 dB at 100 Hz",
+              "detail": "Sweep at -3 vs -24 dBFS, largest difference 100\u20138000 Hz."
+            },
+            {
+              "name": "Signal-to-noise (quietest sweep)",
+              "status": "ok",
+              "value": "37 dB at 8000 Hz",
+              "detail": "The -24 dBFS sweep over the pre-roll noise, worst frequency 100\u20138000 Hz."
+            },
+            {
+              "name": "Normalised by",
+              "status": "ok",
+              "value": "bypass reference",
+              "detail": "Take \u00f7 the bypassed pedal (C3): what the engaged circuit adds (plan decision D1)."
+            },
+            {
+              "name": "Response vs model",
+              "status": "warn",
+              "value": "1.41 dB RMS",
+              "detail": "Model ge7_pedalode_v1, 100\u20138000 Hz after removing a -0.20 dB offset. Are the controls set as shown?"
+            },
+            {
+              "name": "Level vs calibration",
+              "status": "warn",
+              "value": "+1.08 dB",
+              "detail": "Relative to the pedal at its calibration preset (C4: -1.28 dB). The level moved since calibration (LEVEL slider? a knob bumped?)."
+            }
+          ],
+          "band_fit": null
+        }
+      ]
     }
   },
   "events": [
@@ -4520,6 +7050,302 @@
       "event": "preset_status",
       "code": "606f705",
       "preset": "flat",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:02:50Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "all_down",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_all_down_train_wet_48k_2026-10-22_1702.flac"
+    },
+    {
+      "t": "2026-10-22T23:04:05Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "all_down",
+      "role": "val",
+      "verdict": "fail",
+      "file": "ge7_all_down_val_wet_48k_2026-10-22_1704.flac"
+    },
+    {
+      "t": "2026-10-22T23:04:29Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "all_down",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:06:59Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "all_up",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_all_up_train_wet_48k_2026-10-22_1706.flac"
+    },
+    {
+      "t": "2026-10-22T23:08:14Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "all_up",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_all_up_val_wet_48k_2026-10-22_1708.flac"
+    },
+    {
+      "t": "2026-10-22T23:08:17Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "all_up",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:08:25Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "all_up_2",
+      "status": "skipped"
+    },
+    {
+      "t": "2026-10-22T23:10:49Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "all_up_3",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_all_up_3_train_wet_48k_2026-10-22_1710.flac"
+    },
+    {
+      "t": "2026-10-22T23:12:04Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "all_up_3",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_all_up_3_val_wet_48k_2026-10-22_1712.flac"
+    },
+    {
+      "t": "2026-10-22T23:12:18Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "all_up_3",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:12:25Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "all_up_pad15",
+      "status": "skipped"
+    },
+    {
+      "t": "2026-10-22T23:14:59Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "bass_boost",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_bass_boost_train_wet_48k_2026-10-22_1714.flac"
+    },
+    {
+      "t": "2026-10-22T23:16:14Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "bass_boost",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_bass_boost_val_wet_48k_2026-10-22_1716.flac"
+    },
+    {
+      "t": "2026-10-22T23:16:19Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "bass_boost",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:18:55Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "bright",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_bright_train_wet_48k_2026-10-22_1718.flac"
+    },
+    {
+      "t": "2026-10-22T23:20:10Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "bright",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_bright_val_wet_48k_2026-10-22_1720.flac"
+    },
+    {
+      "t": "2026-10-22T23:20:15Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "bright",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:22:59Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "frown",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_frown_train_wet_48k_2026-10-22_1722.flac"
+    },
+    {
+      "t": "2026-10-22T23:24:14Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "frown",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_frown_val_wet_48k_2026-10-22_1724.flac"
+    },
+    {
+      "t": "2026-10-22T23:24:19Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "frown",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:25:54Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "high_cut",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_high_cut_train_wet_48k_2026-10-22_1725.flac"
+    },
+    {
+      "t": "2026-10-22T23:27:09Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "high_cut",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_high_cut_val_wet_48k_2026-10-22_1727.flac"
+    },
+    {
+      "t": "2026-10-22T23:27:12Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "high_cut",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:28:38Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "low_cut",
+      "role": "train",
+      "verdict": "ok",
+      "file": "ge7_low_cut_train_wet_48k_2026-10-22_1728.flac"
+    },
+    {
+      "t": "2026-10-22T23:29:53Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "low_cut",
+      "role": "val",
+      "verdict": "ok",
+      "file": "ge7_low_cut_val_wet_48k_2026-10-22_1729.flac"
+    },
+    {
+      "t": "2026-10-22T23:29:56Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "low_cut",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:31:23Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "mid_scoop",
+      "role": "train",
+      "verdict": "fail",
+      "file": "ge7_mid_scoop_train_wet_48k_2026-10-22_1731.flac"
+    },
+    {
+      "t": "2026-10-22T23:32:38Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "mid_scoop",
+      "role": "val",
+      "verdict": "fail",
+      "file": "ge7_mid_scoop_val_wet_48k_2026-10-22_1732.flac"
+    },
+    {
+      "t": "2026-10-22T23:32:43Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "mid_scoop",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:32:47Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "presence",
+      "status": "skipped"
+    },
+    {
+      "t": "2026-10-22T23:34:17Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "smile",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_smile_train_wet_48k_2026-10-22_1734.flac"
+    },
+    {
+      "t": "2026-10-22T23:35:32Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "smile",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_smile_val_wet_48k_2026-10-22_1735.flac"
+    },
+    {
+      "t": "2026-10-22T23:35:34Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "smile",
+      "status": "accepted"
+    },
+    {
+      "t": "2026-10-22T23:37:22Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "warm",
+      "role": "train",
+      "verdict": "warn",
+      "file": "ge7_warm_train_wet_48k_2026-10-22_1737.flac"
+    },
+    {
+      "t": "2026-10-22T23:38:37Z",
+      "event": "capture_saved",
+      "code": "21f8cdd",
+      "preset": "warm",
+      "role": "val",
+      "verdict": "warn",
+      "file": "ge7_warm_val_wet_48k_2026-10-22_1738.flac"
+    },
+    {
+      "t": "2026-10-22T23:38:39Z",
+      "event": "preset_status",
+      "code": "21f8cdd",
+      "preset": "warm",
       "status": "accepted"
     }
   ]

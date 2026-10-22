@@ -99,3 +99,12 @@ def masters(tmp_path, monkeypatch):
     monkeypatch.setattr(signals_mod, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(session_mod, "DATA_ROOT", tmp_path / "data")
     return m
+
+
+@pytest.fixture(autouse=True)
+def no_trained_model(tmp_path_factory, monkeypatch):
+    """The expected curve in these tests is Ge7Sim: a trained ge7_pedalode_v<N>.json in the repo
+    (written by the analysis GUI) must not leak in. Tests that need one set their own folder."""
+    import pedal_model.rig.qc as qc
+
+    monkeypatch.setattr(qc, "GE7_MODELS_DIR", tmp_path_factory.mktemp("models"))

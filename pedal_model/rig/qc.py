@@ -40,7 +40,10 @@ from pedal_model.signals.manifest import Manifest, Section
 LAG_TOLERANCE_SAMPLES = 16
 NOISE_OK_DBFS = -70.0  # docs/notaklon_capture_plan.md §8: noise floor < −70 dBFS in silent gaps
 NOISE_FAIL_DBFS = -55.0
-PRESENT_DBFS = -60.0
+PRESENT_DBFS = -60.0  # only when a take has no pre-roll to measure its noise floor
+# The return is "present" this far above the take's own noise floor. An absolute -60 dBFS failed a
+# good all_down val take (-60.4 dBFS RMS, 38 dB above the noise) on 2026-10-22.
+PRESENT_ABOVE_NOISE_DB = 20.0
 CLIP_WARN_DBFS = -1.0
 CLIP_FAIL_DBFS = -0.1
 LEVEL_OFFSET_WARN_DB = 1.0
@@ -406,12 +409,16 @@ def check_take(
     if take.aborted:
         items.append(item("Complete", "fail", "aborted", "The take was stopped early."))
     level = rms_dbfs(wet)
+    floor = take.rec[int(0.1 * sr) : pre, 0]
+    above = level - rms_dbfs(floor) if len(floor) else None
+    present = above > PRESENT_ABOVE_NOISE_DB if above is not None else level > PRESENT_DBFS
     items.append(
         item(
             "Return present",
-            "ok" if level > PRESENT_DBFS else "fail",
-            f"{level:.1f} dBFS RMS",
-            "" if level > PRESENT_DBFS else "Almost nothing came back on In 1: pedal on? cables?",
+            "ok" if present else "fail",
+            f"{level:.1f} dBFS RMS"
+            + (f", {above:.0f} dB over the noise" if above is not None else ""),
+            "" if present else "Almost nothing came back on the return input: pedal on? cables?",
         )
     )
     pk = peak_dbfs(take.rec[:, 0])
@@ -606,7 +613,11 @@ def check_take(
             detail += " The model is not fitted to this pedal: graded warn at most."
         items.append(item("Response vs model", st, f"{shape:.2f} dB RMS", detail))
         if normalised is not None:
-            flat_level = calibration_flat_level(calibration, normalised, band)
+            # A fitted model's curve already holds the pedal's own level at its calibration
+            # preset (engaged ÷ bypassed at flat is -1.3 dB; the fit learns it). Ge7Sim's is 0 dB.
+            flat_level = (
+                0.0 if model["fitted"] else calibration_flat_level(calibration, normalised, band)
+            )
             offset -= flat_level
             st = (
                 "ok"
@@ -620,7 +631,13 @@ def check_take(
                     "Level vs calibration",
                     st,
                     f"{offset:+.2f} dB",
-                    f"Relative to the pedal at its calibration preset (C4: {flat_level:+.2f} dB)."
+                    (
+                        f"Relative to the model {model['name']}, which includes the pedal's own "
+                        "level."
+                        if model["fitted"]
+                        else f"Relative to the pedal at its calibration preset (C4: "
+                        f"{flat_level:+.2f} dB)."
+                    )
                     + (
                         ""
                         if st == "ok"

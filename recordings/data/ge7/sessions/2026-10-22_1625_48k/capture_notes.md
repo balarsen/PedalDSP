@@ -30,3 +30,34 @@ The random settings already sit on the 5 dB grid (the marks). The GUI draws the 
    - warn/fail: something moved. Put it back and check again, or recalibrate C2-C4. Takes keep
      the calibration they were recorded with (the dataset divides each by its own), and no
      capture or calibration file is ever overwritten.
+
+## The preset run and the first training (2026-10-22 evening, analysis at code 21f8cdd)
+
+Captured: the 15 folder presets (12 accepted, all_up_2 / all_up_pad15 / presence skipped), each
+sweeps + val. **The record run was not loaded**: no slider map, pairs, random settings, repeats
+or full-train copies yet. The live training saw 8 fit presets and no validation settings; the
+analysis GUI wrote ge7_pedalode_v1.json at 23:30 from those 8.
+
+Capture quality: train vs val (same setting, two signals, ~1 min apart) agree within
+0.003-0.075 dB RMS on every preset. Five boosting presets failed linearity on the first attempt
+and passed 6 dB quieter (the automatic retake), each failing at the centre of a boosted gyrator
+band: 797 Hz (all_up, all_up_3; band 4 has the highest Q, 4.07), 774 Hz (frown), 100 Hz
+(bass_boost), 3273 Hz (bright), while smile passed with a -6.1 dBFS return. Hypothesis (inferred,
+not proven): the GE-7's gyrator op-amps run out of headroom first (a gyrator swings about Q times
+its input at resonance). Pedal sound, for the later clipping capture; avoided for rung A.
+
+Model quality (shape RMS after a level offset, 50 Hz-10 kHz): v1 0.07-0.98 dB on its 8 fit
+presets (schematic alone 0.06-3.3, Ge7Sim 0.06-2.8); on the held-out test presets frown 1.23,
+smile 1.40, warm 1.26, mid_scoop 2.44 (Ge7Sim 1.70 / 2.23 / 2.90 / 1.81). Better than Ge7Sim on 3
+of 4, 5-10x above the 0.26 dB floor; flat's level 0.7 dB off. Cause: presets alone cannot separate
+each band's Q, strength, the resistor ratios and the pot law (Qs and strengths only reached
+0.2-0.4 of their prior widths); the slider map exists for that. The test presets have been seen
+(QC graded smile, mid_scoop and warm against v1), so their final rung A score is partly spent.
+
+QC fixes from this run: "Return present" judged against the take's own noise floor (all_down val
+false-failed at -60.4 dBFS RMS, 38 dB above the noise); "Level vs calibration" no longer subtracts
+the C4 flat level from a fitted model (it double-counted ~1.3 dB); the analysis GUI refuses to
+write a parameter file without validation settings; its table names the bands.
+
+Next: retire v1 (QC grades against it now), drift check, then Load record run in this session
+(accepted presets are skipped): map, pairs, random settings, repeats, full-train copies.

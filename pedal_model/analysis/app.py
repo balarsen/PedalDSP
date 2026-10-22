@@ -43,6 +43,33 @@ from pedal_model.rig.profiles import load_profile
 from pedal_model.rig.session import Session
 
 FOLLOW_MS = 5000  # how often "Follow live" looks for new captures
+BAND_NAMES = ("100 Hz", "200 Hz", "400 Hz", "800 Hz", "1.6 kHz", "3.2 kHz")
+LABELS = {
+    "band_f": "band {}: centre f",
+    "band_q": "band {}: Q",
+    "band_sigma": "band {}: strength σ",
+    "shelf_f": "6.4 kHz shelf: corner f",
+    "shelf_sigma": "6.4 kHz shelf: strength σ",
+    "eq_rho_in": "EQ stage: ρ in (cut)",
+    "eq_rho_fb": "EQ stage: ρ fb (boost)",
+    "pot_end": "pots: end resistance",
+    "eq_gamma": "EQ sliders: pot law γ",
+    "lvl_kappa": "LEVEL: branch κ",
+    "lvl_f": "LEVEL: branch corner f",
+    "lvl_rho_in": "LEVEL: ρ in",
+    "lvl_rho_fb": "LEVEL: ρ fb",
+    "lvl_gamma": "LEVEL slider: pot law γ",
+    "ratio_gain": "overall gain",
+    "ratio_delay_us": "delay (µs)",
+}
+
+
+def pretty(label: str) -> str:
+    """band_f[3] -> 'band 800 Hz: centre f' (the table numbers bands from 0 otherwise)."""
+    name, k = (label.split("[")[0], int(label.split("[")[1][:-1])) if "[" in label else (label, 0)
+    return LABELS.get(name, name).format(BAND_NAMES[k] if name.startswith("band_") else "")
+
+
 # Parameter groups for the "how well pinned" plot: median posterior 1σ (%) of each group.
 GROUPS = {
     "band centre f": ("band_f",),
@@ -361,7 +388,7 @@ class AnalysisWindow(QMainWindow):
             v = float(np.exp(th)) if lg else float(th)
             prior = M.PRIOR_SIGMA[name]
             cells = [
-                lab,
+                pretty(lab),
                 f"{s0:.4g}",
                 f"{v:.4g}",
                 f"{100 * sd:.2f} %" if lg else f"{sd:.3g}",
@@ -386,6 +413,16 @@ class AnalysisWindow(QMainWindow):
     def _write(self) -> None:
         if self.fit is None:
             QMessageBox.information(self, "Parameter file", "No fit yet.")
+            return
+        if self.fit["n_validation"] == 0:
+            QMessageBox.warning(
+                self,
+                "Parameter file",
+                "Not written: no validation settings yet, so this model cannot be judged. QC would "
+                "grade every later take against it (2026-10-22: an 8-preset model failed a good "
+                "mid_scoop take). Capture the record run (slider map, pairs, random settings) "
+                "first.",
+            )
             return
         ok = QMessageBox.question(
             self,

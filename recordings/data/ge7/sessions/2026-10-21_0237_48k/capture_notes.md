@@ -85,10 +85,9 @@ low, exactly where frown boosts (+6 to +8 dB); loud tones there THD -15.5 dB. Th
 (sweeps -24/-12, pink -24/-12/-3) agree within 0.02 dB, coherence 0.9994: usable. Auto-level would
 have sent it about 7 dB lower.
 
-## Salvage for rung A
+## What this session is for (owner, 2026-10-21)
 
-The clipped takes of this session still contain linear sections (frown: all but the -3 dBFS sweep;
-the quieter sections of bass_boost and bright; all_up's pink -24). The rung A fitter should take
-sections, not whole takes, and drop any section whose response disagrees with the take's quietest
-sections by more than the repeatability floor (about 0.15 dB). That keeps today's linear data and
-gives a two-session cross-check against tomorrow's auto-levelled recaptures.
+A learning run, not the record. No effort goes into salvaging its clipped takes. Its value is the
+lessons: the return-path ceiling, auto-level, per-take send levels and the per-section linearity
+check. Those carry into the full run for the record (a fresh session on the new code) and into the
+Klon, where the input and output sides of the rig have to be measured separately.

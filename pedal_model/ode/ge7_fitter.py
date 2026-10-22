@@ -26,6 +26,7 @@ from pedal_model.ode.ge7_model import (
     SLIDER_KEYS,
     bypass_response,
     pack,
+    prior_sigma_vector,
     ratio_response,
     theta_labels,
     unpack,
@@ -172,32 +173,57 @@ def fit_ratio(
     weight: Tensor | None = None,
     phase_weight: float = 1.0,
     max_iter: int = 200,
+    prior: dict[str, Tensor] | None = None,
+    prior_noise_np: float = 0.01,
 ) -> dict:
     """Fit the LEVEL + EQ parameters to measured engaged ÷ bypassed responses.
+
+    With ``prior`` (parameter values, e.g. ``schematic_values()``), each θ element also gets a
+    Gaussian prior of width ``PRIOR_SIGMA`` (relative for log parameters) as extra residual rows,
+
+        r_prior = s · (θ − θ_prior) / σ_prior,   s = ``prior_noise_np`` (the data's noise scale),
+
+    so ½‖r‖² is the negative log posterior (in units of s²) and few settings still give a
+    sensible fit: the data take over as they arrive (a Bayesian update). JᵀJ then includes the
+    prior, so ``identifiability`` reports posterior widths.
 
     Args:
         sliders: Panel positions, (N, 8) dB, one row per measured setting.
         freqs_hz: Frequency grid, (F,).
         H: Measured responses, (N, F) complex.
         init: Starting parameters; those not in ``names`` stay fixed at these values.
-        weight: Optional per-point weight, (N, F) or (F,) (e.g. from coherence).
+        weight: Optional per-point weight, (N, F) or (F,) (e.g. from coherence); 0 leaves a
+            point out (and of the RMS errors).
         phase_weight: Weight of the phase residual relative to log-magnitude.
+        prior: Prior parameter values (None: no prior).
+        prior_noise_np: Scale s of the prior rows, nepers.
 
     Returns:
         The ``levenberg_marquardt`` dict plus params (fitted, physical units), names, rms_db and
-        rms_phase_deg (unweighted RMS errors over all points).
+        rms_phase_deg (RMS errors over the points with non-zero weight, unweighted).
     """
+    if prior is not None:
+        theta_prior = pack(prior, names)
+        sigma = prior_sigma_vector(names)
 
     def residual(theta: Tensor) -> Tensor:
         p = unpack(theta, names, init)
-        return log_ratio_residual(ratio_response(p, freqs_hz, sliders), H, weight, phase_weight)
+        r = log_ratio_residual(ratio_response(p, freqs_hz, sliders), H, weight, phase_weight)
+        if prior is None:
+            return r
+        return torch.cat([r, prior_noise_np * (theta - theta_prior) / sigma])
 
     fit = levenberg_marquardt(residual, pack(init, names), max_iter=max_iter)
     fit["params"] = unpack(fit["theta"], names, init)
     fit["names"] = names
     err = torch.log(ratio_response(fit["params"], freqs_hz, sliders) / H)
-    fit["rms_db"] = float(torch.sqrt((err.real**2).mean())) * NEPER_TO_DB
-    fit["rms_phase_deg"] = float(torch.sqrt((err.imag**2).mean())) * 180.0 / np.pi
+    used = (
+        torch.ones(err.shape, dtype=torch.bool)
+        if weight is None
+        else (weight > 0).expand(err.shape)
+    )
+    fit["rms_db"] = float(torch.sqrt((err.real[used] ** 2).mean())) * NEPER_TO_DB
+    fit["rms_phase_deg"] = float(torch.sqrt((err.imag[used] ** 2).mean())) * 180.0 / np.pi
     return fit
 
 

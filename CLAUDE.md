@@ -58,6 +58,10 @@ target), and an early Pi Muff stem pair.
 - Closed-loop capture without Studio One: `uv run python -m pedal_model.rig` (demo; `--hardware` for ASIO).
   On Windows, `scripts/start_rig_hardware.bat` starts hardware mode (the owner's Desktop has a
   shortcut to it); its console window shows errors.
+- **Analysis / training GUI:** `uv run python -m pedal_model.analysis` (Windows:
+  `scripts/start_analysis.bat`, Desktop shortcut "PedalDSP Analysis"). A separate program: it
+  follows a session, adds each new take to the dataset (`rig.dataset`, cached) and refits the GE-7
+  block model (`ode.ge7_train`: schematic prior, take worth ~20 numbers at 0.26 dB) live.
   Wiring, box settings, level primer and troubleshooting are in README.md and on the GUI's Setup page.
 - Core modules (no Qt): `config` (configs/rig.json), `profiles/` (one JSON per pedal: controls, presets
   and their notes, map positions), `signals` (session signals from the 96 kHz masters: full or quick train,

@@ -301,6 +301,65 @@ position is noise on the model's input. Distant pairs are three octaves apart (c
 
 ## Rung A: fit
 
+**Status 2026-10-22 (owner agreed): schematic, training design, live training.**
+
+*The schematic (Boss GE-7, read 2026-10-22; `ge7_model.SCHEMATIC`, `schematic_values()`).* Each
+band 1-6 is a gyrator branch: series C_s, simulated inductor L = R_big·R_small·C_g, series
+R_small = 330 Ω; f = 1/(2π√(L·C_s)), branch Q = 2πf·L/R_small, strength σ = R_pot/R_small = 30.3.
+Band 7 is C1 (0.047 µF) + R3 (820 Ω) in series: a first-order branch, corner 4.13 kHz, σ = 12.2,
+which is hypothesis H7a, so **D2 is settled by the schematic**. EQ stage R24 = R25 = 3.3 k
+(ρ = 0.33); LEVEL R27 = R26 = 10 k (ρ = 1), branch R2 2.2 k + C16 10 µF (κ = 4.5, 7.2 Hz);
+pots "10KG" (10 k, G taper: not specified). Pre-emphasis zero 2.05 kHz (C20, R31 + R28),
+mirrored by the output de-emphasis (C27, R33 + R36).
+
+| Band | C_s | C_g | R_big | f from parts | panel | branch Q |
+|---|---|---|---|---|---|---|
+| 1 | 1.5 µF | 0.056 µF | 100 k | 96 Hz | 100 | 3.36 |
+| 2 | 0.68 µF | 0.033 µF | 82 k | 204 Hz | 200 | 3.47 |
+| 3 | 0.33 µF | 0.015 µF | 100 k | 394 Hz | 400 | 3.71 |
+| 4 | 0.15 µF | 0.0082 µF | 100 k | 790 Hz | 800 | 4.07 |
+| 5 | 0.1 µF | 0.0039 µF | 82 k | 1549 Hz | 1.6k | 3.11 |
+| 6 | 0.039 µF | 0.0022 µF | 82 k | 3303 Hz | 3.2k | 3.74 |
+
+The centres from the parts land on the panel labels, which checks the reading.
+
+*The schematic alone vs measured (no fitting).* Flat's shape within 0.06-0.10 dB RMS after a level
+offset; the offset (-1.2 to -1.6 dB, engaged ÷ bypassed) is not explained by the schematic. Single
+slider at +15: +12 to +14 dB. Presets at intermediate positions are badly under-predicted with a
+linear pot (bass_boost at +12: +15.3 dB measured vs +7.6), so **the G taper is the main unknown**:
+with ρ = 0.33 and σ = 30 a linear pot acts only near the ends of travel, and the GE-7 acts much
+harder at mid travel. The pot-law exponent γ (< 1) can bend that way; whether one exponent is
+enough is a validation question (three positions per side: ±5 from the random settings, ±10,
+±15).
+
+*Training design (`pedal_model/ode/ge7_train.py`).*
+- **Prior from the schematic.** Start at `schematic_values()`, Gaussian prior per parameter
+  (`PRIOR_SIGMA`: ~10 % frequencies, 20 % Q, 15 % strengths, 5 % resistor ratios; wide for the pot
+  law, end resistance and the level offset). With few takes the prior keeps the fit sensible; the
+  posterior widths shrink as settings arrive: a Bayesian update, and the "getting set" picture.
+- **What a take is worth.** The dominant error is how the sliders were set (untouched repeats
+  0.03 dB; re-set flat up to 0.5 dB across sessions), smooth across frequency. So a take counts as
+  `N_EFF_PER_TAKE` = 20 independent numbers with `DATA_NOISE_NP` = 0.03 Np (0.26 dB) error, not
+  200. Counting all 200 points let six presets pull the 800 Hz band to 294 Hz and two Qs to 70-100
+  (2026-10-22, before the change); with it, every band centre stays within 3 % of the schematic.
+  *Reopen if* the validation residuals show per-setting band offsets above the floor: then
+  per-setting slider offsets as nuisance parameters (errors in variables).
+- **Physics score without the prior.** The final parameter-recovery comparison with the schematic
+  uses a fit without the prior (`use_prior=False`), so it is not circular.
+- **Split** as D6: excluded (record_run.exclude), test (controls equal a test preset: smile and its
+  repeats too), validation (rand_val_*), fit. Test is never fitted or shown during training.
+- **Live.** The analysis GUI (`python -m pedal_model.analysis`, Desktop shortcut "PedalDSP
+  Analysis") follows a session: after each capture it adds the new take to the dataset, refits
+  with a warm start, appends to `results/ge7_fit/<session>/history.json`, and plots error vs
+  settings (fit, validation, re-set floor), posterior width per parameter group vs settings, any
+  take vs the trained and the schematic model, and the parameter table. "Write parameter file"
+  (end of the run) makes QC use the trained model.
+- **First look (sessions 10-21 and 10-22, 5-6 broad presets, no single-slider data):** 0.85-0.93 dB
+  RMS (schematic alone ~3 dB), γ_EQ = 0.31 (the taper, as predicted), band centres within 3 %;
+  LEVEL internals and the overall gain trade off until the LEVEL map steps arrive; γ_LEVEL stays at
+  its prior.
+- **Step-0 probes come first** on the record-run data (P0.1-P0.4), before the staged fit (D7).
+
 **Decisions.**
 - **D1. Reference.**
   - **EQ data:** engaged ÷ bypassed, which cancels the chain and the pre/de-emphasis.

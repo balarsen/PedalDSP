@@ -229,13 +229,17 @@ def _curve(h: np.ndarray, coh: np.ndarray) -> dict:
     }
 
 
-def session_dataset(root: Path, roles: tuple[str, ...] = ("train", "sweep")) -> dict:
+def session_dataset(
+    root: Path, roles: tuple[str, ...] = ("train", "sweep"), cache: dict | None = None
+) -> dict:
     """Every take of a session as engaged ÷ bypassed on GRID_HZ, plus bypassed ÷ chain.
 
     Args:
         root: The session folder.
         roles: Which takes to include ("train" for model presets, "sweep" for map steps; "val"
             is kept for the time-domain check).
+        cache: A dict kept between calls (the analysis GUI's live mode): references and takes
+            already computed are reused, so a new capture costs one take.
 
     Returns:
         dict, as written to JSON: session info, freqs_hz, bypass_over_chain, takes [{preset, kind,
@@ -246,13 +250,13 @@ def session_dataset(root: Path, roles: tuple[str, ...] = ("train", "sweep")) -> 
     data = json.loads((root / "session.json").read_text(encoding="utf-8"))
     sr = int(data["sample_rate"])
     sweep = np.concatenate([reference_signal(sr), np.zeros(int(GAP_S * sr), np.float32)])
-    cache: dict[str, dict] = {}
+    cache = {} if cache is None else cache
 
     def references(cal_file: str | None) -> dict:
         """chain and bypass (H, coherence) of a calibration file (None: the session's latest).
         A take is divided by the calibration it was recorded with, so recalibrating in a later
         sitting never changes the earlier takes."""
-        key = cal_file or ""
+        key = "ref:" + (cal_file or "")
         if key not in cache:
             cal = data.get("calibration") or {}
             if cal_file and (root / cal_file).is_file():
@@ -277,8 +281,11 @@ def session_dataset(root: Path, roles: tuple[str, ...] = ("train", "sweep")) -> 
                 continue
             m = Manifest(root / data["signals"][t.get("signal", t["role"])])
             send = t.get("send_level_db", data["send_level_db"])
-            take = rebuild_take(root / name / t["raw_wav"], m.load_all(), send)
-            h, coh, info = take_response(take, m)
+            key = f"take:{name}/{t['raw_wav']}"
+            if key not in cache:
+                take = rebuild_take(root / name / t["raw_wav"], m.load_all(), send)
+                cache[key] = take_response(take, m)
+            h, coh, info = cache[key]
             h_ref, coh_ref = references(t.get("calibration_file"))["bypass"]
             with np.errstate(invalid="ignore"):
                 curve = _curve(h / h_ref, np.minimum(coh, coh_ref))

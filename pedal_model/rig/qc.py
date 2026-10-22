@@ -15,7 +15,9 @@ A QC report is a plain dict, the same as the session stores it (plus the respons
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
+from pathlib import Path
 
 import numpy as np
 from scipy.signal import spectrogram, welch
@@ -61,6 +63,10 @@ LINEARITY_FAIL_DB = 1.0
 SNR_WARN_DB = 30.0
 SNR_FAIL_DB = 15.0
 NOISE_NPERSEG = 4096  # Welch segment for the noise floor: the pre-roll gives 0.4 s of silence
+# Fitted GE-7 block models (plan: "Storage and use in the GUI"), one file per fit, never
+# overwritten: ge7_pedalode_v<N>.json. The newest one gives the expected curve; without one,
+# Ge7Sim does.
+GE7_MODELS_DIR = Path(__file__).resolve().parent / "models" / "ge7"
 REFERENCE_NOTES = {
     "chain": "Take ÷ the chain alone (C2): the pedal's whole response, buffers included.",
     "bypass": "Take ÷ the bypassed pedal (C3): what the engaged circuit adds (plan decision D1).",
@@ -73,12 +79,46 @@ def item(name: str, status: str, value: str, detail: str = "") -> dict:
     return {"name": name, "status": status, "value": value, "detail": detail}
 
 
+def expected_model(pedal: str) -> dict | None:
+    """Which model gives a pedal's expected curve: the newest fitted parameter file, else the sim.
+
+    Returns:
+        dict: name, fitted (True for a parameter file fitted to this pedal), file (or None),
+        params (the file's block parameters, or None); None if the pedal has no linear model.
+    """
+    if pedal != "boss_ge7":
+        return None
+    files = sorted(
+        GE7_MODELS_DIR.glob("ge7_pedalode_v*.json"),
+        key=lambda p: int(p.stem.rsplit("_v", 1)[1]),
+    )
+    if not files:
+        return {"name": "Ge7Sim", "fitted": False, "file": None, "params": None}
+    doc = json.loads(files[-1].read_text(encoding="utf-8"))
+    return {"name": files[-1].stem, "fitted": True, "file": files[-1], "params": doc["params"]}
+
+
 def expected_response(
     pedal: str, controls: dict[str, float], sr: int, grid: np.ndarray
 ) -> np.ndarray | None:
-    """Model response of the pedal at these settings, or None if there is no linear model."""
-    if pedal != "boss_ge7":
+    """Model response of the pedal at these settings in dB on ``grid``, or None without a model.
+
+    A fitted GE-7 block model gives engaged ÷ bypassed, 20·log10|H_ratio(f; sliders)|; Ge7Sim
+    (``expected_model`` says which) gives its own digital response at ``sr``.
+    """
+    model = expected_model(pedal)
+    if model is None:
         return None
+    if model["fitted"]:
+        import torch
+
+        from pedal_model.ode import ge7_model
+
+        p = ge7_model.params_from_json(model["params"])
+        h = ge7_model.ratio_response(
+            p, torch.as_tensor(grid, dtype=torch.float64), ge7_model.sliders_tensor([controls])
+        )
+        return 20 * np.log10(np.abs(h[0].numpy()) + 1e-12)
     from pedal_model.synthetic.ge7 import Ge7Sim, Ge7Sliders
 
     f, db = Ge7Sim.from_sliders(Ge7Sliders.from_dict(controls)).frequency_response(sr, n_fft=32768)
@@ -476,15 +516,21 @@ def check_take(
         shape = float(np.sqrt(np.mean((err - offset) ** 2)))
         ok_db, warn_db = qc_limits.get("fr_ok_db", 1.0), qc_limits.get("fr_warn_db", 2.0)
         st = "ok" if shape < ok_db else ("warn" if shape < warn_db else "fail")
-        items.append(
-            item(
-                "Response vs model",
-                st,
-                f"{shape:.2f} dB RMS",
-                f"{band[0]:.0f}–{band[1]:.0f} Hz after removing a {offset:+.2f} dB offset."
-                + ("" if st == "ok" else " Are the controls set as shown?"),
-            )
+        model = expected_model(pedal)
+        # A model not fitted to this pedal (Ge7Sim is off by 1-2 dB on real presets) can only
+        # warn: the verdict must reflect the capture, not the model's error.
+        capped = not model["fitted"] and st == "fail"
+        if capped:
+            st = "warn"
+        detail = (
+            f"Model {model['name']}, {band[0]:.0f}–{band[1]:.0f} Hz after removing a "
+            f"{offset:+.2f} dB offset."
         )
+        if st != "ok":
+            detail += " Are the controls set as shown?"
+        if not model["fitted"]:
+            detail += " The model is not fitted to this pedal: graded warn at most."
+        items.append(item("Response vs model", st, f"{shape:.2f} dB RMS", detail))
         if normalised is not None:
             flat_level = calibration_flat_level(calibration, normalised, band)
             offset -= flat_level
@@ -493,6 +539,8 @@ def check_take(
                 if abs(offset) < LEVEL_OFFSET_WARN_DB
                 else ("warn" if abs(offset) < LEVEL_OFFSET_FAIL_DB else "fail")
             )
+            if not model["fitted"] and st == "fail":
+                st = "warn"  # Ge7Sim's LEVEL law is extrapolated, not measured
             items.append(
                 item(
                     "Level vs calibration",

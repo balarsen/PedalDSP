@@ -211,8 +211,31 @@ def test_qc_wet_is_aligned_to_dry(masters, tmp_path):
 
 
 def test_qc_catches_wrong_knob_settings(masters, tmp_path):
+    """With Ge7Sim (not fitted to the pedal) a mismatch can only warn; a fitted model fails it."""
     rep, _, _ = _capture(masters, tmp_path, FLAT, SMILE)
-    assert _item(rep, "Response vs model")["status"] == "fail"
+    it = _item(rep, "Response vs model")
+    assert it["status"] == "warn" and "Ge7Sim" in it["detail"]
+
+
+def test_expected_response_uses_the_newest_fitted_model(tmp_path, monkeypatch):
+    import torch
+
+    import pedal_model.rig.qc as qc
+    from pedal_model.ode import ge7_model as M
+
+    monkeypatch.setattr(qc, "GE7_MODELS_DIR", tmp_path)
+    grid = np.geomspace(20, 20_000, 50)
+    assert qc.expected_model("boss_ge7")["name"] == "Ge7Sim"
+    p = M.initial_guesses()
+    for version, gain in ((1, 1.0), (2, 2.0), (10, 0.5)):  # v10 is newest: sort by number
+        p["ratio_gain"] = torch.tensor([gain], dtype=torch.float64)
+        doc = {"model": "ge7_blocks", "version": version, "params": M.params_to_json(p)}
+        (tmp_path / f"ge7_pedalode_v{version}.json").write_text(json.dumps(doc))
+    model = qc.expected_model("boss_ge7")
+    assert model["name"] == "ge7_pedalode_v10" and model["fitted"]
+    db = qc.expected_response("boss_ge7", {}, 48_000, grid)
+    h = M.ratio_response(p, torch.as_tensor(grid), M.sliders_tensor([{}]))
+    np.testing.assert_allclose(db, 20 * np.log10(np.abs(h[0].numpy())), rtol=1e-9)
 
 
 def test_qc_catches_silently_lost_audio(masters, tmp_path):

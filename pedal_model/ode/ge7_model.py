@@ -123,6 +123,18 @@ def unpack(theta: Tensor, names: tuple[str, ...], base: dict[str, Tensor]) -> di
     return out
 
 
+def params_to_json(params: dict[str, Tensor]) -> dict[str, list[float]]:
+    """Block parameters as plain lists (for the versioned parameter file)."""
+    return {n: [float(v) for v in params[n].reshape(-1)] for n in PARAMS}
+
+
+def params_from_json(values: dict[str, list[float]]) -> dict[str, Tensor]:
+    """Block parameters from a parameter file; any missing name keeps its starting guess."""
+    out = initial_guesses()
+    out.update({n: _t(v) for n, v in values.items() if n in PARAMS})
+    return out
+
+
 def theta_labels(names: tuple[str, ...]) -> list[str]:
     """One label per element of θ, e.g. ``band_f[2]``."""
     labels = []

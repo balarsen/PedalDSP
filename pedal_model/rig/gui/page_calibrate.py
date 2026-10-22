@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QMessageBox,
     QPushButton,
-    QScrollArea,
+    QSizePolicy,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -147,20 +147,14 @@ class CalibratePage(QWidget):
         body = QHBoxLayout()
         root.addLayout(body, 1)
 
-        steps_box = QWidget()
-        steps_lay = QVBoxLayout(steps_box)
-        steps_lay.setContentsMargins(0, 0, 8, 0)
+        # Left: the steps, then the reference curves they produce. Right: what to move and set.
+        left = QVBoxLayout()
+        body.addLayout(left, 3)
         self.cards: dict[str, StepCard] = {}
         for step in CAL_STEPS:
             c = StepCard(step, pedal, self._run)
             self.cards[step["id"]] = c
-            steps_lay.addWidget(c)
-        steps_lay.addStretch()
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setWidget(steps_box)
-        body.addWidget(scroll, 3)
+            left.addWidget(c)
 
         right = QVBoxLayout()
         body.addLayout(right, 2)
@@ -168,8 +162,8 @@ class CalibratePage(QWidget):
         self.diagram = BlockDiagram(lambda _box: None)
         self.diagram.set_pedal_name(pedal)
         self.diagram.setMinimumHeight(220)
-        lay.addWidget(self.diagram)
-        right.addWidget(f, 2)
+        lay.addWidget(self.diagram, 1)
+        right.addWidget(f, 1)
 
         f, lay = card("Calibration preset (C4)")
         cal_name = state.profile.raw.get("calibration_preset", "flat")
@@ -180,11 +174,14 @@ class CalibratePage(QWidget):
         except KeyError:
             pass
         lay.addWidget(self.panel)
-        right.addWidget(f, 2)
+        right.addWidget(f, 0)
 
         f, lay = card("Reference responses")
         self.plot = theme.styled_plot("", "Frequency (Hz)", "dB", log_x=True)
         self.plot.setXRange(np.log10(20), np.log10(20_000))
+        # Ignore the plot's 480 px preferred height (the page is sized by height-for-width): it
+        # takes whatever height is left under the step cards, at least 220 px.
+        self.plot.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Ignored)
         self.plot.setMinimumHeight(220)
         self.plot.addLegend(offset=(10, 10))
         self.c_chain = self.plot.plot(
@@ -196,7 +193,7 @@ class CalibratePage(QWidget):
         self.c_engaged = self.plot.plot(
             pen=pg.mkPen(theme.OK, width=2), name="engaged ÷ bypassed (C4)"
         )
-        lay.addWidget(self.plot)
+        lay.addWidget(self.plot, 1)
         self.plot_y = AutoY(self.plot, REFERENCE_Y, REFERENCE_MIN_SPAN_DB, step_db=1.0)
         lay.addWidget(self.plot_y.box, 0, Qt.AlignRight)
         self.table = QTableWidget(0, 3)
@@ -205,7 +202,7 @@ class CalibratePage(QWidget):
         self.table.verticalHeader().setVisible(False)
         self.table.setMaximumHeight(150)
         lay.addWidget(self.table)
-        right.addWidget(f, 3)
+        left.addWidget(f, 1)
 
         self.save_note = label("", "dim")
         right.addWidget(self.save_note)

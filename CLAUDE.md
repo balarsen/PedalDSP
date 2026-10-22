@@ -56,6 +56,8 @@ target), and an early Pi Muff stem pair.
 ## Capture rig (`pedal_model/rig/`)
 
 - Closed-loop capture without Studio One: `uv run python -m pedal_model.rig` (demo; `--hardware` for ASIO).
+  On Windows, `scripts/start_rig_hardware.bat` starts hardware mode (the owner's Desktop has a
+  shortcut to it); its console window shows errors.
   Wiring, box settings, level primer and troubleshooting are in README.md and on the GUI's Setup page.
 - Core modules (no Qt): `config` (configs/rig.json), `profiles/` (one JSON per pedal: controls, presets
   and their notes, map positions), `signals` (session signals from the 96 kHz masters: full or quick train,

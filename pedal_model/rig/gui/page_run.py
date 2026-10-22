@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -57,6 +58,8 @@ RESPONSE_Y = (-30.0, 20.0)
 # zoomed to micro-dB noise, and the spectrum to the noise floor between takes.
 SPECTRUM_MIN_SPAN_DB = 60.0
 RESPONSE_MIN_SPAN_DB = 6.0
+RATIO_Y = (-6.0, 6.0)
+RATIO_MIN_SPAN_DB = 2.0
 
 
 def band_fit_for(profile: Profile, preset: Preset, response: dict | None, sr: int) -> dict | None:
@@ -196,7 +199,7 @@ class RunPage(QWidget):
         lay.addLayout(row)
         left.addWidget(f, 1)
 
-        # ── right: live views ───────────────────────────────────────────── #
+        # ── right: live levels and spectrum, the pedal's response, its ratio to the model ── #
         right = QVBoxLayout()
         root.addLayout(right, 6)
         f, lay = card("Live")
@@ -220,7 +223,7 @@ class RunPage(QWidget):
             pen=pg.mkPen(theme.CYAN, width=1.5), name="return (In 1)", antialias=False
         )
         meters.addWidget(self.spec, 1)
-        lay.addLayout(meters)
+        lay.addLayout(meters, 1)
         self.spec_y = AutoY(self.spec, SPECTRUM_Y, SPECTRUM_MIN_SPAN_DB, step_db=10.0)
         lay.addWidget(self.spec_y.box, 0, Qt.AlignRight)
         right.addWidget(f, 1)
@@ -235,10 +238,34 @@ class RunPage(QWidget):
             pen=pg.mkPen(theme.TEXT_DIM, width=1.5), name="live estimate", antialias=False
         )
         self.c_measured = self.resp.plot(pen=pg.mkPen(theme.OK, width=2.5), name="measured")
-        lay.addWidget(self.resp)
+        lay.addWidget(self.resp, 1)
         self.resp_y = AutoY(self.resp, RESPONSE_Y, RESPONSE_MIN_SPAN_DB, step_db=3.0)
         lay.addWidget(self.resp_y.box, 0, Qt.AlignRight)
         right.addWidget(f, 1)
+
+        # Measured ÷ model, in dB: 0 where the pedal does what the model says.
+        f, lay = card("Measured ÷ model (dB)")
+        self.ratio = theme.styled_plot("", "Frequency (Hz)", "Difference (dB)", log_x=True)
+        self.ratio.setXLink(self.resp)
+        self.ratio.addLine(y=0.0, pen=pg.mkPen(theme.AMBER, width=1, style=Qt.DashLine))
+        self.c_ratio_live = self.ratio.plot(
+            pen=pg.mkPen(theme.TEXT_DIM, width=1.5), name="live ÷ model", antialias=False
+        )
+        self.c_ratio_measured = self.ratio.plot(
+            pen=pg.mkPen(theme.OK, width=2.5), name="measured ÷ model"
+        )
+        lay.addWidget(self.ratio, 1)
+        self.ratio_y = AutoY(self.ratio, RATIO_Y, RATIO_MIN_SPAN_DB, step_db=1.0)
+        lay.addWidget(self.ratio_y.box, 0, Qt.AlignRight)
+        right.addWidget(f, 1)
+        # The page is sized by height-for-width (it has wrapped text), which uses each plot's
+        # preferred height (480 px): three stacked plots then asked for more than a 1440p screen.
+        # Ignoring the preferred height lets them share the window's height instead.
+        for p in (self.spec, self.resp, self.ratio):
+            p.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Ignored)
+            p.setMinimumHeight(220)
+        self._exp_grid: np.ndarray | None = None
+        self._exp_db: np.ndarray | None = None
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._tick)
@@ -274,7 +301,7 @@ class RunPage(QWidget):
     def _show_current(self) -> None:
         self.reports = {}
         self.qc.clear()
-        for c in (self.c_measured, self.c_live):
+        for c in (self.c_measured, self.c_live, self.c_ratio_live, self.c_ratio_measured):
             c.setData([], [])
         self._progress_busy(False)
         self.progress.setValue(0)
@@ -304,6 +331,7 @@ class RunPage(QWidget):
         grid = log_grid(20, 20_000)
         exp = expected_response(self.state.profile.pedal, p.controls, self.state.sample_rate, grid)
         self.c_expected.setData(grid, exp if exp is not None else np.zeros_like(grid))
+        self._exp_grid, self._exp_db = (grid, exp) if exp is not None else (None, None)
         self.resp_y.update(force=True)
         if not (self.state.calibration or {}).get("chain"):
             self.status.setText(
@@ -360,6 +388,7 @@ class RunPage(QWidget):
         self.acc_dw = np.zeros(SPECTRUM_SAMPLES // 2 + 1, dtype=complex)
         self._live_corr = None  # reference correction on the live grid, set on first use
         self.c_live.setData([], [])
+        self.c_ratio_live.setData([], [])
         self._set_phase("capture")
         self._capture_started = False
         self._progress_busy(False)
@@ -402,8 +431,12 @@ class RunPage(QWidget):
         for it in rep["items"]:
             self.qc.add(it["status"], f"{it['name']}: {it['value']}", it["detail"])
         if role == self.roles[0] and rep["response"] is not None:
-            self.c_measured.setData(rep["response"]["freqs_hz"], rep["response"]["measured_db"])
+            r = rep["response"]
+            self.c_measured.setData(r["freqs_hz"], r["measured_db"])
             self.resp_y.update(force=True)
+            if r["expected_db"] is not None:
+                self.c_ratio_measured.setData(r["freqs_hz"], r["measured_db"] - r["expected_db"])
+                self.ratio_y.update(force=True)
         i = self.roles.index(role)
         if i + 1 < len(self.roles):
             self._start_role(self.roles[i + 1])
@@ -512,8 +545,13 @@ class RunPage(QWidget):
                 self._live_corr = ref_db_at(ref, grid)
             else:
                 self._live_corr = cal["chain"]["gain_db"] if cal.get("chain") else 0.0
-        self.c_live.setData(grid, live - self._live_corr, connect="finite")
+        live = live - self._live_corr
+        self.c_live.setData(grid, live, connect="finite")
         self.resp_y.update()
+        if self._exp_db is not None:
+            exp = np.interp(np.log(grid), np.log(self._exp_grid), self._exp_db)
+            self.c_ratio_live.setData(grid, live - exp, connect="finite")
+            self.ratio_y.update()
 
     def _section_at(self, sample: int):
         if not self.manifest or sample < 0:

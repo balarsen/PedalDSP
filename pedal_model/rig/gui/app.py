@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QProcess
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QGuiApplication
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -45,7 +45,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.state = state
         self.setWindowTitle("PedalDSP Capture Rig")
-        self.resize(1500, 920)
+        # Most of the screen: a 2560x1440 display shows every Run-page plot without scrolling;
+        # on smaller screens the pages scroll.
+        screen = QGuiApplication.primaryScreen().availableGeometry()
+        self.resize(min(2400, int(0.94 * screen.width())), min(1360, int(0.92 * screen.height())))
 
         central = QWidget()
         outer = QVBoxLayout(central)

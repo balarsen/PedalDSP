@@ -16,22 +16,11 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
-from pedal_model.rig.analysis import frequency_response, log_grid, smooth_octave
+from pedal_model.rig.analysis import log_grid
+from pedal_model.rig.qc import LINEARITY_FAIL_DB, LINEARITY_WARN_DB, sweep_section_db
 from pedal_model.signals.manifest import Manifest
 
-LINEAR_DB = 0.25  # sweeps at -24 and -3 dBFS input differ by less than this: linear
-CLIP_DB = 1.0  # more than this: clipping
 THD_OK_DB = -50.0
-
-
-def sweep_db(dry: np.ndarray, wet: np.ndarray, sr: int, s) -> tuple[np.ndarray, np.ndarray]:
-    """Gain (dB, 1/6-octave smoothed) of one sweep section, wet over dry."""
-    f, h, _ = frequency_response(
-        dry[s.start_sample : s.end_sample], wet[s.start_sample : s.end_sample], sr
-    )
-    k = f > 0
-    grid = log_grid(20, 19000)
-    return grid, smooth_octave(f[k], 20 * np.log10(np.abs(h[k]) + 1e-12), grid)
 
 
 def worst_thd_db(wet: np.ndarray, sr: int, m: Manifest) -> float:
@@ -72,15 +61,16 @@ def main() -> None:
         wet, sr = sf.read(str(root / name / take["wet_wav"]), dtype="float64")
         lo = next(s for s in m.sections if s.label == "sweep_low")
         hi = next(s for s in m.sections if s.label == "sweep_high")
-        grid, g_lo = sweep_db(dry, wet, sr, lo)
-        _, g_hi = sweep_db(dry, wet, sr, hi)
+        grid = log_grid(20, 19000)
+        g_lo = sweep_section_db(dry, wet, sr, lo, grid)
+        g_hi = sweep_section_db(dry, wet, sr, hi, grid)
         band = (grid >= 100) & (grid <= 8000)
         lin = float(np.max(np.abs(g_hi - g_lo)[band]))
         thd = worst_thd_db(wet, sr, m)
         peak = next((i["value"] for i in take["qc"] if i["name"] == "Return peak"), "?")
-        if lin < LINEAR_DB and thd < THD_OK_DB:
+        if lin < LINEARITY_WARN_DB and thd < THD_OK_DB:
             verdict = "good (linear)"
-        elif lin > CLIP_DB or thd > -30.0:
+        elif lin > LINEARITY_FAIL_DB or thd > -30.0:
             verdict = "CLIPS: retake with auto-level on"
         else:
             verdict = "mild compression: check"

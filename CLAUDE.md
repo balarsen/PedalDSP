@@ -101,6 +101,10 @@ target), and an early Pi Muff stem pair.
   sweep and lowers the digital send level so the return peaks 6 dB under it. Each take records its
   send level, the plan and its calibration file (session.json, params.json, FLAC tags); fitting
   must use the per-take send level. Do not change In 1 gain mid-session (it invalidates C2-C4).
+  The send is never raised above the profile default: stages before the EQ (the GE-7's input
+  stage, LEVEL) could clip where the return cannot see it. QC proves each take linear
+  directly: "Linearity (sweeps)" compares the quietest and loudest sweep (profile
+  `qc.expect_linear`), and "Signal-to-noise" grades the quietest sweep against the pre-roll.
 - **Live plots must stay cheap** (Run page): spectra are log-binned to about 240 points, the live
   curves skip antialiasing, and auto scale is throttled (`widgets.LiveAutoY`). Together they took a
   2400x1300 repaint from about 130 ms to 9 ms on real data (2026-10-20).

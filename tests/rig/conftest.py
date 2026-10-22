@@ -32,14 +32,16 @@ def _section(index, label, kind, start, end, sr, dbfs):
 
 
 def _write_master(path, name, seed):
-    """A 4.4 s master: gap, −24 dBFS log sweep, two stepped tones, pink-ish noise, an impulse block,
-    gap.
+    """A 5.6 s master: gap, log sweeps at −24 and −3 dBFS, two stepped tones, pink-ish noise, an
+    impulse block, gap.
     """
     sr = MASTER_SR
     rng = np.random.default_rng(seed)
     gap = np.zeros(int(0.2 * sr), np.float32)
     t = np.arange(sr) / sr
-    sweep = (10 ** (-24 / 20) * chirp(t, 20, 1.0, 20_000, method="logarithmic")).astype(np.float32)
+    unit_sweep = chirp(t, 20, 1.0, 20_000, method="logarithmic")
+    sweep = (10 ** (-24 / 20) * unit_sweep).astype(np.float32)
+    sweep_high = (10 ** (-3 / 20) * unit_sweep).astype(np.float32)
     tt = np.arange(int(0.2 * sr)) / sr
     tone1 = (10 ** (-18 / 20) * np.sin(2 * np.pi * 440 * tt)).astype(np.float32)
     tone2 = (10 ** (-12 / 20) * np.sin(2 * np.pi * 440 * tt)).astype(np.float32)
@@ -48,6 +50,7 @@ def _write_master(path, name, seed):
     imp[::4800] = 0.25
     parts = [
         ("sweep_low", "log_sine_sweep", sweep, -24),
+        ("sweep_high", "log_sine_sweep", sweep_high, -3),
         ("tone_a", "stepped_sine_tone", tone1, -18),
         ("tone_b", "stepped_sine_tone", tone2, -12),
         ("pink", "pink_noise", noise, -18),

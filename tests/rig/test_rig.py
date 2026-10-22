@@ -359,3 +359,43 @@ def test_auto_level_leaves_a_cut_preset_at_the_default_send():
     eng.backend.set_pedal(_boost(-20.0))
     plan = plan_send_level(eng, 48_000, -3.0, -10.0, -15.0)
     assert plan["send_level_db"] == -10.0
+
+
+# ── linearity and signal-to-noise items ─────────────────────────────────── #
+
+
+def _uncalibrated_take(masters, tmp_path, rig):
+    sig = prepare_signal("train", "full", 48_000, tmp_path / "sig")
+    m = Manifest(sig.manifest_path)
+    dry = m.load_all()
+    take = _engine(rig).run(dry, 48_000, send_level_db=-10.0)
+    rep, _ = check_take(
+        take,
+        dry,
+        m,
+        pedal="boss_ge7",
+        controls=FLAT,
+        calibration=None,
+        qc_limits=load_profile("ge7").qc,
+    )
+    return rep
+
+
+def test_linearity_item_passes_a_linear_take(masters, tmp_path):
+    rep = _uncalibrated_take(masters, tmp_path, SimulatedRig(**IDEAL))
+    assert _item(rep, "Linearity (sweeps)")["status"] == "ok"
+    assert _item(rep, "Signal-to-noise (quietest sweep)")["status"] == "ok"
+
+
+def test_linearity_item_fails_when_the_return_clips(masters, tmp_path):
+    """frown, 2026-10-21: only the loud sweep compressed. The quiet vs loud comparison catches it.
+
+    Return peaks: the -3 dBFS sweep reaches about -13 dBFS, the -24 dBFS sweep about -34.
+    """
+    rep = _uncalibrated_take(masters, tmp_path, SimulatedRig(clip_dbfs=-20.0, **IDEAL))
+    assert _item(rep, "Linearity (sweeps)")["status"] == "fail"
+
+
+def test_snr_item_flags_a_quiet_section_near_the_noise(masters, tmp_path):
+    rep = _uncalibrated_take(masters, tmp_path, SimulatedRig(noise_dbfs=-45.0, **IDEAL))
+    assert _item(rep, "Signal-to-noise (quietest sweep)")["status"] != "ok"

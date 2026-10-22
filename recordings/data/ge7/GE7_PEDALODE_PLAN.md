@@ -267,6 +267,11 @@ raised (pad / gain staging) so the pedal clips first.
 **For the Klon (nonlinear):** dividing by references only works for a linear pedal. A clipping
 pedal needs the input side (send → ProRMP → pedal input) and the output side (pedal output → ProDI
 → In 1) measured separately, since C2 only gives their product. To plan before the Klon work.
+Decided 2026-10-22 (owner): build it after the GE-7 record run. It is a send-side step (ProRMP
+OUTPUT into a line input whose full scale in dBu comes from the 1824c manual), so each take
+records the pedal's input level in dBu. For a nonlinear pedal auto-level is off: the send is
+set for a target input level (the pedal's operating point), and the return gets its headroom
+from the pad and input gain set before calibration.
 
 **R2. Capture session** (48 kHz, hardware, about 3 hours of audio, mostly unattended; agreed 2026-10-18):
 1. C1–C4.

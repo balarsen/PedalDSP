@@ -18,6 +18,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import numpy as np
+from scipy.signal import spectrogram, welch
 
 from pedal_model.rig.analysis import (
     aligned,
@@ -30,7 +31,7 @@ from pedal_model.rig.analysis import (
 )
 from pedal_model.rig.calibrate import ref_db_at, worst_status
 from pedal_model.rig.engine import Take
-from pedal_model.signals.manifest import Manifest
+from pedal_model.signals.manifest import Manifest, Section
 
 # The 1824c latency moves a few samples between stream opens (3718-3727 seen, 2026-10-18). Each take
 # aligns on its own loopback, so that is harmless; only a jump like a buffer-size change is flagged.
@@ -49,6 +50,17 @@ INTEGRITY_RANGE_DB = 40.0  # only blocks within this of the loudest send block a
 # 20-48 dB deep (sessions 1238/1307); pink-noise blocks heavy in sub-audio energy dip up to ~7 dB
 # on both inputs because the chain rolls off the lowest frequencies (2026-10-20).
 INTEGRITY_DROP_DB = 15.0
+# Linearity: the quietest and loudest sweep of a take must give the same response (dB difference,
+# 1/6 octave, over the profile's band). 0.25 dB: flat2 varied that much across levels
+# (docs/ge7_plan.md); frown's 2.4 dB at 800 Hz was clipping in the return path (2026-10-21).
+LINEARITY_WARN_DB = 0.25
+LINEARITY_FAIL_DB = 1.0
+# Signal-to-noise of the quietest sweep (the return while the sweep passes each frequency over the
+# pre-roll noise, 1/6 octave; see section_snr_db).
+# First guesses (2026-10-22): revisit once C2 has measured the real return noise floor.
+SNR_WARN_DB = 30.0
+SNR_FAIL_DB = 15.0
+NOISE_NPERSEG = 4096  # Welch segment for the noise floor: the pre-roll gives 0.4 s of silence
 REFERENCE_NOTES = {
     "chain": "Take ÷ the chain alone (C2): the pedal's whole response, buffers included.",
     "bypass": "Take ÷ the bypassed pedal (C3): what the engaged circuit adds (plan decision D1).",
@@ -172,6 +184,45 @@ def measure_response(
     if chain and chain.get("gain_db") is not None:
         return grid, db - chain["gain_db"], "chain_gain"
     return grid, db, None
+
+
+def sweep_section_db(
+    dry: np.ndarray, wet: np.ndarray, sr: int, section: Section, grid: np.ndarray
+) -> np.ndarray:
+    """Gain of one sweep section, 20·log10|wet ÷ dry| (Welch H1), 1/6-octave smoothed on ``grid``.
+
+    The send level and the chain are in it, but they cancel when two sections of one take are
+    compared, which is all it is used for.
+    """
+    a, b = section.start_sample, section.end_sample
+    f, h, _ = frequency_response(dry[a:b], wet[a:b], sr)
+    k = f > 0
+    return smooth_octave(f[k], 20 * np.log10(np.abs(h[k]) + 1e-12), grid)
+
+
+def section_snr_db(
+    wet: np.ndarray, noise: np.ndarray, sr: int, section: Section, grid: np.ndarray
+) -> np.ndarray:
+    """Signal-to-noise of a sweep section of the return, per frequency, in dB on ``grid``:
+
+        SNR(f) = 10·log10( max_t P_return(f, t) / P_noise(f) ),   1/6-octave smoothed
+
+    P_return(f, t) is the return's spectrogram and P_noise the pre-roll's Welch spectrum, with the
+    same Hann window, so the ratio is the return over the noise while the sweep passes f. (A
+    sweep is at each frequency only for a moment: averaging its power over the whole section
+    would understate the SNR by ~10·log10(number of windows), ~25 dB for a 20 s sweep. The
+    response estimate only weighs the windows where the sweep is, so it sees the peak SNR or
+    better.)
+    """
+    seg = wet[section.start_sample : section.end_sample].astype(np.float64)
+    n = min(NOISE_NPERSEG, len(noise), len(seg))
+    f, _, s_sig = spectrogram(seg, sr, window="hann", nperseg=n)
+    p_sig = s_sig.max(axis=1)
+    _, p_noise = welch(noise.astype(np.float64), sr, window="hann", nperseg=n)
+    k = f > 0
+    sig_db = smooth_octave(f[k], 10 * np.log10(p_sig[k] + 1e-300), grid)
+    noise_db = smooth_octave(f[k], 10 * np.log10(p_noise[k] + 1e-300), grid)
+    return sig_db - noise_db
 
 
 def check_take(
@@ -327,7 +378,8 @@ def check_take(
             )
         )
 
-    noise = rms_dbfs(take.rec[int(0.1 * sr) : pre, 0])
+    noise_window = take.rec[int(0.1 * sr) : pre, 0]
+    noise = rms_dbfs(noise_window)
     st = "ok" if noise < NOISE_OK_DBFS else ("warn" if noise < NOISE_FAIL_DBFS else "fail")
     items.append(
         item(
@@ -339,6 +391,52 @@ def check_take(
     )
 
     band = tuple(qc_limits.get("fr_band_hz", (100.0, 8000.0)))
+    sweeps = sorted(manifest.sections_of_type("log_sine_sweep"), key=lambda s: s.amplitude_dbfs)
+    score_grid = log_grid(band[0], band[1])
+    if len(sweeps) >= 2 and sweeps[-1].amplitude_dbfs > sweeps[0].amplitude_dbfs:
+        quiet, loud = sweeps[0], sweeps[-1]
+        say("Checking linearity (quiet vs loud sweep)")
+        diff = np.abs(
+            sweep_section_db(dry, wet, sr, loud, score_grid)
+            - sweep_section_db(dry, wet, sr, quiet, score_grid)
+        )
+        i = int(np.argmax(diff))
+        lin = float(diff[i])
+        graded = qc_limits.get("expect_linear", False)
+        if not graded or lin < LINEARITY_WARN_DB:
+            st = "ok"
+        else:
+            st = "warn" if lin < LINEARITY_FAIL_DB else "fail"
+        detail = (
+            f"Sweep at {loud.amplitude_dbfs:+.0f} vs {quiet.amplitude_dbfs:+.0f} dBFS, largest "
+            f"difference {band[0]:.0f}–{band[1]:.0f} Hz."
+        )
+        if st != "ok":
+            detail += (
+                " Something compresses at the loud level: the return path (C2's ceiling) or the "
+                "pedal. Retake at a lower send level (auto-level)."
+            )
+        elif not graded:
+            detail += " Not graded: this pedal is not expected to be linear."
+        value = f"{lin:.2f} dB at {score_grid[i]:.0f} Hz"
+        items.append(item("Linearity (sweeps)", st, value, detail))
+    if sweeps and len(noise_window) > 0:
+        quiet = sweeps[0]
+        snr = section_snr_db(wet, noise_window, sr, quiet, score_grid)
+        i = int(np.argmin(snr))
+        st = "ok" if snr[i] >= SNR_WARN_DB else ("warn" if snr[i] >= SNR_FAIL_DB else "fail")
+        detail = (
+            f"The {quiet.amplitude_dbfs:+.0f} dBFS sweep over the pre-roll noise, worst "
+            f"frequency {band[0]:.0f}–{band[1]:.0f} Hz."
+        )
+        if st != "ok":
+            detail += (
+                " The quiet section is close to the noise: a low send level (auto-level) or low "
+                "return gain. It adds little to the fit."
+            )
+        value = f"{snr[i]:.0f} dB at {score_grid[i]:.0f} Hz"
+        items.append(item("Signal-to-noise (quietest sweep)", st, value, detail))
+
     # Measure over the whole audio band for display; score only inside the profile's band.
     say("Measuring the frequency response")
     grid, measured, normalised = measure_response(

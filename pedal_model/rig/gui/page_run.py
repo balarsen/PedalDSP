@@ -36,10 +36,10 @@ from pedal_model.rig.gui.worker import run_async
 from pedal_model.rig.profiles import KIND_MAP, Preset, Profile
 from pedal_model.rig.qc import (
     FR_TYPES,
-    QCItem,
     calibration_reference,
     check_take,
     expected_response,
+    item,
 )
 from pedal_model.signals.manifest import Manifest
 
@@ -59,7 +59,7 @@ SPECTRUM_MIN_SPAN_DB = 60.0
 RESPONSE_MIN_SPAN_DB = 6.0
 
 
-def band_fit_for(profile: Profile, preset: Preset, response, sr: int) -> dict | None:
+def band_fit_for(profile: Profile, preset: Preset, response: dict | None, sr: int) -> dict | None:
     """For a map step: fit the one moved control (a peak, a shelf for the top band, or a gain)."""
     moved = [c for c in profile.controls if abs(preset.controls.get(c["key"], 0.0)) > 1e-6]
     if preset.kind != KIND_MAP or len(moved) != 1 or response is None:
@@ -67,19 +67,14 @@ def band_fit_for(profile: Profile, preset: Preset, response, sr: int) -> dict | 
     c = moved[0]
     top_band = c.get("band_hz") == max(k.get("band_hz") or 0 for k in profile.controls)
     fit = fit_band(
-        response.freqs_hz,
-        response.measured_db,
+        response["freqs_hz"],
+        response["measured_db"],
         sr,
         c.get("band_hz"),
         preset.controls[c["key"]],
         try_shelf=top_band,
     )
-    return {
-        "control": c["key"],
-        "setting": preset.controls[c["key"]],
-        **fit.to_dict(),
-        "summary": fit.summary(),
-    }
+    return {"control": c["key"], "setting": preset.controls[c["key"]], **fit}
 
 
 def _capture_and_check(state: AppState, preset: Preset, role: str, report):
@@ -116,17 +111,13 @@ def _capture_and_check(state: AppState, preset: Preset, role: str, report):
     fit = None
     if preset.kind == KIND_MAP:
         report("Fitting the band (centre, bandwidth, gain)")
-        fit = band_fit_for(state.profile, preset, rep.response, sig.sample_rate)
+        fit = band_fit_for(state.profile, preset, rep["response"], sig.sample_rate)
         if fit:
-            rep.items.append(
-                QCItem(
-                    "Band fit", "ok", fit["summary"], f"RMS fit error {fit['rms_err_db']:.2f} dB"
-                )
+            rep["items"].append(
+                item("Band fit", "ok", fit["summary"], f"RMS fit error {fit['rms_err_db']:.2f} dB")
             )
     report("Saving the WAV files and params.json")
-    session.save_capture(
-        preset, role, take, wet, rep.to_dict(), band_fit=fit, level_plan=level_plan
-    )
+    session.save_capture(preset, role, take, wet, rep, band_fit=fit, level_plan=level_plan)
     return role, rep
 
 
@@ -408,17 +399,17 @@ class RunPage(QWidget):
             return
         self.reports[role] = rep
         self.qc.add_heading(ROLE_NAMES[role])
-        for item in rep.items:
-            self.qc.add(item.status, f"{item.name}: {item.value}", item.detail)
-        if role == self.roles[0] and rep.response is not None:
-            self.c_measured.setData(rep.response.freqs_hz, rep.response.measured_db)
+        for it in rep["items"]:
+            self.qc.add(it["status"], f"{it['name']}: {it['value']}", it["detail"])
+        if role == self.roles[0] and rep["response"] is not None:
+            self.c_measured.setData(rep["response"]["freqs_hz"], rep["response"]["measured_db"])
             self.resp_y.update(force=True)
         i = self.roles.index(role)
         if i + 1 < len(self.roles):
             self._start_role(self.roles[i + 1])
             return
         worst = max(
-            (r.verdict for r in self.reports.values()),
+            (r["verdict"] for r in self.reports.values()),
             key={"ok": 0, "warn": 1, "fail": 2}.__getitem__,
         )
         colour = theme.STATUS_COLOURS[worst]

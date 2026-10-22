@@ -188,22 +188,22 @@ def _capture(masters, tmp_path, pedal_controls, preset_controls, rig=None, sr=48
 
 
 def _item(rep, name):
-    return next(i for i in rep.items if i.name == name)
+    return next(i for i in rep["items"] if i["name"] == name)
 
 
 def test_qc_passes_correct_preset(masters, tmp_path):
     rep, take, dry = _capture(masters, tmp_path, SMILE, SMILE)
-    assert rep.lag == 47 and rep.loop_lag == 47
-    assert _item(rep, "Response vs model").status == "ok"
-    assert _item(rep, "Level vs calibration").status == "ok"
-    assert _item(rep, "Audio integrity (loopback)").status == "ok"
-    assert rep.verdict == "ok", [vars(i) for i in rep.items if i.status != "ok"]
+    assert rep["lag_samples"] == 47 and rep["loop_lag_samples"] == 47
+    assert _item(rep, "Response vs model")["status"] == "ok"
+    assert _item(rep, "Level vs calibration")["status"] == "ok"
+    assert _item(rep, "Audio integrity (loopback)")["status"] == "ok"
+    assert rep["verdict"] == "ok", [i for i in rep["items"] if i["status"] != "ok"]
 
 
 def test_qc_wet_is_aligned_to_dry(masters, tmp_path):
     rig = SimulatedRig(**IDEAL)
     rep, take, dry = _capture(masters, tmp_path, FLAT, FLAT, rig=rig)
-    wet = aligned(take.rec[:, 0], take.pre_roll, rep.lag, take.signal_len)
+    wet = aligned(take.rec[:, 0], take.pre_roll, rep["lag_samples"], take.signal_len)
     gain = 10 ** ((-10.0 + rig.reamp_db + rig.return_gain_db) / 20)
     sweep = slice(int(0.2 * 48_000), int(1.2 * 48_000))
     corr = np.corrcoef(dry[sweep] * gain, wet[sweep])[0, 1]
@@ -212,7 +212,7 @@ def test_qc_wet_is_aligned_to_dry(masters, tmp_path):
 
 def test_qc_catches_wrong_knob_settings(masters, tmp_path):
     rep, _, _ = _capture(masters, tmp_path, FLAT, SMILE)
-    assert _item(rep, "Response vs model").status == "fail"
+    assert _item(rep, "Response vs model")["status"] == "fail"
 
 
 def test_qc_catches_silently_lost_audio(masters, tmp_path):
@@ -220,12 +220,12 @@ def test_qc_catches_silently_lost_audio(masters, tmp_path):
     rep, take, _ = _capture(masters, tmp_path, FLAT, FLAT, rig=SimulatedRig(dropout_prob=0.05))
     assert take.xruns == 0  # the driver says nothing
     item = _item(rep, "Audio integrity (loopback)")
-    assert item.status == "fail" and not item.value.startswith("0 of")
+    assert item["status"] == "fail" and not item["value"].startswith("0 of")
 
 
 def test_qc_flags_clipping(masters, tmp_path):
     rep, _, _ = _capture(masters, tmp_path, FLAT, FLAT, rig=SimulatedRig(return_gain_db=40.0))
-    assert _item(rep, "Return peak").status == "fail"
+    assert _item(rep, "Return peak")["status"] == "fail"
 
 
 # ── session files ───────────────────────────────────────────────────────── #
@@ -245,7 +245,7 @@ def test_session_params_load_like_the_harness(masters, tmp_path):
         rep, wet = check_take(
             take, dry, m, pedal="boss_ge7", controls=SMILE, calibration=None, qc_limits=profile.qc
         )
-        s.save_capture(preset, role, take, wet, rep.to_dict())
+        s.save_capture(preset, role, take, wet, rep)
 
     d = s.preset_dir("smile")
     params = json.loads((d / "params.json").read_text())
@@ -292,9 +292,9 @@ def test_alignment_keeps_the_pedals_own_delay(masters, tmp_path):
         calibration=cal,
         qc_limits=load_profile("ge7").qc,
     )
-    assert rep.lag == rep.loop_lag == 47
-    assert rep.xcorr_lag == 47 + pedal_delay
-    assert _item(rep, "Pedal delay").value.startswith(f"+{pedal_delay} ")
+    assert rep["lag_samples"] == rep["loop_lag_samples"] == 47
+    assert rep["xcorr_lag_samples"] == 47 + pedal_delay
+    assert _item(rep, "Pedal delay")["value"].startswith(f"+{pedal_delay} ")
     # The delay is still in the wet file: it lines up with the dry signal shifted by pedal_delay.
     sweep = slice(int(0.2 * sr), int(1.2 * sr))
     shifted = slice(sweep.start + pedal_delay, sweep.stop + pedal_delay)
@@ -316,8 +316,8 @@ def test_uncalibrated_take_falls_back_to_correlation_and_warns(masters, tmp_path
         calibration=None,
         qc_limits=load_profile("ge7").qc,
     )
-    assert rep.lag == rep.xcorr_lag == 47
-    assert _item(rep, "Alignment").status == "warn"
+    assert rep["lag_samples"] == rep["xcorr_lag_samples"] == 47
+    assert _item(rep, "Alignment")["status"] == "warn"
 
 
 # ── return ceiling and auto-level ───────────────────────────────────────── #

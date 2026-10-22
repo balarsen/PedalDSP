@@ -6,8 +6,6 @@ written as |H(jω)|: continuous time, like the GE-7 block model, so no sample ra
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-
 import numpy as np
 from scipy.optimize import least_squares
 
@@ -24,43 +22,38 @@ SHELF_SLOPE_RANGE = (
 SHELF_PREFERENCE = 1.25
 
 
-@dataclass
-class BandFit:
-    """Result of fitting one band.
+def band_fit(
+    model: str,
+    fc_hz: float | None,
+    q: float | None,
+    gain_db: float,
+    rms_err_db: float,
+    slope: float | None = None,
+) -> dict:
+    """One band's fit as a dict, with a one-line summary.
 
-    Attributes:
-        model: "peak", "shelf" or "gain" (a flat level change, for the LEVEL slider).
-        fc_hz: Centre (peak) or corner (shelf) frequency in Hz; None for "gain".
-        q: Peak Q; None for "shelf" and "gain".
-        bw_oct: Bandwidth in octaves from Q (RBJ definition: between the gain/2 points in
-            dB); None unless "peak".
-        gain_db: Gain at the centre (peak), above the corner (shelf), or overall ("gain").
-        rms_err_db: RMS difference between the fitted curve and the measurement over FIT_BAND_HZ.
-        slope: Shelf slope S; None unless "shelf".
+    Keys: model ("peak", "shelf" or "gain": a flat level change, for the LEVEL slider); fc_hz
+    (centre for a peak, corner for a shelf, None for gain); q and bw_oct (peak only; bw_oct is the
+    RBJ bandwidth between the gain/2 points in dB); gain_db (at the centre, above the corner, or
+    overall); rms_err_db (fit vs measurement over FIT_BAND_HZ); slope (shelf slope S, shelf
+    only); summary.
     """
-
-    model: str
-    fc_hz: float | None
-    q: float | None
-    bw_oct: float | None
-    gain_db: float
-    rms_err_db: float
-    slope: float | None = None
-
-    def to_dict(self) -> dict:
-        return asdict(self)
-
-    def summary(self) -> str:
-        if self.model == "gain":
-            return f"flat gain {self.gain_db:+.2f} dB"
-        if self.model == "shelf":
-            return (
-                f"high shelf at {self.fc_hz:.0f} Hz, slope {self.slope:.2f}, {self.gain_db:+.2f} dB"
-            )
-        return (
-            f"peak at {self.fc_hz:.0f} Hz, Q {self.q:.2f} ({self.bw_oct:.2f} oct), "
-            f"{self.gain_db:+.2f} dB"
-        )
+    if model == "gain":
+        summary = f"flat gain {gain_db:+.2f} dB"
+    elif model == "shelf":
+        summary = f"high shelf at {fc_hz:.0f} Hz, slope {slope:.2f}, {gain_db:+.2f} dB"
+    else:
+        summary = f"peak at {fc_hz:.0f} Hz, Q {q:.2f} ({q_to_bw_oct(q):.2f} oct), {gain_db:+.2f} dB"
+    return {
+        "model": model,
+        "fc_hz": fc_hz,
+        "q": q,
+        "bw_oct": q_to_bw_oct(q) if model == "peak" else None,
+        "gain_db": gain_db,
+        "rms_err_db": rms_err_db,
+        "slope": slope,
+        "summary": summary,
+    }
 
 
 def q_to_bw_oct(q: float) -> float:
@@ -104,7 +97,7 @@ def fit_band(
     nominal_hz: float | None,
     nominal_db: float,
     try_shelf: bool = False,
-) -> BandFit:
+) -> dict:
     """Fit one band to a measured, chain-normalised response.
 
     Args:
@@ -117,14 +110,14 @@ def fit_band(
             keep the shelf unless a peak fits clearly better (SHELF_PREFERENCE).
 
     Returns:
-        The best fit.
+        The best fit, as ``band_fit`` describes it.
     """
     top = min(FIT_BAND_HZ[1], 0.45 * sr)
     sel = (freqs_hz >= FIT_BAND_HZ[0]) & (freqs_hz <= top) & np.isfinite(measured_db)
     f, m = freqs_hz[sel], measured_db[sel]
     if nominal_hz is None:
         g = float(np.median(m))
-        return BandFit("gain", None, None, None, g, float(np.sqrt(np.mean((m - g) ** 2))))
+        return band_fit("gain", None, None, g, float(np.sqrt(np.mean((m - g) ** 2))))
 
     lo = np.log10(max(FIT_BAND_HZ[0], nominal_hz / 2**CENTRE_SEARCH_OCT))
     hi = np.log10(min(top, nominal_hz * 2**CENTRE_SEARCH_OCT))
@@ -139,7 +132,7 @@ def fit_band(
         bounds=([lo, np.log(0.1), -30], [hi, np.log(20), 30]),
     )
     fc, q, g = 10 ** r.x[0], float(np.exp(r.x[1])), float(r.x[2])
-    best = BandFit("peak", float(fc), q, q_to_bw_oct(q), g, float(np.sqrt(np.mean(r.fun**2))))
+    best = band_fit("peak", float(fc), q, g, float(np.sqrt(np.mean(r.fun**2))))
     if try_shelf:
 
         def shelf_resid(p):
@@ -151,8 +144,6 @@ def fit_band(
             bounds=([lo, -30, SHELF_SLOPE_RANGE[0]], [hi, 30, SHELF_SLOPE_RANGE[1]]),
         )
         err = float(np.sqrt(np.mean(s.fun**2)))
-        if err <= SHELF_PREFERENCE * best.rms_err_db:
-            best = BandFit(
-                "shelf", float(10 ** s.x[0]), None, None, float(s.x[1]), err, float(s.x[2])
-            )
+        if err <= SHELF_PREFERENCE * best["rms_err_db"]:
+            best = band_fit("shelf", float(10 ** s.x[0]), None, float(s.x[1]), err, float(s.x[2]))
     return best

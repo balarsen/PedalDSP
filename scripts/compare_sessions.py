@@ -19,7 +19,8 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
-from pedal_model.rig.compare import agreement, common_presets, load, preset_response  # noqa: E402
+from pedal_model.rig.compare import agreement, common_presets, preset_response  # noqa: E402
+from pedal_model.rig.session import Session  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -34,7 +35,7 @@ def main() -> None:
     p.add_argument("--out", type=Path, default=ROOT / "outputs" / "session_compare")
     args = p.parse_args()
 
-    sa, sb = load(args.a), load(args.b)
+    sa, sb = Session.load(args.a), Session.load(args.b)
     presets = args.preset or common_presets(sa, sb)
     if not presets:
         raise SystemExit("No preset was captured in both sessions.")
@@ -52,14 +53,11 @@ def main() -> None:
             f"{ag['offset_db']:10.2f}"
         )
         fig, ax = plt.subplots(figsize=(9, 4.5))
-        ax.semilogx(
-            ra.freqs_hz, ra.measured_db, label=f"{ra.session} ({ra.sample_rate // 1000} kHz)"
-        )
-        ax.semilogx(
-            rb.freqs_hz, rb.measured_db, label=f"{rb.session} ({rb.sample_rate // 1000} kHz)"
-        )
-        if ra.expected_db is not None:
-            ax.semilogx(ra.freqs_hz, ra.expected_db, "--", color="0.4", label="model")
+        for r in (ra, rb):
+            label = f"{r['session']} ({r['sample_rate'] // 1000} kHz)"
+            ax.semilogx(r["freqs_hz"], r["measured_db"], label=label)
+        if ra["expected_db"] is not None:
+            ax.semilogx(ra["freqs_hz"], ra["expected_db"], "--", color="0.4", label="model")
         ax.set_xlabel("Frequency (Hz)")
         ax.set_ylabel("Gain (dB)")
         ax.set_title(f"{name}: below 10 kHz RMS diff {ag['rms_below_10k_db']:.2f} dB")

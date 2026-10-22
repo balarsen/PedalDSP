@@ -81,7 +81,7 @@ def main() -> None:
         if lin < LINEAR_DB and thd < THD_OK_DB:
             verdict = "good (linear)"
         elif lin > CLIP_DB or thd > -30.0:
-            verdict = "CLIPS: retake with ProDI -15 dB pad"
+            verdict = "CLIPS: retake with auto-level on"
         else:
             verdict = "mild compression: check"
         lvl = p["controls"].get("level", 0.0)

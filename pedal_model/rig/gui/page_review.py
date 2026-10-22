@@ -245,20 +245,20 @@ class ReviewPage(QWidget):
         if a is None:
             self.agree.setText("This step has no capture yet.")
             return
-        self.c_a.setData(a.freqs_hz, a.measured_db)
-        if a.expected_db is not None:
-            self.c_exp.setData(a.freqs_hz, a.expected_db)
+        self.c_a.setData(a["freqs_hz"], a["measured_db"])
+        if a["expected_db"] is not None:
+            self.c_exp.setData(a["freqs_hz"], a["expected_db"])
         self.plot_y.update(force=True)
         if b is None:
             self.agree.setText(
                 "" if self.other.currentData() is None else "Not captured in the compared session."
             )
             return
-        self.c_b.setData(b.freqs_hz, b.measured_db)
+        self.c_b.setData(b["freqs_hz"], b["measured_db"])
         self.plot_y.update(force=True)
         ag = agreement(a, b)
         self.agree.setText(
-            f"{a.sample_rate // 1000} kHz vs {b.sample_rate // 1000} kHz: RMS difference "
+            f"{a['sample_rate'] // 1000} kHz vs {b['sample_rate'] // 1000} kHz: RMS difference "
             f"{ag['rms_below_10k_db']:.2f} dB below 10 kHz, {ag['rms_above_10k_db']:.2f} dB above; "
             f"offset {ag['offset_db']:+.2f} dB."
         )
@@ -306,9 +306,9 @@ class ReviewPage(QWidget):
                 _fmt(fit["bw_oct"], ".2f"),
                 f"{fit['gain_db']:+.2f}",
                 _fmt(fit.get("slope"), ".2f"),
-                _fmt(model.fc_hz if model else None, ".0f"),
-                _fmt(model.q if model else None, ".2f"),
-                _fmt(model.gain_db if model else None, "+.2f"),
+                _fmt(model["fc_hz"] if model else None, ".0f"),
+                _fmt(model["q"] if model else None, ".2f"),
+                _fmt(model["gain_db"] if model else None, "+.2f"),
             ]
             for j, v in enumerate(vals):
                 self.map_table.setItem(i, j, QTableWidgetItem(v))
@@ -343,11 +343,13 @@ class ReviewPage(QWidget):
             val = next(v for v in setting.values() if abs(v) > 1e-6)
             colour = POSITION_PENS[i % len(POSITION_PENS)]
             self.map_plot.plot(
-                r.freqs_hz, r.measured_db, pen=pg.mkPen(colour, width=2), name=f"{val:+g} dB"
+                r["freqs_hz"], r["measured_db"], pen=pg.mkPen(colour, width=2), name=f"{val:+g} dB"
             )
-            if r.expected_db is not None:
+            if r["expected_db"] is not None:
                 self.map_plot.plot(
-                    r.freqs_hz, r.expected_db, pen=pg.mkPen(colour, width=1, style=Qt.DashLine)
+                    r["freqs_hz"],
+                    r["expected_db"],
+                    pen=pg.mkPen(colour, width=1, style=Qt.DashLine),
                 )
         self.map_y.update(force=True)
         self.map_note.setText("Solid: measured. Dashed: Ge7Sim model at the same setting.")

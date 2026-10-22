@@ -30,24 +30,24 @@ GRID = np.geomspace(20, 20_000, 240)
 def test_fit_band_recovers_a_known_peak(fc, q, gain):
     measured = peak_db(GRID, fc, q, gain)
     fit = fit_band(GRID, measured, SR, nominal_hz=fc * 1.3, nominal_db=gain * 0.8)
-    assert fit.model == "peak"
-    assert fit.fc_hz == pytest.approx(fc, rel=0.01)
-    assert fit.q == pytest.approx(q, rel=0.02)
-    assert fit.gain_db == pytest.approx(gain, abs=0.05)
-    assert fit.bw_oct == pytest.approx(q_to_bw_oct(q), rel=0.02)
+    assert fit["model"] == "peak"
+    assert fit["fc_hz"] == pytest.approx(fc, rel=0.01)
+    assert fit["q"] == pytest.approx(q, rel=0.02)
+    assert fit["gain_db"] == pytest.approx(gain, abs=0.05)
+    assert fit["bw_oct"] == pytest.approx(q_to_bw_oct(q), rel=0.02)
 
 
 def test_fit_band_prefers_a_shelf_when_the_data_is_a_shelf():
     measured = shelf_db(GRID, 6000.0, 10.0)
     fit = fit_band(GRID, measured, SR, nominal_hz=6400.0, nominal_db=10.0, try_shelf=True)
-    assert fit.model == "shelf"
-    assert fit.fc_hz == pytest.approx(6000.0, rel=0.02)
-    assert fit.gain_db == pytest.approx(10.0, abs=0.1)
+    assert fit["model"] == "shelf"
+    assert fit["fc_hz"] == pytest.approx(6000.0, rel=0.02)
+    assert fit["gain_db"] == pytest.approx(10.0, abs=0.1)
 
 
 def test_fit_band_level_control_is_a_flat_gain():
     fit = fit_band(GRID, np.full_like(GRID, -7.5), SR, nominal_hz=None, nominal_db=-7.5)
-    assert fit.model == "gain" and fit.gain_db == pytest.approx(-7.5)
+    assert fit["model"] == "gain" and fit["gain_db"] == pytest.approx(-7.5)
 
 
 def test_q_to_bw_matches_the_cookbook():
@@ -125,8 +125,8 @@ def test_map_capture_writes_named_files_and_a_band_fit(masters):
         calibration=s.data["calibration"],
         qc_limits=prof.qc,
     )
-    fit = fit_band(rep.response.freqs_hz, rep.response.measured_db, SR, 800.0, 15.0)
-    s.save_capture(preset, "sweep", take, wet, rep.to_dict(), band_fit=fit.to_dict())
+    fit = fit_band(rep["response"]["freqs_hz"], rep["response"]["measured_db"], SR, 800.0, 15.0)
+    s.save_capture(preset, "sweep", take, wet, rep, band_fit=fit)
 
     t = s.take(preset.name, "sweep")
     assert t["wet_wav"].startswith("ge7_map_hz_800_p15_sweep_wet_48k_") and t["wet_wav"].endswith(
@@ -154,9 +154,9 @@ def test_rig_snapshot_is_dated(tmp_path):
 def test_fit_band_recovers_a_gentle_shelf_and_its_slope():
     measured = shelf_db(GRID, 6400.0, 10.0, slope=0.7)
     fit = fit_band(GRID, measured, SR, nominal_hz=6400.0, nominal_db=10.0, try_shelf=True)
-    assert fit.model == "shelf"
-    assert fit.slope == pytest.approx(0.7, abs=0.02)
-    assert fit.fc_hz == pytest.approx(6400.0, rel=0.02)
+    assert fit["model"] == "shelf"
+    assert fit["slope"] == pytest.approx(0.7, abs=0.02)
+    assert fit["fc_hz"] == pytest.approx(6400.0, rel=0.02)
 
 
 @pytest.mark.parametrize("key,fc,model", [("hz_800", 792.0, "peak"), ("hz_6400", 6400.0, "shelf")])
@@ -177,10 +177,10 @@ def test_fit_band_on_ge7sim_returns_its_calibrated_bands(key, fc, model):
     fit = fit_band(
         GRID, exp, SR, nominal_hz=float(key[3:]), nominal_db=15.0, try_shelf=key == "hz_6400"
     )
-    assert fit.model == model
+    assert fit["model"] == model
     warped = SR / np.pi * np.tan(np.pi * fc / SR)
-    assert fit.fc_hz == pytest.approx(warped, rel=0.03)
-    assert fit.rms_err_db < 0.1
+    assert fit["fc_hz"] == pytest.approx(warped, rel=0.03)
+    assert fit["rms_err_db"] < 0.1
 
 
 def test_capture_flac_is_bit_exact_for_24_bit_audio(masters):
@@ -204,7 +204,7 @@ def test_capture_flac_is_bit_exact_for_24_bit_audio(masters):
         calibration=None,
         qc_limits=prof.qc,
     )
-    s.save_capture(preset, "val", take, wet, rep.to_dict())
+    s.save_capture(preset, "val", take, wet, rep)
     t = s.take("flat", "val")
     raw, sr = sf.read(str(s.preset_dir("flat") / t["raw_wav"]), dtype="float64")
     back, _ = sf.read(str(s.preset_dir("flat") / t["wet_wav"]), dtype="float64")

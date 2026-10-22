@@ -59,11 +59,12 @@ class TestBlocks:
         h = blocks.bandpass2(s, torch.tensor(800.0, dtype=torch.float64), torch.tensor(2.0))
         assert abs(complex(h[0]) - 1.0) < 1e-12
 
-    def test_pot_law_centre_and_ends(self):
-        u = torch.tensor([0.0, 0.5, 1.0], dtype=torch.float64)
+    def test_wiper_centre_and_ends(self):
+        sliders = torch.tensor([-15.0, 0.0, 15.0], dtype=torch.float64)
+        x_expected = torch.tensor([0.0, 0.5, 1.0], dtype=torch.float64)
         for gamma in (0.7, 1.0, 1.6):
-            x = blocks.pot_law(u, torch.tensor(gamma, dtype=torch.float64))
-            assert torch.allclose(x, u, atol=1e-12)
+            x = M.wiper(sliders, torch.tensor(gamma, dtype=torch.float64))
+            assert torch.allclose(x, x_expected, atol=1e-12)
 
 
 class TestGe7Structure:
@@ -136,7 +137,7 @@ class TestKnownAnswer:
     def test_noise_free_recovers_every_parameter(self):
         res = F.fit_ratio(self.sliders, self.freqs, self.H, M.initial_guesses())
         assert res["converged"]
-        rep = F.fit_report(res, noise_std=NOISE_NP)
+        rep = F.identifiability(res, noise_std=NOISE_NP)
         assert (rep["std"] < 0.05).all(), F.report_table(rep)
         # raw log parameters: error ≈ relative error; delay in µs
         assert np.abs(self._errors(res)).max() < 1e-3
@@ -150,7 +151,7 @@ class TestKnownAnswer:
         )
         noisy = self.H * torch.exp(noise)
         res = F.fit_ratio(self.sliders, self.freqs, noisy, M.initial_guesses())
-        rep = F.fit_report(res)  # noise estimated from the residual
+        rep = F.identifiability(res)  # noise estimated from the residual
         z = np.abs(self._errors(res)) / rep["std"]
         assert z.max() < 4.5, F.report_table(rep, res["theta"])
         assert abs(res["rms_db"] - 0.05) < 0.005

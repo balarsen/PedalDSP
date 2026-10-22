@@ -133,9 +133,15 @@ def theta_labels(names: tuple[str, ...]) -> list[str]:
 
 
 def wiper(slider_db: Tensor, gamma: Tensor) -> Tensor:
-    """Panel position (−15…+15) → wiper x in [0, 1]; +15 = toward the feedback node = boost."""
-    u = (slider_db + SLIDER_RANGE_DB) / (2.0 * SLIDER_RANGE_DB)
-    return blocks.pot_law(u.clamp(0.0, 1.0), gamma)
+    """Panel label (−15…+15 dB) → wiper x in [0, 1]; +15 = toward the feedback node = boost.
+
+        v = slider / 15 (clamped to ±1),   x = ½ + ½·sign(v)·|v|^γ
+
+    γ = 1 is a linear pot; γ > 1 keeps the wiper nearer the centre for small moves (gentler near
+    the detent), γ < 1 the opposite. Symmetric, so the centre is always x = ½.
+    """
+    v = (slider_db / SLIDER_RANGE_DB).clamp(-1.0, 1.0)
+    return 0.5 + 0.5 * torch.sign(v) * torch.abs(v).clamp_min(1e-12) ** gamma
 
 
 def ratio_response(p: dict[str, Tensor], freqs_hz: Tensor, sliders: Tensor) -> Tensor:
@@ -153,7 +159,7 @@ def ratio_response(p: dict[str, Tensor], freqs_hz: Tensor, sliders: Tensor) -> T
     sliders = sliders.to(torch.float64)
     # EQ stage: six band-pass branches and the shelf branch, each on its slider's pot.
     bands = blocks.bandpass2(s, p["band_f"].unsqueeze(-1), p["band_q"].unsqueeze(-1))  # (6, F)
-    shelf = blocks.shelf1(s, p["shelf_f"]).unsqueeze(0)  # (1, F)
+    shelf = blocks.highpass1(s, p["shelf_f"]).unsqueeze(0)  # shelf branch s/(s+ω): (1, F)
     sigma = torch.cat([p["band_sigma"], p["shelf_sigma"]]).unsqueeze(-1)
     branches = sigma * torch.cat([bands, shelf], dim=0)  # admittances y_k(s), (7, F)
     x_eq = wiper(sliders[:, :7], p["eq_gamma"])

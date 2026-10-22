@@ -11,14 +11,13 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
 import soundfile as sf
 
-from pedal_model.rig.analysis import find_lag
 from pedal_model.rig.calibrate import (
-    LAG_SEARCH_S,
     check_bypass,
     check_engaged,
     check_reference,
@@ -46,6 +45,7 @@ def rebuild_take(raw_path: Path, signal: np.ndarray, send_level_db: float) -> Ta
 
 
 def main() -> None:
+    sys.stdout.reconfigure(encoding="utf-8")  # the Windows console is cp1252: "≥" fails
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("session", type=Path)
     args = ap.parse_args()
@@ -58,19 +58,15 @@ def main() -> None:
     print(f"Session {root.name}: {sr} Hz, send level {data['send_level_db']} dB\n")
     print("References (recomputed from calibration/*.flac):")
     refs: dict[str, dict] = {}
-    lags = {}
     sweep = np.concatenate([reference_signal(sr), np.zeros(int(0.2 * sr), np.float32)])
     for name, old in (cal_old.get("references") or {}).items():
         take = rebuild_take(root / old["file"], sweep, 0.0)
         ref = reference_from_take(take, name)
-        pre, n = take.pre_roll, len(reference_signal(sr))
-        lag_in1 = find_lag(take.play[:, 0], take.rec[:, 0], sr, pre, pre + n, LAG_SEARCH_S)
-        lags[name] = (ref["lag_samples"], lag_in1)
         refs[name] = ref
         coh = check_reference(ref)[0]["text"]
         print(
             f"  {name:<13} loop lag {ref['lag_samples']} (stored {old['lag_samples']}), "
-            f"In 1 lag {lag_in1}; 1 kHz {ref['gain_1k_db']:+.2f} dB; {coh}"
+            f"In 1 lag {ref['return_lag_samples']}; 1 kHz {ref['gain_1k_db']:+.2f} dB; {coh}"
         )
     if "chain" in refs and "bypass" in refs:
         print("  C3:", check_bypass(refs["bypass"], refs["chain"])[0]["text"])
@@ -84,14 +80,9 @@ def main() -> None:
         )
         print(f"  chain response re 1 kHz (dB): {row}")
 
-    loop_lag, chain_lag = lags.get("chain", (None, None))
-    cal = {
-        "loopback": {"lag_samples": loop_lag} if loop_lag is not None else None,
-        "chain": {"lag_samples": chain_lag, "gain_db": refs["chain"]["gain_1k_db"]}
-        if chain_lag is not None
-        else None,
-        "references": refs,
-    }
+    # The stored calibration with its curves recomputed; the rest (C1, C2's return ceiling) is what
+    # the session was checked against.
+    cal = {**cal_old, "references": refs}
 
     for name, p in data["presets"].items():
         for t in p.get("takes", []):
@@ -110,15 +101,17 @@ def main() -> None:
                 qc_limits=profile.qc,
             )
             print(
-                f"\n{name} / {t['role']}: verdict {rep.verdict} (stored {t['verdict']}); lag "
-                f"{rep.lag} (stored {t['lag_samples']}), loop {rep.loop_lag}, xcorr {rep.xcorr_lag}"
+                f"\n{name} / {t['role']}: verdict {rep['verdict']} (stored {t['verdict']}); lag "
+                f"{rep['lag_samples']} (stored {t['lag_samples']}), "
+                f"loop {rep['loop_lag_samples']}, xcorr {rep['xcorr_lag_samples']}"
             )
-            for i in rep.items:
-                if i.status != "ok" or i.name in ("Alignment", "Pedal delay", "Response vs model"):
-                    print(f"   [{i.status}] {i.name}: {i.value}  {i.detail}")
-            r = rep.response
+            shown = ("Alignment", "Pedal delay", "Response vs model")
+            for i in rep["items"]:
+                if i["status"] != "ok" or i["name"] in shown:
+                    print(f"   [{i['status']}] {i['name']}: {i['value']}  {i['detail']}")
+            r = rep["response"]
             if r is not None:
-                vals = np.interp(REPORT_HZ, r.freqs_hz, r.measured_db)
+                vals = np.interp(REPORT_HZ, r["freqs_hz"], r["measured_db"])
                 row = "  ".join(f"{f}:{v:+.2f}" for f, v in zip(REPORT_HZ, vals))
                 print(f"   measured (dB): {row}")
 

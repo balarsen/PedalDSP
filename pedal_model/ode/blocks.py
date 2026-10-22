@@ -51,21 +51,6 @@ def bandpass2(s: Tensor, fc_hz: Tensor, q: Tensor) -> Tensor:
     return bw * s / (s * s + bw * s + w * w)
 
 
-def shelf1(s: Tensor, fc_hz: Tensor) -> Tensor:
-    """First-order shelf branch s / (s + ωc): 0 at DC, 1 at high frequency."""
-    return highpass1(s, fc_hz)
-
-
-def pot_law(u: Tensor, gamma: Tensor) -> Tensor:
-    """Wiper position for a centre-detented slider: u in [0, 1] → x in [0, 1], symmetric about 0.5.
-
-    gamma = 1 is a linear pot; gamma > 1 keeps the wiper nearer the centre for small moves (gentler
-    near the detent), gamma < 1 the opposite. Symmetric so the centre is always x = 0.5.
-    """
-    v = 2.0 * u - 1.0
-    return 0.5 + 0.5 * torch.sign(v) * torch.abs(v).clamp_min(1e-12) ** gamma
-
-
 def pot_split_stage(
     x: Tensor, branches: Tensor, rho_in: Tensor, rho_fb: Tensor, end: Tensor
 ) -> Tensor:

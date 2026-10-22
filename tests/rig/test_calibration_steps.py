@@ -170,22 +170,22 @@ def _flat_take_response(masters, tmp_path, cal):
         calibration=cal,
         qc_limits=load_profile("ge7").qc,
     )
-    r = rep.response
-    sel = (r.freqs_hz >= 100) & (r.freqs_hz <= 8000)
-    return rep, r.measured_db[sel]
+    r = rep["response"]
+    sel = (r["freqs_hz"] >= 100) & (r["freqs_hz"] <= 8000)
+    return rep, r["measured_db"][sel]
 
 
 def test_qc_divides_by_the_bypass_reference(masters, tmp_path):
     """GE-7 at flat ÷ bypassed is flat (+ the engaged-path gain); the chain tilt is gone."""
     cal, _ = _calibrate(_engine())
     rep, db = _flat_take_response(masters, tmp_path, cal)
-    assert rep.response.reference == "bypass"
+    assert rep["response"]["reference"] == "bypass"
     assert np.ptp(db) < 0.3
     assert abs(np.median(db) - SimulatedRig().engaged_gain_db) < 0.15
-    assert next(i for i in rep.items if i.name == "Normalised by").status == "ok"
+    assert next(i for i in rep["items"] if i["name"] == "Normalised by")["status"] == "ok"
     # The pedal's own flat level (C4) is the reference for the level check, not 0 dB.
-    level = next(i for i in rep.items if i.name == "Level vs calibration")
-    assert level.status == "ok" and abs(float(level.value.split()[0])) < 0.1
+    level = next(i for i in rep["items"] if i["name"] == "Level vs calibration")
+    assert level["status"] == "ok" and abs(float(level["value"].split()[0])) < 0.1
 
 
 def test_scalar_calibration_still_works_but_warns(masters, tmp_path):
@@ -195,9 +195,9 @@ def test_scalar_calibration_still_works_but_warns(masters, tmp_path):
         "loopback": run_loopback_test(eng, SR),
     }
     rep, db = _flat_take_response(masters, tmp_path, cal)
-    assert rep.response.reference == "chain_gain"
+    assert rep["response"]["reference"] == "chain_gain"
     assert np.ptp(db) > 2.0  # the chain's tilt is still in the curve
-    assert next(i for i in rep.items if i.name == "Normalised by").status == "warn"
+    assert next(i for i in rep["items"] if i["name"] == "Normalised by")["status"] == "warn"
 
 
 def test_session_stores_references_and_their_audio(masters, tmp_path):
@@ -245,7 +245,7 @@ def test_takes_record_their_send_level_plan_and_calibration(masters, tmp_path):
         qc_limits=profile.qc,
     )
     plan = {"send_level_db": -17.5, "probe_max_gain_db": 3.0}
-    s.save_capture(Preset("flat", "", FLAT), "train", take, wet, rep.to_dict(), level_plan=plan)
+    s.save_capture(Preset("flat", "", FLAT), "train", take, wet, rep, level_plan=plan)
     params = json.loads((s.preset_dir("flat") / "params.json").read_text(encoding="utf-8"))
     cap = params["captures"]["train"]
     assert cap["send_level_db"] == -17.5 and cap["auto_level"]["probe_max_gain_db"] == 3.0

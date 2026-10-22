@@ -105,25 +105,31 @@ def levenberg_marquardt(
     }
 
 
-def identifiability(J: Tensor, names: tuple[str, ...], noise_std: float, n_weak: int = 3) -> dict:
-    """How well the data pin each parameter: linearised covariance cov = s²·(JᵀJ)⁻¹.
+def identifiability(fit: dict, noise_std: float | None = None, n_weak: int = 3) -> dict:
+    """How well the data pin each parameter, at a fit's optimum: covariance cov = s²·(JᵀJ)⁻¹.
 
     ``noise_std`` (s) is the std of one residual element (nepers for magnitude): the measurement
-    noise to assume, or the fit's own RMS residual for real data. JᵀJ is rescaled to unit diagonal
-    before the eigen-decomposition, so the condition number and the weakest directions do not depend
-    on the parameters' units.
+    noise to assume, or by default the fit's own residual, s² = Σr² / (n_residuals − n_params).
+    JᵀJ is rescaled to unit diagonal before the eigen-decomposition, so the condition number and
+    the weakest directions do not depend on the parameters' units.
+
+    Args:
+        fit: A ``fit_ratio`` / ``fit_bypass`` result (uses jacobian, residual, theta, names).
 
     Returns:
         dict: labels (one per θ element), std (1σ of each θ element: for log parameters that is the
         relative uncertainty), is_log, condition, weakest [(eigenvalue, [(label, weight), ...])].
     """
-    J = J.detach().numpy()
+    if noise_std is None:
+        r, n_par = fit["residual"], fit["theta"].numel()
+        noise_std = float(torch.sqrt((r @ r) / max(r.numel() - n_par, 1)))
+    J = fit["jacobian"].detach().numpy()
     A = J.T @ J
     scale = np.sqrt(np.clip(np.diag(A), 1e-300, None))
     evals, evecs = np.linalg.eigh(A / np.outer(scale, scale))
     inv = (evecs / np.clip(evals, 1e-300, None)) @ evecs.T
     cov = noise_std**2 * inv / np.outer(scale, scale)
-    labels = theta_labels(names)
+    labels = theta_labels(fit["names"])
     weakest = []
     for k in range(min(n_weak, len(evals))):
         v = evecs[:, k]
@@ -136,14 +142,6 @@ def identifiability(J: Tensor, names: tuple[str, ...], noise_std: float, n_weak:
         "condition": float(evals[-1] / max(evals[0], 1e-300)),
         "weakest": weakest,
     }
-
-
-def fit_report(fit: dict, noise_std: float | None = None) -> dict:
-    """``identifiability`` at a fit's optimum; noise defaults to the fit's own RMS residual."""
-    if noise_std is None:
-        r, n_par = fit["residual"], fit["theta"].numel()
-        noise_std = float(torch.sqrt((r @ r) / max(r.numel() - n_par, 1)))
-    return identifiability(fit["jacobian"], fit["names"], noise_std)
 
 
 def report_table(rep: dict, theta: Tensor | None = None) -> str:

@@ -365,7 +365,7 @@ def test_auto_level_keeps_a_hot_preset_under_the_ceiling():
     ceiling = -15.0
     eng = _engine(SimulatedRig(clip_dbfs=ceiling, **IDEAL))
     eng.backend.set_pedal(_boost(25.0))  # an all-up-like preset: +25 dB
-    plan = plan_send_level(eng, 48_000, -3.0, -10.0, ceiling)
+    plan = plan_send_level(eng, 48_000, -3.0, -10.0, {"return_ceiling_dbfs": ceiling})
     assert plan["send_level_db"] < -10.0 and abs(plan["probe_max_gain_db"] - 25.0) < 1.0
     rng = np.random.default_rng(0)
     sig = (0.7 * np.sin(2 * np.pi * 440 * np.arange(48_000) / 48_000)).astype(np.float32)
@@ -380,7 +380,7 @@ def test_auto_level_leaves_a_cut_preset_at_the_default_send():
 
     eng = _engine(SimulatedRig(**IDEAL))
     eng.backend.set_pedal(_boost(-20.0))
-    plan = plan_send_level(eng, 48_000, -3.0, -10.0, -15.0)
+    plan = plan_send_level(eng, 48_000, -3.0, -10.0, {"return_ceiling_dbfs": -15.0})
     assert plan["send_level_db"] == -10.0
 
 
@@ -422,3 +422,85 @@ def test_linearity_item_fails_when_the_return_clips(masters, tmp_path):
 def test_snr_item_flags_a_quiet_section_near_the_noise(masters, tmp_path):
     rep = _uncalibrated_take(masters, tmp_path, SimulatedRig(noise_dbfs=-45.0, **IDEAL))
     assert _item(rep, "Signal-to-noise (quietest sweep)")["status"] != "ok"
+
+
+# ── where the limit is; auto-level on it; retakes; disturbed references ─── #
+
+
+def test_c2_tells_a_send_side_limit_from_a_return_side_one():
+    """2026-10-22: the compression started at the same SENT level at 1 kHz and 60 Hz while the
+    chain was 5 dB quieter at 60 Hz: a send-side limit. A chain high-pass at 100 Hz gives the
+    simulated rig that 5 dB."""
+    send_side = SimulatedRig(send_clip_dbfs=-8.0, chain_hp_hz=100.0, **IDEAL)
+    res = run_chain_test(_engine(send_side), 48_000, -10.0, -3.0)
+    assert res["limit_kind"] == "send"
+    assert -12.0 <= res["send_ceiling_dbfs"] <= -8.0
+    assert res["return_ceiling_dbfs"] is None
+    return_side = SimulatedRig(clip_dbfs=-20.0, chain_hp_hz=100.0, **IDEAL)
+    res = run_chain_test(_engine(return_side), 48_000, -10.0, -3.0)
+    assert res["limit_kind"] == "return" and -26.0 < res["return_ceiling_dbfs"] < -19.0
+
+
+def test_auto_level_respects_a_send_side_limit():
+    from pedal_model.rig.calibrate import AUTO_LEVEL_HEADROOM_DB, plan_send_level
+
+    eng = _engine(SimulatedRig(**IDEAL))
+    chain = {"limit_kind": "send", "send_ceiling_dbfs": -9.0, "return_ceiling_dbfs": None}
+    plan = plan_send_level(eng, 48_000, -3.0, 0.0, chain)
+    assert plan["send_level_db"] == pytest.approx(-9.0 - AUTO_LEVEL_HEADROOM_DB + 3.0)
+    assert plan["predicted_send_peak_dbfs"] == pytest.approx(-9.0 - AUTO_LEVEL_HEADROOM_DB)
+    # The return limit is the converter's full scale here, not a measured ceiling: a +25 dB pedal
+    # still lowers the send to keep its return peak 6 dB under full scale.
+    eng.backend.set_pedal(_boost(25.0))
+    eng.backend.set_pedal_state("engaged")
+    plan = plan_send_level(eng, 48_000, -3.0, 0.0, chain)
+    assert plan["predicted_peak_dbfs"] <= -1.0 - AUTO_LEVEL_HEADROOM_DB + 0.01
+
+
+def test_a_take_that_is_not_linear_is_played_again_quieter(masters, tmp_path):
+    from pedal_model.rig.qc import AUTO_RETAKE_STEP_DB, capture_checked
+
+    sig = prepare_signal("train", "full", 48_000, tmp_path / "sig")
+    m = Manifest(sig.manifest_path)
+    dry = m.load_all()
+    # Return clips at -17 dBFS: the -3 dBFS sweep at -10 dB send returns at about -13 (clipped),
+    # and 6 dB quieter at about -19 (clean).
+    eng = _engine(SimulatedRig(clip_dbfs=-17.0, **IDEAL))
+    take, rep, _, retakes = capture_checked(
+        eng, dry, m, 48_000, -10.0, retake=True, pedal="boss_ge7", controls=FLAT,
+        calibration=None, qc_limits=load_profile("ge7").qc,
+    )  # fmt: skip
+    assert len(retakes) == 1 and retakes[0]["send_level_db"] == -10.0
+    assert take.send_level_db == -10.0 - AUTO_RETAKE_STEP_DB
+    assert _item(rep, "Linearity (sweeps)")["status"] != "fail"
+    assert _item(rep, "Auto-level retakes")["status"] == "warn"
+    _, rep, _, retakes = capture_checked(
+        eng, dry, m, 48_000, -10.0, retake=False, pedal="boss_ge7", controls=FLAT,
+        calibration=None, qc_limits=load_profile("ge7").qc,
+    )  # fmt: skip
+    assert retakes == [] and _item(rep, "Linearity (sweeps)")["status"] == "fail"
+
+
+def test_a_disturbed_reference_is_flagged():
+    """One lost audio block (1024 samples of silence on the return, as the 1824c did before the
+    audio moved to its own process) while the sweep passes ~3 kHz: the band coherence shows it."""
+    from pedal_model.rig.calibrate import (
+        _reference_play,
+        check_reference,
+        reference_from_take,
+        reference_signal,
+    )
+
+    eng = _engine(SimulatedRig(**IDEAL))
+    take = eng.run(_reference_play(48_000), 48_000, send_level_db=0.0, route="both")
+    clean = reference_from_take(take, "bypass")
+    assert min(clean["band_coherence"]) > 0.999 and check_reference(clean)[0]["status"] == "ok"
+    # the log sweep (20 Hz -> 20 kHz in 3 s) passes 3 kHz at t = 3 s * ln(150) / ln(1000)
+    n = len(reference_signal(48_000))
+    t_3k = int(3.0 * np.log(3000 / 20) / np.log(20_000 / 20) * 48_000)
+    a = take.pre_roll + 47 + t_3k
+    take.rec[a : a + 1024, 0] = 0.0
+    assert t_3k < n
+    hit = reference_from_take(take, "bypass")
+    adv = check_reference(hit)[0]
+    assert adv["status"] == "warn" and "run this step again" in adv["text"]

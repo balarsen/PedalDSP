@@ -54,7 +54,7 @@ def main() -> None:
         coh = check_reference(ref)[0]["text"]
         print(
             f"  {name:<13} loop lag {ref['lag_samples']} (stored {old['lag_samples']}), "
-            f"In 1 lag {ref['return_lag_samples']}; 1 kHz {ref['gain_1k_db']:+.2f} dB; {coh}"
+            f"return lag {ref['return_lag_samples']}; 1 kHz {ref['gain_1k_db']:+.2f} dB; {coh}"
         )
     if "chain" in refs and "bypass" in refs:
         print("  C3:", check_bypass(refs["bypass"], refs["chain"])[0]["text"])

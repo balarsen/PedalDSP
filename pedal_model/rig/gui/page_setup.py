@@ -23,10 +23,10 @@ from pedal_model.rig.gui.widgets import card, label
 
 SETTING_LABELS = {
     "main_knob": "Main knob (Out 1/2)",
-    "in1_gain": "In 1 gain",
-    "in1_48v": "In 1 48 V",
-    "in2_gain": "In 2 gain",
-    "in2_48v": "In 2 48 V",
+    "return_gain": "Return input gain (knob position)",
+    "return_48v": "Return input 48 V",
+    "loop_gain": "Loopback input gain",
+    "loop_48v": "Loopback input 48 V",
     "level": "Level knob",
     "ground_lift": "Ground lift",
     "engaged": "Engaged",

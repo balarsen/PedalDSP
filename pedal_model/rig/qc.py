@@ -32,7 +32,7 @@ from pedal_model.rig.analysis import (
     smooth_octave,
 )
 from pedal_model.rig.calibrate import ref_db_at, worst_status
-from pedal_model.rig.engine import Take
+from pedal_model.rig.engine import CaptureEngine, Take
 from pedal_model.signals.manifest import Manifest, Section
 
 # The 1824c latency moves a few samples between stream opens (3718-3727 seen, 2026-10-18). Each take
@@ -63,6 +63,11 @@ LINEARITY_FAIL_DB = 1.0
 SNR_WARN_DB = 30.0
 SNR_FAIL_DB = 15.0
 NOISE_NPERSEG = 4096  # Welch segment for the noise floor: the pre-roll gives 0.4 s of silence
+# A take that fails the linearity check is played again this much quieter, at most this often: it
+# covers limits C2 cannot see (the pedal's own output stage on big boosts, the return input above
+# what C2 reached).
+AUTO_RETAKE_STEP_DB = 6.0
+AUTO_RETAKES = 2
 # Fitted GE-7 block models (plan: "Storage and use in the GUI"), one file per fit, never
 # overwritten: ge7_pedalode_v<N>.json. The newest one gives the expected curve; without one,
 # Ge7Sim does.
@@ -265,6 +270,59 @@ def section_snr_db(
     return sig_db - noise_db
 
 
+def capture_checked(
+    engine: CaptureEngine,
+    dry: np.ndarray,
+    manifest: Manifest,
+    sr: int,
+    send_level_db: float,
+    *,
+    retake: bool,
+    report: Callable[[str], None] | None = None,
+    **check: object,
+) -> tuple[Take, dict | None, np.ndarray | None, list[dict]]:
+    """Play a take and check it; if ``retake`` and it is not linear ("Linearity (sweeps)" fails),
+    play it again AUTO_RETAKE_STEP_DB quieter, at most AUTO_RETAKES times.
+
+    Args:
+        dry: The dry signal, shape (n,).
+        send_level_db: The first attempt's send level (auto-level's plan).
+        retake: Allow the quieter retakes (the profile's auto-level is on).
+        check: The rest of ``check_take``'s keyword arguments.
+
+    Returns:
+        (the kept take, its report (None if aborted), its aligned return, the retakes made:
+        [{send_level_db, linearity}] of each attempt that failed).
+    """
+    say = report or (lambda _msg: None)
+    retakes: list[dict] = []
+    send = send_level_db
+    while True:
+        say("capture")
+        take = engine.run(dry, sr, send_level_db=send)
+        if take.aborted:
+            return take, None, None, retakes
+        rep, wet = check_take(take, dry, manifest, report=report, **check)
+        lin = next((i for i in rep["items"] if i["name"] == "Linearity (sweeps)"), None)
+        if not retake or lin is None or lin["status"] != "fail" or len(retakes) >= AUTO_RETAKES:
+            break
+        retakes.append({"send_level_db": send, "linearity": lin["value"]})
+        send -= AUTO_RETAKE_STEP_DB
+        say(f"Not linear ({lin['value']}): playing it again {AUTO_RETAKE_STEP_DB:.0f} dB quieter")
+    if retakes:
+        tried = ", ".join(f"{r['send_level_db']:+.1f} dB ({r['linearity']})" for r in retakes)
+        rep["items"].append(
+            item(
+                "Auto-level retakes",
+                "warn",
+                f"{len(retakes)}, kept {send:+.1f} dB",
+                f"Not linear at {tried}. A limit C2 did not see (the pedal's own output on a big "
+                "boost?).",
+            )
+        )
+    return take, rep, wet, retakes
+
+
 def check_take(
     take: Take,
     dry: np.ndarray,
@@ -368,6 +426,19 @@ def check_take(
                 "describes the DI boxes, not the pedal. Retake at a lower send level.",
             )
         )
+    send_ceiling = (cal_chain or {}).get("send_ceiling_dbfs")
+    if send_ceiling is not None and (cal_chain or {}).get("limit_kind") in ("send", "unknown"):
+        sent = peak_dbfs(take.play[:, 0])
+        if sent > send_ceiling - 1.0:
+            items.append(
+                item(
+                    "Send vs chain ceiling",
+                    "fail" if sent > send_ceiling + 1.0 else "warn",
+                    f"{sent:+.1f} dBFS sent (ceiling {send_ceiling:.0f})",
+                    "The send reached the level where the re-amp side compresses (C2): this take "
+                    "partly describes the rig, not the pedal. Retake at a lower send level.",
+                )
+            )
     st = "ok" if pk < CLIP_WARN_DBFS else ("warn" if pk < CLIP_FAIL_DBFS else "fail")
     items.append(
         item(

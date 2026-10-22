@@ -54,6 +54,11 @@ class SimulatedRig:
         dropout_prob: Chance that each 1024-sample output block is silently lost (the driver
             plays silence and reports nothing).
         loop_clip_dbfs: If set, the loopback input clips at this level (as the 1824c In 2 did).
+        send_clip_dbfs: If set, the send side (Out 1 → ProRMP) clips at this level of the sent
+            signal, before anything else: the limiter C2 found on 2026-10-22.
+        chain_hp_hz: A first-order high-pass in the chain after the send side (0 = none): the real
+            chain is ~5 dB down at 60 Hz, which is how C2 tells a send-side limit from a
+            return-side one.
     """
 
     latency_ms: float = 0.98
@@ -69,6 +74,8 @@ class SimulatedRig:
     engaged_gain_db: float = 0.4
     dropout_prob: float = 0.0
     loop_clip_dbfs: float | None = None
+    send_clip_dbfs: float | None = None
+    chain_hp_hz: float = 0.0
 
 
 def _first_order(b_s: tuple[float, float], a_s: tuple[float, float], x: np.ndarray, sr: int):
@@ -112,7 +119,13 @@ class SimulatedBackend:
     def _chain_in(self, x: np.ndarray, sr: int) -> np.ndarray:
         """Send → ProRMP output: insertion loss and the high-frequency tilt."""
         r = self.rig
+        if r.send_clip_dbfs is not None:
+            c = np.float32(10 ** (r.send_clip_dbfs / 20))
+            x = np.clip(x, -c, c)
         x = x * np.float32(10 ** (r.reamp_db / 20))
+        if r.chain_hp_hz > 0:
+            w = 2 * np.pi * r.chain_hp_hz
+            x = _first_order((1.0, 0.0), (1.0, w), x, sr)
         if r.reamp_tilt_db:
             g = 10 ** (r.reamp_tilt_db / 20)
             w = 2 * np.pi * r.reamp_tilt_hz

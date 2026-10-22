@@ -97,16 +97,20 @@ target), and an early Pi Muff stem pair.
   on a clipping loopback too, which is how the 'dropouts always at 21.0 s' were explained: sweep_mid
   starts there, the first section loud enough to clip. Never trust the driver's dropout count alone.
 - **The rig must never be the limiter.** The model is of the pedal: engaged ÷ bypassed cancels the
-  ProRMP, ProDI and In 1 only while that chain is linear. C2 measures the return ceiling (where the
-  chain compresses; 1 kHz and 60 Hz, transformers saturate low first; the 1824c In 1 sat near
-  -15 dBFS on 2026-10-21) and **auto-level** (profile `qc.auto_level`) probes each take with a quiet
-  sweep and lowers the digital send level so the return peaks 6 dB under it. Each take records its
-  send level, the plan and its calibration file (session.json, params.json, FLAC tags); fitting
-  must use the per-take send level. Do not change In 1 gain mid-session (it invalidates C2-C4).
-  The send is never raised above the profile default: stages before the EQ (the GE-7's input
-  stage, LEVEL) could clip where the return cannot see it. QC proves each take linear
-  directly: "Linearity (sweeps)" compares the quietest and loudest sweep (profile
-  `qc.expect_linear`), and "Signal-to-noise" grades the quietest sweep against the pre-roll.
+  ProRMP, ProDI and the return input only while that chain is linear. C2 plays tone steps at 1 kHz
+  and 60 Hz, where the chain's gain differs (~5 dB), and locates the limit: compression starting at
+  the same *sent* level at both is a send-side limit, at the same *return* level a return-side one
+  (`calibrate.limit_kind`). On 2026-10-22 it was send-side, at about -9 dBFS sent, on In 1 and In 3
+  alike. **Auto-level** (profile `qc.auto_level`) probes each take with a quiet sweep and keeps the
+  sent peak 6 dB under the send limit and the predicted return peak 6 dB under the return limit
+  (full scale when only the send side was reached), never above the profile's default send. A take
+  that still fails "Linearity (sweeps)" is played again 6 dB quieter, at most twice
+  (`qc.capture_checked`): that covers limits C2 cannot see, such as the pedal's own output on big
+  boosts. Each take records its send level, the plan, any retakes and its calibration file
+  (session.json, params.json, FLAC tags); fitting must use the per-take send level. Do not change
+  the return input's gain mid-session (it invalidates C2-C4). References C2-C4 must have band
+  coherence >= 0.995 (a glitch during the sweep shows there; Welch's averaged coherence hides it).
+  QC also grades "Signal-to-noise" of the quietest sweep against the pre-roll.
 - **Live plots must stay cheap** (Run page): spectra are log-binned to about 240 points, the live
   curves skip antialiasing, and auto scale is throttled (`widgets.LiveAutoY`). Together they took a
   2400x1300 repaint from about 130 ms to 9 ms on real data (2026-10-20).

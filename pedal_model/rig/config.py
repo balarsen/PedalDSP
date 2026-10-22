@@ -22,10 +22,10 @@ SAMPLE_RATES = (48_000, 96_000)
 DEFAULT_BOXES: dict[str, dict[str, str]] = {
     "interface": {
         "main_knob": "mark it: the Main knob sets the Out 1/2 level (verify)",
-        "in1_gain": "set during calibration (note the knob position)",
-        "in1_48v": "OFF",
-        "in2_gain": "minimum",
-        "in2_48v": "OFF",
+        "return_gain": "set during calibration (note the knob position)",
+        "return_48v": "OFF",
+        "loop_gain": "minimum",
+        "loop_48v": "OFF",
     },
     "prormp": {
         "level": "note the knob position",

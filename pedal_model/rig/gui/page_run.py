@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 
 from pedal_model.rig.analysis import log_bin_db, log_grid, peak_dbfs, spectrum_db
 from pedal_model.rig.bandfit import fit_band
-from pedal_model.rig.calibrate import DEFAULT_CEILING_DBFS, plan_send_level, ref_db_at
+from pedal_model.rig.calibrate import plan_send_level, ref_db_at
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.page_calibrate import confirm_playback, demo_pedal
 from pedal_model.rig.gui.state import AppState
@@ -38,7 +38,7 @@ from pedal_model.rig.profiles import KIND_MAP, Preset, Profile
 from pedal_model.rig.qc import (
     FR_TYPES,
     calibration_reference,
-    check_take,
+    capture_checked,
     expected_response,
     item,
 )
@@ -91,26 +91,29 @@ def _capture_and_check(state: AppState, preset: Preset, role: str, report):
     dry = manifest.load_all()
     send = state.profile.send_level_db
     level_plan = None
-    if state.profile.qc.get("auto_level", False):
+    auto = state.profile.qc.get("auto_level", False)
+    if auto:
         report("Measuring this step's gain (auto-level)")
-        chain = (session.data.get("calibration") or {}).get("chain") or {}
-        ceiling = chain.get("return_ceiling_dbfs") or DEFAULT_CEILING_DBFS
-        level_plan = plan_send_level(state.engine, sig.sample_rate, peak_dbfs(dry), send, ceiling)
+        chain = (session.data.get("calibration") or {}).get("chain")
+        level_plan = plan_send_level(state.engine, sig.sample_rate, peak_dbfs(dry), send, chain)
         send = level_plan["send_level_db"]
-    report("capture")
-    take = state.engine.run(dry, sig.sample_rate, send_level_db=send)
-    if take.aborted:
-        return role, None
-    rep, wet = check_take(
-        take,
+    take, rep, wet, retakes = capture_checked(
+        state.engine,
         dry,
         manifest,
+        sig.sample_rate,
+        send,
+        retake=auto,
+        report=report,
         pedal=state.profile.pedal,
         controls=preset.controls,
         calibration=session.data.get("calibration"),
         qc_limits=state.profile.qc,
-        report=report,
     )
+    if rep is None:
+        return role, None
+    if level_plan is not None:
+        level_plan["retakes"] = retakes
     fit = None
     if preset.kind == KIND_MAP:
         report("Fitting the band (centre, bandwidth, gain)")
@@ -410,6 +413,13 @@ class RunPage(QWidget):
         bar.
         """
         if text == "capture":
+            if self.phase == "analyse":  # an automatic quieter retake: a fresh live view
+                self._set_phase("capture")
+                self.acc_dd[:] = 0.0
+                self.acc_dw[:] = 0.0
+                self._live_corr = None
+                self.c_live.setData([], [])
+                self.c_ratio_live.setData([], [])
             self._capture_started = True
             self._progress_busy(False)
             return

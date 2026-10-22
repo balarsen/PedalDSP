@@ -40,6 +40,21 @@ CEILING_COMPRESSION_DB = 0.5  # a tone this far below the chain gain marks the c
 LOW_TONE_HZ = 60.0
 LOW_LEVELS_DBFS = (-30.0, -18.0, -12.0, -9.0, -6.0, -3.0)
 DEFAULT_CEILING_DBFS = -15.0  # 1824c In 1, measured 2026-10-21; used until C2 measures it
+# Where the chain's limit is. C2 plays its tone steps at 1 kHz and at 60 Hz, where the chain's gain
+# differs (~5 dB on the real rig). A limit on the send side starts at the same SENT level at both
+# frequencies; one on the return side at the same RETURN level. On 2026-10-22 (In 3) both started
+# at -9 dBFS sent while their returns differed by 5 dB: a send-side limit, which the old
+# return-only ceiling turned into a needless 10 dB cut in every take's level.
+LIMIT_KIND_MIN_GAIN_DIFF_DB = 2.0  # the two frequencies' gains must differ this much to tell
+# Return limit when C2 found the send side limits first (the return side was never reached): the
+# converter's full scale. The live linearity check and its automatic retakes cover what this misses
+# (e.g. the pedal's own output stage on big boosts).
+RETURN_FULL_SCALE_DBFS = -1.0
+# A reference whose band coherence (1/12 octave, from the one-FFT estimate) is below this was
+# disturbed during its sweep. Good references read >= 0.999 (60 Hz hum the worst); the bypass
+# reference of 2026-10-22_1600 read 0.984 at 2.9 kHz, which the Welch coherence (0.9997) hid.
+REFERENCE_COHERENCE_WARN = 0.995
+COHERENCE_BAND_OCT = 1 / 12
 LOOP_TONE_DBFS = -20.0
 LOOP_LINEARITY_STEPS_DB = (-20.0, -10.0, 0.0)  # tones relative to the hottest send of a take
 LOOP_LINEARITY_LIMIT_DB = 0.5
@@ -258,19 +273,64 @@ def run_loopback_test(engine: CaptureEngine, sr: int, hottest_dbfs: float = -10.
     }
 
 
-def _ceiling(heard: list[dict]) -> float | None:
-    """Return level (dBFS) of the loudest tone before the first one compressed by more than
-    CEILING_COMPRESSION_DB relative to the quietest heard tone; None if none is compressed."""
+def _onset(heard: list[dict]) -> dict | None:
+    """The loudest tone step before the first one compressed by more than CEILING_COMPRESSION_DB
+    relative to the quietest heard tone (its send_dbfs, return_dbfs, gain_db); None if none is
+    compressed."""
     if not heard:
         return None
     for prev, st in zip(heard, heard[1:]):
         if heard[0]["gain_db"] - st["gain_db"] > CEILING_COMPRESSION_DB:
-            return prev["return_dbfs"]
+            return prev
     return None
 
 
-def _fmt(db: float | None) -> str:
-    return "not reached" if db is None else f"{db:.0f} dBFS"
+def limit_kind(onset_1k: dict | None, onset_low: dict | None, gain_diff_db: float) -> str | None:
+    """Where the chain's limit sits: "send", "return", "unknown", or None if nothing compressed.
+
+    The two frequencies' onsets are compared in sent and in returned level: the limit is on the
+    side where they agree. ``gain_diff_db`` is the chain gain at 1 kHz minus at the low tone; below
+    LIMIT_KIND_MIN_GAIN_DIFF_DB the two cannot be told apart ("unknown": both limits apply).
+    """
+    if onset_1k is None and onset_low is None:
+        return None
+    if onset_1k is None or onset_low is None or abs(gain_diff_db) < LIMIT_KIND_MIN_GAIN_DIFF_DB:
+        return "unknown"
+    d_send = abs(onset_1k["send_dbfs"] - onset_low["send_dbfs"])
+    d_return = abs(onset_1k["return_dbfs"] - onset_low["return_dbfs"])
+    return "send" if d_send < d_return else "return"
+
+
+def rig_limits(chain: dict | None) -> dict:
+    """The limits auto-level plans with, from a C2 result: send_ceiling_dbfs (peak of the sent
+    signal, or None) and return_ceiling_dbfs (peak at the return input).
+
+    A calibration from before the limit was located has only a return ceiling (or none:
+    DEFAULT_CEILING_DBFS).
+    """
+    chain = chain or {}
+    if "limit_kind" not in chain:
+        ceiling = chain.get("return_ceiling_dbfs")
+        return {
+            "limit_kind": None,
+            "send_ceiling_dbfs": None,
+            "return_ceiling_dbfs": DEFAULT_CEILING_DBFS if ceiling is None else ceiling,
+        }
+    kind = chain["limit_kind"]
+    ret = chain.get("return_ceiling_dbfs") if kind in ("return", "unknown") else None
+    return {
+        "limit_kind": kind,
+        "send_ceiling_dbfs": chain.get("send_ceiling_dbfs")
+        if kind in ("send", "unknown")
+        else None,
+        "return_ceiling_dbfs": RETURN_FULL_SCALE_DBFS if ret is None else ret,
+    }
+
+
+def _onset_text(onset: dict | None) -> str:
+    if onset is None:
+        return "not reached"
+    return f"{onset['send_dbfs']:.0f} dBFS sent, {onset['return_dbfs']:.0f} dBFS returned"
 
 
 def run_chain_test(
@@ -333,9 +393,9 @@ def run_chain_test(
     predicted = hottest + gain
     # Clipping is judged on the tones a take could produce; the louder ones probe the ceiling.
     peak_seen = max((st["return_dbfs"] for st in used), default=peak_dbfs(take.rec[:, 0]))
-    # Ceiling: the return level of the loudest tone before the first one compressed by more than
-    # CEILING_COMPRESSION_DB. Above it the DI path, not the pedal, shapes the signal.
-    ceiling = _ceiling(heard)
+    # Onset: the loudest tone before the first one compressed by more than CEILING_COMPRESSION_DB.
+    # Above it the rig, not the pedal, shapes the signal.
+    onset_1k = _onset(heard)
     low_steps = []
     for lvl, s in zip(LOW_LEVELS_DBFS, low_starts):
         send = take.play[pre + s + a : pre + s + b, 0]
@@ -348,16 +408,22 @@ def run_chain_test(
             }
         )
     low_heard = [st for st in low_steps if st["return_dbfs"] > noise + HEARD_ABOVE_NOISE_DB]
-    low_ceiling = _ceiling(low_heard)
-    found = [c for c in (ceiling, low_ceiling) if c is not None]
-    ceiling_1k = ceiling
-    ceiling = min(found) if found else None
+    onset_low = _onset(low_heard)
+    low_gain = low_heard[0]["gain_db"] if low_heard else gain
+    kind = limit_kind(onset_1k, onset_low, gain - low_gain)
+    onsets = [o for o in (onset_1k, onset_low) if o is not None]
+    send_ceiling = min(o["send_dbfs"] for o in onsets) if onsets else None
+    ceiling = min(o["return_dbfs"] for o in onsets) if onsets else None
+    ceiling_1k = onset_1k["return_dbfs"] if onset_1k else None
+    low_ceiling = onset_low["return_dbfs"] if onset_low else None
     result = {
         "lag_samples": int(lag),
         "gain_db": gain,
         "linearity_spread_db": spread,
         "return_noise_dbfs": noise,
-        "return_ceiling_dbfs": ceiling,
+        "limit_kind": kind,
+        "send_ceiling_dbfs": send_ceiling,
+        "return_ceiling_dbfs": ceiling if kind in ("return", "unknown") else None,
         "return_ceiling_1k_dbfs": ceiling_1k,
         "return_ceiling_60hz_dbfs": low_ceiling,
         "low_steps": low_steps,
@@ -436,20 +502,36 @@ def run_chain_test(
                 f"level + {LINEARITY_MARGIN_DB:.0f} dB): gain spread {spread:.2f} dB.",
             )
         )
-    if ceiling is not None:
+    onset_text = (
+        f"1 kHz: {_onset_text(onset_1k)}; {LOW_TONE_HZ:.0f} Hz: {_onset_text(onset_low)}; the "
+        f"chain is {gain - low_gain:+.1f} dB louder at 1 kHz"
+    )
+    if kind == "send":
         lines.append(
             advice(
                 "ok",
-                f"Return ceiling: the chain compresses above about {ceiling:.0f} dBFS on In 1 "
-                f"(1 kHz: {_fmt(ceiling_1k)}, 60 Hz: {_fmt(low_ceiling)}). Auto-level keeps every "
-                f"take's peak {AUTO_LEVEL_HEADROOM_DB:.0f} dB under it.",
+                f"Limit on the send side: the chain compresses above about {send_ceiling:.0f} dBFS "
+                f"sent, at the same sent level at both frequencies ({onset_text}). Auto-level "
+                f"keeps every take's sent peak {AUTO_LEVEL_HEADROOM_DB:.0f} dB under it; the "
+                "pedal's gain does not change it.",
+            )
+        )
+    elif kind is not None:
+        where = "Limit on the return side" if kind == "return" else "Limit found (side unclear)"
+        lines.append(
+            advice(
+                "ok",
+                f"{where}: the return compresses above about {ceiling:.0f} dBFS ({onset_text}). "
+                f"Auto-level keeps every take's return peak {AUTO_LEVEL_HEADROOM_DB:.0f} dB under "
+                "it.",
             )
         )
     elif heard:
         lines.append(
             advice(
                 "ok",
-                f"Return ceiling not reached up to {heard[-1]['return_dbfs']:.0f} dBFS on In 1.",
+                f"No limit reached up to {heard[-1]['send_dbfs']:.0f} dBFS sent "
+                f"({heard[-1]['return_dbfs']:.0f} dBFS returned).",
             )
         )
     above = [st for st in heard if st["send_dbfs"] > hottest + LINEARITY_MARGIN_DB]
@@ -541,12 +623,25 @@ def reference_from_take(take: Take, name: str) -> dict:
     y = take.rec[pre + lag : pre + lag + m, 0].astype(np.float64)
     big_n = 1 << int(np.ceil(np.log2(2 * m)))
     f = np.fft.rfftfreq(big_n, 1 / sr)
-    h = np.fft.rfft(y, big_n) / np.fft.rfft(x, big_n)
+    big_x, big_y = np.fft.rfft(x, big_n), np.fft.rfft(y, big_n)
+    h = big_y / big_x
     sweep_top = min(20_000.0, 0.45 * sr)
     swept = (f >= REFERENCE_F_LO) & (f <= SWEPT_FRACTION * sweep_top)
     grid = log_grid(REFERENCE_F_LO, min(REFERENCE_F_HI, 0.45 * sr))
     mag = smooth_octave(f[swept], 20 * np.log10(np.abs(h[swept]) + 1e-12), grid)
     phase = np.interp(grid, f[swept], np.unwrap(np.angle(h[swept])))
+    # Band coherence |Σ X*Y|² / (Σ|X|² Σ|Y|²) over 1/12 octave, with the chain's delay removed so
+    # the phase does not turn across the band. A short disturbance during the sweep (a click, a
+    # glitch) lowers it at the frequency the sweep was passing; Welch's averaged coherence hides it.
+    s_xy = np.conj(big_x) * big_y * np.exp(2j * np.pi * f * (return_lag - lag) / sr)
+    half = 2 ** (COHERENCE_BAND_OCT / 2)
+    band_coh = np.ones(len(grid))
+    for i, fc in enumerate(grid):
+        lo, hi = np.searchsorted(f, [fc / half, fc * half])
+        if hi > lo:
+            num = np.abs(np.sum(s_xy[lo:hi])) ** 2
+            den = np.sum(np.abs(big_x[lo:hi]) ** 2) * np.sum(np.abs(big_y[lo:hi]) ** 2)
+            band_coh[i] = num / den if den > 0 else 0.0
     return {
         "name": name,
         "lag_samples": int(lag),
@@ -555,6 +650,7 @@ def reference_from_take(take: Take, name: str) -> dict:
         "mag_db": [round(float(v), 5) for v in mag],
         "phase_rad": [round(float(v), 5) for v in phase],
         "coherence": [round(float(v), 5) for v in np.interp(grid, f_w, coh)],
+        "band_coherence": [round(float(v), 5) for v in band_coh],
         "noise_dbfs": rms_dbfs(take.rec[int(0.1 * sr) : pre, 0]),
         "gain_1k_db": float(np.interp(np.log(1000.0), np.log(grid), mag)),
         "file": None,  # the raw capture, relative to the session folder, once saved
@@ -571,25 +667,32 @@ def plan_send_level(
     sr: int,
     signal_peak_dbfs: float,
     default_send_db: float,
-    ceiling_dbfs: float,
+    chain: dict | None,
 ) -> dict:
-    """Auto-level: choose a take's send level so the rig's return path never clips.
+    """Auto-level: choose a take's send level so the rig never limits it.
 
-    A quiet probe sweep measures G, the largest gain from send to return (chain and pedal,
-    1/6-octave smoothed). The take's return peak is then about signal peak + send level + G, and
-    the send level is lowered until that is AUTO_LEVEL_HEADROOM_DB under the ceiling, never
-    raised above the profile's default. With the return linear, engaged ÷ bypassed still cancels
-    the DI boxes.
+    Two limits (``rig_limits`` of the C2 result), each kept AUTO_LEVEL_HEADROOM_DB (H) away:
+
+        send side:    signal peak + send                    <= S - H
+        return side:  signal peak + send + G                <= R - H
+
+    G is the largest gain from send to return (chain and pedal, 1/6-octave smoothed), measured with
+    a quiet probe sweep. The send level is the larger one both allow, never above the profile's
+    default. With the rig linear, engaged ÷ bypassed still cancels the DI boxes.
 
     Args:
         signal_peak_dbfs: Peak of the dry signal the take will play (before the send level).
         default_send_db: The profile's send level (the most a take may use).
-        ceiling_dbfs: Return level where the chain starts to compress (C2), in dBFS.
+        chain: The session's C2 result (or None: DEFAULT_CEILING_DBFS on the return).
 
     Returns:
         dict: send_level_db, default_send_db, probe_max_gain_db, probe_max_gain_hz,
-        predicted_peak_dbfs, ceiling_dbfs, headroom_db, probe_return_peak_dbfs.
+        predicted_peak_dbfs (return), predicted_send_peak_dbfs, limit_kind,
+        send_ceiling_dbfs, ceiling_dbfs (return), headroom_db, probe_return_peak_dbfs.
     """
+    limits = rig_limits(chain)
+    ceiling_dbfs = limits["return_ceiling_dbfs"]
+    send_ceiling = limits["send_ceiling_dbfs"]
     probe_db = AUTO_LEVEL_PROBE_DBFS
     for _ in range(2):  # a second, quieter try if the probe itself reached the ceiling
         sweep = reference_signal(sr) * np.float32(10 ** ((probe_db - REFERENCE_DBFS) / 20))
@@ -604,14 +707,18 @@ def plan_send_level(
     band = (f >= AUTO_LEVEL_BAND_HZ[0]) & (f <= AUTO_LEVEL_BAND_HZ[1])
     i = int(np.argmax(np.where(band, mag, -np.inf)))
     gain_max = float(mag[i])
-    target = ceiling_dbfs - AUTO_LEVEL_HEADROOM_DB
-    send = min(default_send_db, target - signal_peak_dbfs - gain_max)
+    send = min(default_send_db, ceiling_dbfs - AUTO_LEVEL_HEADROOM_DB - signal_peak_dbfs - gain_max)
+    if send_ceiling is not None:
+        send = min(send, send_ceiling - AUTO_LEVEL_HEADROOM_DB - signal_peak_dbfs)
     return {
         "send_level_db": round(float(send), 2),
         "default_send_db": float(default_send_db),
         "probe_max_gain_db": round(gain_max, 2),
         "probe_max_gain_hz": round(float(f[i]), 1),
         "predicted_peak_dbfs": round(float(signal_peak_dbfs + send + gain_max), 2),
+        "predicted_send_peak_dbfs": round(float(signal_peak_dbfs + send), 2),
+        "limit_kind": limits["limit_kind"],
+        "send_ceiling_dbfs": send_ceiling,
         "ceiling_dbfs": float(ceiling_dbfs),
         "headroom_db": AUTO_LEVEL_HEADROOM_DB,
         "probe_return_peak_dbfs": round(float(probe_peak), 2),
@@ -642,6 +749,22 @@ def check_reference(ref: dict) -> list[dict]:
         ]
     f = np.asarray(ref["freqs_hz"])
     sel = (f >= COMPARE_BAND_HZ[0]) & (f <= COMPARE_BAND_HZ[1])
+    if "band_coherence" in ref:
+        band_coh = np.asarray(ref["band_coherence"])[sel]
+        i = int(np.argmin(band_coh))
+        if band_coh[i] < REFERENCE_COHERENCE_WARN:
+            return [
+                advice(
+                    "warn",
+                    f"Disturbed: coherence {band_coh[i]:.3f} at {f[sel][i]:.0f} Hz (a clean sweep "
+                    f"reads ≥ {REFERENCE_COHERENCE_WARN}). Something happened while the sweep "
+                    "passed that frequency (a click, a bump, a glitch): every take is divided by "
+                    "this curve, so run this step again.",
+                )
+            ]
+        return [
+            advice("ok", f"Response measured; band coherence ≥ {band_coh[i]:.4f}, 50 Hz–10 kHz.")
+        ]
     coh = float(np.min(np.asarray(ref["coherence"])[sel]))
     st = "ok" if coh > 0.98 else "warn"
     note = "" if st == "ok" else " Low: noise, hum or a loose cable."

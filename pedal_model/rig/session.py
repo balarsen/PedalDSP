@@ -216,6 +216,9 @@ class Session:
             "session": self.root.name,
             "profile": self.profile_id,
             "sample_rate": self.sample_rate,
+            # Which inputs carried the return and the loopback (the In 1 vs In 3 ceiling test
+            # compares calibrations made on different inputs).
+            "channels": dict(self.data["rig"]["channels"]),
             "code_version": code_version(),
             "file": f"calibration_{stamp}.json",
         }

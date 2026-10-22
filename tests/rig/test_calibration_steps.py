@@ -213,6 +213,7 @@ def test_session_stores_references_and_their_audio(masters, tmp_path):
     saved = json.loads(path.read_text(encoding="utf-8"))
     assert set(saved["references"]) == {"chain", "bypass", "engaged_flat"}
     assert saved["steps"]["C4"]["status"] == "ok"
+    assert saved["channels"]["return_in"] == RigConfig().channels.return_in
     reloaded = Session.load(s.root).data["calibration"]
     assert reloaded["references"]["bypass"]["gain_1k_db"] < 0
     assert saved["code_version"] == code_version() != "unknown"

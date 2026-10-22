@@ -1,0 +1,34 @@
+{
+  "saved": "2026-10-22T16:25:26",
+  "code_version": "606f705",
+  "asio_device": "Studio USB ASIO Driver",
+  "block_size": 1024,
+  "loop_send_db": -30.0,
+  "channels": {
+    "send_out": 1,
+    "loop_out": 2,
+    "return_in": 3,
+    "loop_in": 2
+  },
+  "boxes": {
+    "interface": {
+      "main_knob": "max",
+      "return_gain": "set during calibration (note the knob position)",
+      "return_48v": "OFF",
+      "loop_gain": "4 line off",
+      "loop_48v": "OFF"
+    },
+    "prormp": {
+      "level": "note the knob position",
+      "ground_lift": "off"
+    },
+    "pedal": {
+      "engaged": "on (LED lit)",
+      "power": "9 V supply"
+    },
+    "prodi": {
+      "pad_15db": "off",
+      "ground_lift": "off"
+    }
+  }
+}

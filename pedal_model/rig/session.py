@@ -54,6 +54,15 @@ def write_capture(path: Path, audio: np.ndarray, sr: int, description: str) -> N
         f.write(audio)
 
 
+def unused_path(path: Path) -> Path:
+    """``path``, or with _2, _3 ... before the suffix if it exists: a capture never overwrites
+    another (names carry the minute, and two saves can fall in the same minute)."""
+    out, n = path, 2
+    while out.exists():
+        out, n = path.with_name(f"{path.stem}_{n}{path.suffix}"), n + 1
+    return out
+
+
 def _utc() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -205,7 +214,15 @@ class Session:
         ``references`` are the C2-C4 response curves by name ("chain", "bypass", "engaged_flat");
         ``steps`` the status of each guided step ("C1"... with status, advice, time).
         """
+        # Dated name; never overwrite a file a take already refers to (a recalibration within the
+        # same minute would otherwise change what that take was checked against).
         stamp = local_stamp()
+        used = {
+            t.get("calibration_file") for p in self.data["presets"].values() for t in p["takes"]
+        }
+        name, n = f"calibration_{stamp}.json", 2
+        while name in used:
+            name, n = f"calibration_{stamp}_{n}.json", n + 1
         cal = {
             "loopback": loopback,
             "chain": chain,
@@ -220,10 +237,10 @@ class Session:
             # compares calibrations made on different inputs).
             "channels": dict(self.data["rig"]["channels"]),
             "code_version": code_version(),
-            "file": f"calibration_{stamp}.json",
+            "file": name,
         }
         self.data["calibration"] = cal
-        path = self.root / f"calibration_{stamp}.json"
+        path = self.root / name
         path.write_text(json.dumps(cal, indent=2) + "\n", encoding="utf-8", newline="\n")
         self.log("calibrated", file=path.name)
         return path
@@ -233,7 +250,7 @@ class Session:
         d = self.root / "calibration"
         d.mkdir(exist_ok=True)
         fname = f"{self.profile_id}_ref_{name}_raw_{self.sample_rate // 1000}k_{local_stamp()}"
-        path = d / (fname + CAPTURE_EXT)
+        path = unused_path(d / (fname + CAPTURE_EXT))
         what = f"{self.root.name} reference {name}: return, loopback"
         write_capture(path, take.rec, take.sr, what)
         rel = path.relative_to(self.root).as_posix()
@@ -278,8 +295,8 @@ class Session:
         d = self.preset_dir(preset.name)
         d.mkdir(exist_ok=True)
         stamp = local_stamp()
-        wet_name = self._file_name(preset.name, role, "wet", stamp)
-        raw_name = self._file_name(preset.name, role, "raw", stamp)
+        wet_name = unused_path(d / self._file_name(preset.name, role, "wet", stamp)).name
+        raw_name = unused_path(d / self._file_name(preset.name, role, "raw", stamp)).name
         what = f"{self.root.name} {preset.name} {role}"
         what += f", send level {take.send_level_db:+.1f} dB"
         write_capture(d / wet_name, wet, take.sr, f"{what}: aligned return")

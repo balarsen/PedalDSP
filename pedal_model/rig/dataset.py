@@ -245,16 +245,30 @@ def session_dataset(root: Path, roles: tuple[str, ...] = ("train", "sweep")) -> 
     """
     data = json.loads((root / "session.json").read_text(encoding="utf-8"))
     sr = int(data["sample_rate"])
-    refs = (data.get("calibration") or {}).get("references") or {}
-    if "bypass" not in refs or "chain" not in refs:
-        raise ValueError(f"{root.name}: the calibration has no chain and bypass references")
     sweep = np.concatenate([reference_signal(sr), np.zeros(int(GAP_S * sr), np.float32)])
-    ref_h = {}
-    for name in ("chain", "bypass"):
-        take = rebuild_take(root / refs[name]["file"], sweep, 0.0)
-        ref_h[name] = reference_response(take)
-    h_bypass, coh_bypass, _ = ref_h["bypass"]
-    h_chain, coh_chain, _ = ref_h["chain"]
+    cache: dict[str, dict] = {}
+
+    def references(cal_file: str | None) -> dict:
+        """chain and bypass (H, coherence) of a calibration file (None: the session's latest).
+        A take is divided by the calibration it was recorded with, so recalibrating in a later
+        sitting never changes the earlier takes."""
+        key = cal_file or ""
+        if key not in cache:
+            cal = data.get("calibration") or {}
+            if cal_file and (root / cal_file).is_file():
+                cal = json.loads((root / cal_file).read_text(encoding="utf-8"))
+            refs = cal.get("references") or {}
+            if "bypass" not in refs or "chain" not in refs:
+                raise ValueError(f"{root.name}: no chain and bypass references ({key or 'latest'})")
+            cache[key] = {
+                n: reference_response(rebuild_take(root / refs[n]["file"], sweep, 0.0))[:2]
+                for n in ("chain", "bypass")
+            }
+        return cache[key]
+
+    latest = references(None)
+    h_bypass, coh_bypass = latest["bypass"]
+    h_chain, coh_chain = latest["chain"]
 
     takes = []
     for name, p in data["presets"].items():
@@ -265,8 +279,9 @@ def session_dataset(root: Path, roles: tuple[str, ...] = ("train", "sweep")) -> 
             send = t.get("send_level_db", data["send_level_db"])
             take = rebuild_take(root / name / t["raw_wav"], m.load_all(), send)
             h, coh, info = take_response(take, m)
+            h_ref, coh_ref = references(t.get("calibration_file"))["bypass"]
             with np.errstate(invalid="ignore"):
-                curve = _curve(h / h_bypass, np.minimum(coh, coh_bypass))
+                curve = _curve(h / h_ref, np.minimum(coh, coh_ref))
             takes.append(
                 {
                     "preset": name,
@@ -276,6 +291,7 @@ def session_dataset(root: Path, roles: tuple[str, ...] = ("train", "sweep")) -> 
                     "verdict": t.get("verdict"),
                     "controls": p.get("controls"),
                     "send_level_db": send,
+                    "calibration_file": t.get("calibration_file"),
                     **info,
                     **curve,
                 }

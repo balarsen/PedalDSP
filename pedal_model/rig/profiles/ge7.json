@@ -5,14 +5,14 @@
   "pedal_class": "linear_eq",
   "control_kind": "sliders",
   "controls": [
-    {"key": "hz_100",  "label": "100",   "min": -15, "max": 15, "unit": "dB", "band_hz": 100},
-    {"key": "hz_200",  "label": "200",   "min": -15, "max": 15, "unit": "dB", "band_hz": 200},
-    {"key": "hz_400",  "label": "400",   "min": -15, "max": 15, "unit": "dB", "band_hz": 400},
-    {"key": "hz_800",  "label": "800",   "min": -15, "max": 15, "unit": "dB", "band_hz": 800},
-    {"key": "hz_1600", "label": "1.6k",  "min": -15, "max": 15, "unit": "dB", "band_hz": 1600},
-    {"key": "hz_3200", "label": "3.2k",  "min": -15, "max": 15, "unit": "dB", "band_hz": 3200},
-    {"key": "hz_6400", "label": "6.4k",  "min": -15, "max": 15, "unit": "dB", "band_hz": 6400},
-    {"key": "level",   "label": "LEVEL", "min": -15, "max": 15, "unit": "dB"}
+    {"key": "hz_100",  "label": "100",   "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15], "band_hz": 100},
+    {"key": "hz_200",  "label": "200",   "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15], "band_hz": 200},
+    {"key": "hz_400",  "label": "400",   "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15], "band_hz": 400},
+    {"key": "hz_800",  "label": "800",   "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15], "band_hz": 800},
+    {"key": "hz_1600", "label": "1.6k",  "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15], "band_hz": 1600},
+    {"key": "hz_3200", "label": "3.2k",  "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15], "band_hz": 3200},
+    {"key": "hz_6400", "label": "6.4k",  "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15], "band_hz": 6400},
+    {"key": "level",   "label": "LEVEL", "min": -15, "max": 15, "unit": "dB", "ticks": [15, 10, 5, 0, -5, -10, -15]}
   ],
   "presets_dir": "recordings/data/ge7/presets",
   "first_preset": "flat",
@@ -20,8 +20,8 @@
   "send_level_db": -10.0,
   "send_level_note": "docs/ge7_plan.md: the passive reamp path saturates above about -12 dBFS; train_signal_v2 peaks at -2 dBFS, so send at -10 dB.",
   "map": {
-    "positions": [15, 7.5, -7.5, -15],
-    "note": "Slider map: each slider alone at +15, +7.5, -7.5 and -15 dB with the sweep-only signal; the fit gives centre frequency, Q/bandwidth and gain per position."
+    "positions": [15, 10, -10, -15],
+    "note": "Slider map: each slider alone at +15, +10, -10 and -15 dB (end stops and the panel's ticks, so every position can be set exactly) with the sweep-only signal; the fit gives centre frequency, Q/bandwidth and gain per position. ±10 rather than ±7.5 (between ticks): the A0 identifiability is as good or slightly better (2026-10-22)."
   },
   "preset_notes": {
     "flat": "Every slider at the centre detent. The pedal should be close to a wire: this is the reference every other preset is compared with, and the calibration preset. A good flat take nulls almost completely against the send.",

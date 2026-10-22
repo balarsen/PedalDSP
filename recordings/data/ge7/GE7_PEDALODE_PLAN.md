@@ -168,9 +168,9 @@ These were measured relative to flat, without removing the chain, on the old Stu
     ordering and a non-zero deviation are firm predictions; the size depends on the parameters.
   - **Decision D0:** if even adjacent pairs add up within the floor, the shared summing stage doesn't
     matter, a cascade suffices, and we re-plan.
-- **P0.2 Reciprocity.** From the slider map's ±7.5 and ±15 steps, compare dB(+x) with −dB(−x). They are
+- **P0.2 Reciprocity.** From the slider map's ±10 and ±15 steps, compare dB(+x) with −dB(−x). They are
   equal if ρ_a = ρ_b. An offset or a tilt shows asymmetry.
-- **P0.3 Q against the slider.** From the map's band fits, the effective Q at ±7.5 should be lower than at
+- **P0.3 Q against the slider.** From the map's band fits, the effective Q at ±10 should be lower than at
   ±15.
 - **P0.4 Repeatability floor.** Capture flat and smile three times each, and once more after re-plugging.
   The RMS difference (50 Hz–10 kHz) is the floor every criterion is measured against.
@@ -284,7 +284,7 @@ with the **sweeps** signal kind; the Plan page's **Load record run** button buil
 |---|---|---|
 | C1–C4 | – | 0.5 min (+ cable moves) |
 | Repeatability (P0.4): flat and smile (sweeps + val), 2 untouched repeats each, then each once after re-plugging cables A and B | 8 | 11 min |
-| Slider map: each slider alone at ±15, ±7.5 | 32 | 36 min |
+| Slider map: each slider alone at ±15, ±10 (end stops and panel ticks: set exactly; ±7.5 falls between ticks, and A0 pins the parameters as well or better at ±10) | 32 | 36 min |
 | Interaction (P0.1): each adjacent pair at (+15, +15) and (+15, −15), plus 100 Hz + 800 Hz and 800 Hz + 6.4 kHz | 16 | 18 min |
 | The other presets, sweeps + val (all_up_2 and all_up_pad15 left out: duplicates) | 11 | 25 min |
 | Random settings, 5 dB grid, seeded: 8 for fitting (seed 1), 8 for validation (seed 2) | 16 | 18 min |

@@ -252,3 +252,19 @@ def test_takes_record_their_send_level_plan_and_calibration(masters, tmp_path):
     assert cap["send_level_db"] == -17.5 and cap["auto_level"]["probe_max_gain_db"] == 3.0
     assert cap["calibration_file"] == s.data["calibration"]["file"]
     assert (s.root / cap["calibration_file"]).is_file()
+
+
+def test_drift_check_passes_an_unchanged_rig_and_catches_a_change():
+    """A later sitting: the bypassed path measured again against the stored C3 reference."""
+    from pedal_model.rig.calibrate import DRIFT_WARN_DB, check_drift
+
+    rig = SimulatedRig()
+    eng = _engine(rig)
+    cal, _ = _calibrate(eng)
+    eng.backend.set_pedal_state("bypass")
+    same = check_drift(eng, SR, cal["references"]["bypass"])
+    assert same["status"] == "ok" and same["max_db"] < DRIFT_WARN_DB
+    assert same["reference"]["name"] == "bypass_check"
+    rig.return_gain_db += 0.5  # someone nudged the return input's gain knob
+    moved = check_drift(eng, SR, cal["references"]["bypass"])
+    assert moved["status"] == "fail" and abs(moved["median_db"] - 0.5) < 0.05

@@ -200,7 +200,7 @@ class ControlPanel(QWidget):
             v = self.values[c["key"]]
             p.setPen(QPen(QColor("#222"), 3))
             p.drawLine(int(x), int(top), int(x), int(bottom))
-            for db in (hi, hi / 2, 0, lo / 2, lo):
+            for db in c.get("ticks") or (hi, hi / 2, 0, lo / 2, lo):  # as printed on the panel
                 y = top + (hi - db) / (hi - lo) * (bottom - top)
                 p.setPen(QPen(QColor("#555"), 1 if db else 2))
                 p.drawLine(int(x - 12), int(y), int(x - 6), int(y))
@@ -232,7 +232,8 @@ class ControlPanel(QWidget):
         p.drawText(
             QRectF(0, h - 18, w, 16),
             Qt.AlignCenter,
-            "+15 dB at the top, 0 at the centre detent, −15 dB at the bottom",
+            "+15 dB at the top, 0 at the centre detent, −15 dB at the bottom; ticks as on the "
+            "panel",
         )
 
 

@@ -229,11 +229,11 @@ def fit_bypass(
 
 
 def a0_settings(n_random: int = 24, seed: int = 0) -> Tensor:
-    """All-centre, the slider map (each slider alone at ±15, ±7.5), adjacent-band pairs (both up,
+    """All-centre, the slider map (each slider alone at ±15, ±10), adjacent-band pairs (both up,
     and opposite), and random settings. Shape (N, 8) panel dB."""
     rows = [[0.0] * len(SLIDER_KEYS)]
     for i in range(len(SLIDER_KEYS)):
-        for v in (15.0, 7.5, -7.5, -15.0):
+        for v in (15.0, 10.0, -10.0, -15.0):
             row = [0.0] * len(SLIDER_KEYS)
             row[i] = v
             rows.append(row)

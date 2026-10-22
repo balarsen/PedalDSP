@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
 )
 
 from pedal_model.rig.analysis import peak_dbfs
-from pedal_model.rig.calibrate import CAL_STEPS, ref_db_at, run_step
+from pedal_model.rig.calibrate import CAL_STEPS, check_drift, ref_db_at, run_step
 from pedal_model.rig.gui import theme
 from pedal_model.rig.gui.diagram import BlockDiagram
 from pedal_model.rig.gui.state import AppState
@@ -204,6 +204,22 @@ class CalibratePage(QWidget):
         lay.addWidget(self.table)
         left.addWidget(f, 1)
 
+        f, lay = card("Continuing a session later? Drift check")
+        lay.addWidget(
+            label(
+                "Before more takes in a later sitting: cables as for C3/C4, footswitch OFF "
+                "(bypassed). This measures the bypassed path again and compares it with the "
+                "stored C3 reference, without replacing it.",
+                "dim",
+            )
+        )
+        self.drift_btn = QPushButton("Run drift check (bypassed)")
+        self.drift_btn.clicked.connect(self._drift)
+        lay.addWidget(self.drift_btn, 0, Qt.AlignLeft)
+        self.drift_note = label("", "dim")
+        lay.addWidget(self.drift_note)
+        right.addWidget(f)
+
         self.save_note = label("", "dim")
         right.addWidget(self.save_note)
         nxt = QPushButton("Continue to Plan →")
@@ -318,6 +334,43 @@ class CalibratePage(QWidget):
         self.state.calibration_changed.emit()
         self.save_note.setText(f"Calibration saved: {s.root.name}/{path.name} (and session.json).")
         self._refresh()
+
+    def _drift(self) -> None:
+        st = self.state
+        if st.session is None or "bypass" not in self.references:
+            QMessageBox.information(self, "Drift check", "This session has no C3 reference yet.")
+            return
+        if not confirm_playback(self, st):
+            return
+        if st.simulated:
+            st.engine.backend.set_pedal_state("bypass")
+        self.drift_btn.setEnabled(False)
+        self.drift_note.setText("Running…")
+        run_async(
+            check_drift,
+            st.engine,
+            st.sample_rate,
+            self.references["bypass"],
+            on_done=self._drift_done,
+            on_fail=self._failed,
+        )
+
+    def _drift_done(self, res: dict) -> None:
+        self.drift_btn.setEnabled(True)
+        s = self.state.session
+        rel = s.save_reference(f"{res['name']}_check", res["take"])
+        s.log(
+            "drift_check",
+            reference=res["name"],
+            file=rel,
+            max_db=round(res["max_db"], 4),
+            median_db=round(res["median_db"], 4),
+            max_phase_deg=round(res["max_phase_deg"], 2),
+            status=res["status"],
+        )
+        colour = theme.STATUS_COLOURS[res["status"]]
+        text = " ".join(a["text"] for a in res["advice"])
+        self.drift_note.setText(f"<span style='color:{colour}'>{text}</span>")
 
     def _show_tones(self, steps: list[dict]) -> None:
         self.table.setRowCount(len(steps))

@@ -54,6 +54,10 @@ RETURN_FULL_SCALE_DBFS = -1.0
 # disturbed during its sweep. Good references read >= 0.999 (60 Hz hum the worst); the bypass
 # reference of 2026-10-22_1600 read 0.984 at 2.9 kHz, which the Welch coherence (0.9997) hid.
 REFERENCE_COHERENCE_WARN = 0.995
+# Drift check (a stored reference measured again, e.g. before a second sitting). Within a session
+# the same path repeats to ~0.01-0.03 dB; across sessions on different inputs it moved 0.07 dB.
+DRIFT_WARN_DB = 0.05
+DRIFT_FAIL_DB = 0.2
 COHERENCE_BAND_OCT = 1 / 12
 LOOP_TONE_DBFS = -20.0
 LOOP_LINEARITY_STEPS_DB = (-20.0, -10.0, 0.0)  # tones relative to the hottest send of a take
@@ -832,6 +836,55 @@ def check_engaged(engaged: dict, bypass: dict, chain: dict | None = None) -> lis
             "ok", f"Engaged ÷ bypassed: {med:+.2f} dB, within ±{worst:.2f} dB from 50 Hz to 10 kHz."
         )
     ]
+
+
+def check_drift(engine: CaptureEngine, sr: int, stored: dict) -> dict:
+    """Measure a stored reference's path again (same sweep) and compare, without replacing it.
+
+    For a session continued in a later sitting: with the pedal bypassed, the bypass reference
+    measured now must match the one the earlier takes were divided by.
+
+        drift(f) = |H_now(f)| / |H_stored(f)| in dB, over COMPARE_BAND_HZ
+
+    Returns:
+        dict: name, max_db (largest |drift|), median_db, max_phase_deg, reference (the new
+        curve), take (for saving), advice, status.
+    """
+    take = engine.run(_reference_play(sr), sr, send_level_db=0.0, route="both")
+    ref = reference_from_take(take, f"{stored['name']}_check")
+    d = _band_diff(ref, stored)
+    f = np.asarray(ref["freqs_hz"])
+    sel = (f >= COMPARE_BAND_HZ[0]) & (f <= COMPARE_BAND_HZ[1])
+    phase_now = np.asarray(ref["phase_rad"])[sel]
+    phase_then = np.interp(np.log(f[sel]), np.log(stored["freqs_hz"]), stored["phase_rad"])
+    worst, med = float(np.max(np.abs(d))), float(np.median(d))
+    phase = float(np.degrees(np.max(np.abs(phase_now - phase_then))))
+    lines = check_reference(ref)
+    text = (
+        f"Drift of the {stored['name']} path since calibration: at most {worst:.3f} dB "
+        f"(median {med:+.3f} dB), phase {phase:.1f}°, 50 Hz–10 kHz."
+    )
+    if worst < DRIFT_WARN_DB:
+        lines.append(advice("ok", text + " Continue the session."))
+    else:
+        lines.append(
+            advice(
+                "warn" if worst < DRIFT_FAIL_DB else "fail",
+                text + " The rig changed (a knob, a cable, the supply?). Find what moved and put "
+                "it back, or recalibrate C2-C4 before more takes: the takes so far keep their own "
+                "calibration file.",
+            )
+        )
+    return {
+        "name": stored["name"],
+        "max_db": worst,
+        "median_db": med,
+        "max_phase_deg": phase,
+        "reference": ref,
+        "take": take,
+        "advice": lines,
+        "status": worst_status(lines),
+    }
 
 
 # ── One guided step ─────────────────────────────────────────────────────── #

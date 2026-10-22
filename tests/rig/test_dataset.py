@@ -143,3 +143,31 @@ def test_session_dataset_drops_a_clipped_sweep(masters):
     t = D.session_dataset(s.root)["takes"][0]
     assert t["sections_used"] == ["sweep_low"]
     assert [d["label"] for d in t["sections_dropped"]] == ["sweep_high"]
+
+
+def test_each_take_keeps_its_own_calibration(masters):
+    """Recalibrating in a later sitting (here: the return gain moved 1 dB, then C1-C4 again) must
+    not change the takes made before it: each is divided by the calibration it was recorded with."""
+    rig = SimulatedRig(**IDEAL)
+    s = _session(masters, rig, [(Preset("flat", "", FLAT), FLAT)])
+    first_cal = s.take("flat", "train")["calibration_file"]
+    rig.return_gain_db += 1.0
+    eng = CaptureEngine(SimulatedBackend(rig, speed=0), block_size=1024)
+    flat = Ge7Sim.from_sliders(Ge7Sliders.from_dict(FLAT))
+    cal, results = simulate_guided_calibration(
+        eng, SR, send_level_db=-10.0, train_peak_dbfs=-2.0,
+        engaged_pedal=lambda x, sr: flat.process(x, sr),
+    )  # fmt: skip
+    for r in results:
+        if r["reference"] is not None:
+            cal["references"][r["reference"]["name"]]["file"] = s.save_reference(
+                r["reference"]["name"], r["take"]
+            )
+    s.set_calibration(cal["loopback"], cal["chain"], cal["references"], cal["steps"])
+    assert s.data["calibration"]["file"] != first_cal
+    t = D.session_dataset(s.root)["takes"][0]
+    assert t["calibration_file"] == first_cal
+    h = _h(t)
+    ok = np.isfinite(h) & BAND
+    # divided by its own (pre-move) bypass: still the pedal alone, 0.4 dB engaged gain
+    np.testing.assert_allclose(20 * np.log10(np.abs(h[ok])), rig.engaged_gain_db, atol=0.05)

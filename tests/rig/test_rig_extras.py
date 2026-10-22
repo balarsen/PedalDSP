@@ -62,8 +62,8 @@ def test_slider_map_is_every_control_at_every_position():
     maps = prof.map_presets()
     assert len(maps) == 8 * 4
     assert all(p.kind == KIND_MAP and p.roles == ("sweep",) for p in maps)
-    p = prof.preset("map_hz_800_p7p5")
-    assert p.controls["hz_800"] == 7.5
+    p = prof.preset("map_hz_800_p10")
+    assert p.controls["hz_800"] == 10.0
     assert sum(abs(v) for k, v in p.controls.items() if k != "hz_800") == 0
     assert prof.preset("map_level_m15").controls["level"] == -15
 

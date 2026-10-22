@@ -142,15 +142,27 @@ class Session:
     def profile_id(self) -> str:
         return self.data["profile"]
 
-    def signal(self, role: str) -> SessionSignal:
-        """A session signal; prepared on first use if this session predates it (e.g. "sweep")."""
-        if role not in self.data["signals"]:
+    def signal_key(self, role: str, kind: str | None = None) -> str:
+        """Key of a signal in session.json "signals": the role, or "train_<kind>" when a preset
+        asks for a train signal other than the session's (val and sweep have one kind only).
+        """
+        if role != "train" or kind in (None, self.data["signal_kind"]):
+            return role
+        return f"train_{kind}"
+
+    def signal(self, role: str, kind: str | None = None) -> SessionSignal:
+        """A session signal; prepared on first use (a preset's own train signal, or a role this
+        session predates, e.g. "sweep"). ``kind`` is the preset's train signal, None for the
+        session's.
+        """
+        key = self.signal_key(role, kind)
+        if key not in self.data["signals"]:
             sig = prepare_signal(
-                role, self.data["signal_kind"], self.sample_rate, self.root / "signals"
+                role, kind or self.data["signal_kind"], self.sample_rate, self.root / "signals"
             )
-            self.data["signals"][role] = sig.manifest_path.relative_to(self.root).as_posix()
+            self.data["signals"][key] = sig.manifest_path.relative_to(self.root).as_posix()
             self.save()
-        path = self.root / self.data["signals"][role]
+        path = self.root / self.data["signals"][key]
         raw = json.loads(path.read_text(encoding="utf-8"))
         return SessionSignal(role, path, raw["sample_rate"], raw["total_samples"])
 
@@ -271,6 +283,7 @@ class Session:
         write_capture(d / raw_name, take.rec, take.sr, f"{what}: return, loopback (unaligned)")
         entry = {
             "role": role,
+            "signal": self.signal_key(role, preset.signal),
             "t": _utc(),
             "time_local": local_stamp(iso=True),
             "wet_wav": wet_name,
@@ -309,7 +322,7 @@ class Session:
         p = self.data["presets"][preset.name]
         captures = {}
         for role in preset.roles:
-            sig = self.signal(role)
+            sig = self.signal(role, preset.signal)
             t = self.take(preset.name, role) or {}
             captures[role] = {
                 "dry_signal": sig.manifest_path.stem,

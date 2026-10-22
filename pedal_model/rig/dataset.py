@@ -261,7 +261,7 @@ def session_dataset(root: Path, roles: tuple[str, ...] = ("train", "sweep")) -> 
         for t in p.get("takes", []):
             if t["role"] not in roles:
                 continue
-            m = Manifest(root / data["signals"][t["role"]])
+            m = Manifest(root / data["signals"][t.get("signal", t["role"])])
             send = t.get("send_level_db", data["send_level_db"])
             take = rebuild_take(root / name / t["raw_wav"], m.load_all(), send)
             h, coh, info = take_response(take, m)

@@ -56,7 +56,7 @@ def main() -> None:
         take = next((t for t in p.get("takes", []) if t["role"] == "train"), None)
         if take is None:
             continue
-        m = Manifest(root / d["signals"]["train"])
+        m = Manifest(root / d["signals"][take.get("signal", "train")])
         dry = m.load_all().astype(np.float64)
         wet, sr = sf.read(str(root / name / take["wet_wav"]), dtype="float64")
         lo = next(s for s in m.sections if s.label == "sweep_low")

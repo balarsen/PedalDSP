@@ -34,10 +34,10 @@ def preset_response(session: Session, preset: str, role: str | None = None) -> d
     wet_path = session.wet_path(preset, role)
     if wet_path is None or not wet_path.is_file():
         return None
-    manifest = Manifest(session.signal(role).manifest_path)
+    take = session.take(preset, role) or {}
+    manifest = Manifest(session.root / session.data["signals"][take.get("signal", role)])
     dry = manifest.load_all()
     wet, sr = sf.read(str(wet_path), dtype="float32")
-    take = session.take(preset, role) or {}
     grid, db, _ = measure_response(
         dry,
         wet,

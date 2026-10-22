@@ -86,7 +86,7 @@ def _capture_and_check(state: AppState, preset: Preset, role: str, report):
     """
     session = state.session
     report("Loading the signal")
-    sig = session.signal(role)
+    sig = session.signal(role, preset.signal)
     manifest = Manifest(sig.manifest_path)
     dry = manifest.load_all()
     send = state.profile.send_level_db
@@ -379,7 +379,8 @@ class RunPage(QWidget):
 
     def _start_role(self, role: str) -> None:
         self.role = role
-        sig = self.state.session.signal(role)
+        p = self._current()
+        sig = self.state.session.signal(role, p.signal if p else None)
         self.manifest = Manifest(sig.manifest_path)
         self.section_starts = [s.start_sample for s in self.manifest.sections]
         for m in (self.m_send, self.m_ret, self.m_loop):

@@ -45,6 +45,22 @@
     "fir_length_ms": 100,
     "iir_order": 14
   },
+  "record_run": {
+    "note": "Plan R2 (GE7_PEDALODE_PLAN.md). Start the session with the 'sweeps' signal: presets play sweeps + val, the *_full copies the full train signal.",
+    "repeats": {"presets": ["flat", "smile"], "times": 3},
+    "exclude": ["all_up_2", "all_up_pad15"],
+    "interaction": {
+      "settings": [[15, 15], [15, -15]],
+      "distant": [["hz_100", "hz_800"], ["hz_800", "hz_6400"]]
+    },
+    "random": {"n": 8, "step_db": 5, "seeds": {"fit": 1, "val": 2}},
+    "full_train": ["flat", "smile", "all_up_3"],
+    "split": {
+      "test": ["smile", "frown", "mid_scoop", "warm", "presence"],
+      "validation": "rand_val_*",
+      "note": "Test settings are scored once, at the end. Validation settings choose between model variants (band-7 shape, loss weights). Everything else is fitted."
+    }
+  },
   "qc": {
     "reference": "bypass",
     "auto_level": true,

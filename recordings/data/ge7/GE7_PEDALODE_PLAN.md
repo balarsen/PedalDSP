@@ -273,19 +273,31 @@ records the pedal's input level in dBu. For a nonlinear pedal auto-level is off:
 set for a target input level (the pedal's operating point), and the return gets its headroom
 from the pad and input gain set before calibration.
 
-**R2. Capture session** (48 kHz, hardware, about 3 hours of audio, mostly unattended; agreed 2026-10-18):
-1. C1–C4.
-2. Flat ×3 and smile ×3, then one more of each after re-plugging (P0.4).
-3. Slider map (32 sweep steps).
-4. Interaction set (16 sweep steps).
-5. The 14 presets (full signal).
-6. 8 random settings (seeded, saved as custom presets) as extra holdout.
-6a. **Added after A0:** 8 more random settings (a different seed) for **training**. A0 shows the
-    slider map pins the LEVEL internals only to ±2–4 % and pot_end to ±1.3 %; random settings, with
-    LEVEL at in-between positions, bring every parameter under ±0.5 % (at 0.05 dB white noise).
-7. A bypass capture at the end, to check drift.
+**R2. Capture session (the record run; revised 2026-10-22, owner agreed).** 48 kHz, hardware.
+The linear fit only uses the log sweeps (the dataset, `pedal_model/rig/dataset.py`, uses sweeps
+only: pink noise read ±0.2 dB noisy below 200 Hz and loud pink compressed the rig's low end), so
+almost every step plays the 62 s sweep signal instead of the 642 s train signal. Start the session
+with the **sweeps** signal kind; the Plan page's **Load record run** button builds the list
+(`profiles/ge7.json` "record_run", `Profile.record_run()`):
 
-A repeat at 96 kHz (slider map plus 4 presets) gives the sample-rate consistency check.
+| Block | Steps | Audio |
+|---|---|---|
+| C1–C4 | – | 0.5 min (+ cable moves) |
+| Repeatability (P0.4): flat and smile (sweeps + val), 2 untouched repeats each, then each once after re-plugging cables A and B | 8 | 11 min |
+| Slider map: each slider alone at ±15, ±7.5 | 32 | 36 min |
+| Interaction (P0.1): each adjacent pair at (+15, +15) and (+15, −15), plus 100 Hz + 800 Hz and 800 Hz + 6.4 kHz | 16 | 18 min |
+| The other presets, sweeps + val (all_up_2 and all_up_pad15 left out: duplicates) | 11 | 25 min |
+| Random settings, 5 dB grid, seeded: 8 for fitting (seed 1), 8 for validation (seed 2) | 16 | 18 min |
+| Full train signal on flat, smile and all_up_3 (time-domain checks; keeps the hybrid-ML option) | 3 | 36 min |
+
+About 2.4 h of audio, plus the time to set about 85 settings. Every take is auto-levelled and
+checked live for linearity and signal-to-noise. Afterwards: `scripts/ge7_dataset.py <session>`.
+Optional at the end: a bypass take to check drift (re-running C3 replaces the reference, so this
+is a separate step still to build). A repeat at 96 kHz (slider map plus 4 presets) gives the
+sample-rate consistency check.
+
+Random settings are rounded to 5 dB so they can be set repeatably by eye: an unrepeatable slider
+position is noise on the model's input. Distant pairs are three octaves apart (choice, 2026-10-22).
 
 ## Rung A: fit
 
@@ -299,7 +311,8 @@ A repeat at 96 kHz (slider map plus 4 presets) gives the sample-rate consistency
   - H7b: a second-order shelf branch.
   - H7c: a low-Q band-pass tuned high.
 
-  Fit H7a first, then the others, and keep the one with the lowest holdout error.
+  Fit H7a first, then the others, and keep the one with the lowest **validation** error (not
+  the test set: choosing with it would spend it).
 - **D3. Frequency domain first.** Fit H(jω) to the measured complex responses (H1 estimates from the
   sweeps), with no IIR filtering inside the training loop. Afterwards check in the time domain: ESR on the
   val signal through the discretised model.
@@ -308,15 +321,21 @@ A repeat at 96 kHz (slider map plus 4 presets) gives the sample-rate consistency
 - **D5. Loss.** Weighted log-magnitude MSE (reuse `losses.log_magnitude_loss`, `make_frequency_weights`)
   plus an excess-phase term weighted by coherence. Phase is valid because takes are aligned on the
   loopback latency.
-- **D6. Split.**
-  - **Train:** slider map, interaction set, the old single-slider captures, and half the presets.
-  - **Holdout:** smile, frown, mid_scoop, warm and the 8 random settings. Used once, at the end.
+- **D6. Split (revised 2026-10-22, owner agreed; `ge7.json` record_run.split).**
+  - **Fit:** slider map, interaction set, the repeatability takes, the 8 "fit" random settings,
+    and the presets not in the test set (flat, all_down, all_up, all_up_3, bass_boost, bright,
+    low_cut, high_cut).
+  - **Validation:** the 8 "val" random settings. Used to choose between model variants (band-7
+    shape, loss weights), never fitted.
+  - **Test:** smile, frown, mid_scoop, warm, presence (the musical settings, each mixing boosts
+    and cuts). Scored once, at the end.
 - **D7. Fitter stages.**
   1. Each band from its own slider-map steps (fₖ, Qₖ, σₖ, with the shared ρ, e, τ).
   2. LEVEL from the LEVEL map steps.
   3. Everything jointly.
 
-  Adam, then L-BFGS; several starts per band around the panel frequency.
+  Levenberg–Marquardt (decision A0, `ge7_fitter.py`), several starts per band around the panel
+  frequency.
 
 **A0 known answer, before any real data.** Draw parameter values within a plausible range around the
 guesses, generate H(jω) for the R2 slider settings, add noise at the measured coherence, and fit from the

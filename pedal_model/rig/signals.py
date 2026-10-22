@@ -6,7 +6,8 @@ a rewritten manifest (same format as ``pedal_model.signals``) with section posit
 sample rate.
 
 Roles:
-    train: the full training signal, or the quick excerpt (sweeps + stepped tones + pink noise).
+    train: the full training signal, the quick excerpt (sweeps + stepped tones + pink noise),
+        or the sweeps only (kind "sweeps": all the GE-7 block-model fit uses).
     val: the validation signal, always in full.
     sweep: the three log sweeps only (~1 min), for measurements such as the GE-7 slider map.
 """
@@ -31,6 +32,7 @@ SOURCE_MANIFESTS = {
 SIGNAL_KINDS = {
     "full": "Full train signal (642.5 s) + val (65 s): for model fitting",
     "quick": "Quick check: sweeps + stepped tones + pink noise (~3.5 min) + val (65 s)",
+    "sweeps": "Sweeps only (62 s) + val (65 s): the block-model fit; a preset can ask for full",
 }
 
 # Section types kept in each excerpt. Quick: enough for frequency response, level linearity and the
@@ -116,7 +118,8 @@ def prepare_signal(role: str, kind: str, sr: int, out_dir: Path) -> SessionSigna
 
     Args:
         role: "train", "val" or "sweep".
-        kind: "full" or "quick" (only affects train; val is always full, sweep always sweeps).
+        kind: "full", "quick" or "sweeps" (only affects train; val is always full, sweep always
+            sweeps).
         sr: Session sample rate in Hz (48000 or 96000).
         out_dir: Session ``signals/`` folder.
 
@@ -124,9 +127,12 @@ def prepare_signal(role: str, kind: str, sr: int, out_dir: Path) -> SessionSigna
         The prepared signal.
     """
     name = signal_name(role, kind, sr)
-    excerpt = (
-        "sweep" if role == "sweep" else ("quick" if role == "train" and kind == "quick" else None)
-    )
+    if role == "sweep" or (role == "train" and kind == "sweeps"):
+        excerpt = "sweep"
+    elif role == "train" and kind == "quick":
+        excerpt = "quick"
+    else:
+        excerpt = None
     manifest_path = out_dir / f"{name}.json"
     if manifest_path.is_file() and manifest_path.with_suffix(".wav").is_file():
         raw = json.loads(manifest_path.read_text(encoding="utf-8"))

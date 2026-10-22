@@ -29,6 +29,7 @@ from pedal_model.rig.profiles import KIND_MAP, KIND_MODEL, NAME_PATTERN, Preset
 from pedal_model.rig.qc import expected_response
 
 GAP_PER_TAKE_S = 2.0  # pre-roll + tail per take
+FULL_TRAIN_S = 642.5  # train_signal_v2 in full
 
 
 class CustomPresetDialog(QDialog):
@@ -122,8 +123,14 @@ class PlanPage(QWidget):
         add_map.setToolTip(state.profile.raw.get("map", {}).get("note", ""))
         add_map.clicked.connect(self._add_map)
         add_map.setEnabled(n_map > 0)
+        n_record = len(state.profile.record_run())
+        record = QPushButton(f"Load record run ({n_record} steps)")
+        record.setToolTip(state.profile.raw.get("record_run", {}).get("note", ""))
+        record.clicked.connect(self._load_record_run)
+        record.setEnabled(n_record > 0)
         row.addWidget(add)
         row.addWidget(add_map)
+        row.addWidget(record)
         row.addStretch()
         lay.addLayout(row)
         body.addWidget(f, 1)
@@ -238,6 +245,22 @@ class PlanPage(QWidget):
         self.list.blockSignals(False)
         self._apply()
 
+    def _load_record_run(self) -> None:
+        """Replace the plan with the record session (plan R2), every step checked, in order."""
+        record = self.state.profile.record_run()
+        names = [p.name for p in record]
+        self._presets.update({p.name: p for p in record})
+        rest = [n for n in self._names(False) if n not in names]
+        self.list.blockSignals(True)
+        self.list.clear()
+        for n in names:
+            self.list.addItem(self._item(self._presets[n], True))
+        for n in rest:
+            self.list.addItem(self._item(self._presets[n], False))
+        self.list.blockSignals(False)
+        self.list.setCurrentRow(0)
+        self._apply()
+
     # ── preview ─────────────────────────────────────────────────────────── #
 
     def _preview(self, item) -> None:
@@ -284,7 +307,16 @@ class PlanPage(QWidget):
             self.estimate.setText(f"{len(names)} steps. Start a session to see the time per step.")
             return
         per_role = {r: s.signal(r).duration_s + GAP_PER_TAKE_S for r in ("train", "val", "sweep")}
-        total = sum(sum(per_role[r] for r in self._presets[n].roles) for n in names)
+        full_s = FULL_TRAIN_S + GAP_PER_TAKE_S  # not prepared until a take needs it
+
+        def seconds(p: Preset, role: str) -> float:
+            if role == "train" and p.signal not in (None, s.data["signal_kind"]):
+                return full_s if p.signal == "full" else per_role["train"]
+            return per_role[role]
+
+        total = sum(
+            sum(seconds(self._presets[n], r) for r in self._presets[n].roles) for n in names
+        )
         n_map = sum(self._presets[n].kind == KIND_MAP for n in names)
         speed = self.state.demo_speed if self.state.simulated else 1.0
         txt = (

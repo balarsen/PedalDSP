@@ -74,7 +74,7 @@ def main() -> None:
 
     for name, p in data["presets"].items():
         for t in p.get("takes", []):
-            sig_rel = data["signals"][t["role"]]
+            sig_rel = data["signals"][t.get("signal", t["role"])]
             m = Manifest(root / sig_rel)
             dry = m.load_all()
             send = t.get("send_level_db", data["send_level_db"])  # per take since auto-level

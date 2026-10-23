@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import fnmatch
 import json
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -206,7 +207,12 @@ def write_parameter_file(fit: dict, sessions: list[str], models_dir: Path = MODE
         The new file's path.
     """
     models_dir.mkdir(parents=True, exist_ok=True)
-    versions = [int(p.stem.rsplit("_v", 1)[1]) for p in models_dir.glob("ge7_pedalode_v*.json")]
+    # Version numbers never repeat: retired files (moved to results/ge7_fit/<session>/, e.g.
+    # ge7_pedalode_v1_presets_only.json) count too.
+    found = list(models_dir.glob("ge7_pedalode_v*.json")) + list(
+        RESULTS_DIR.glob("*/ge7_pedalode_v*.json")
+    )
+    versions = [int(m.group(1)) for f in found if (m := re.match(r"ge7_pedalode_v(\d+)", f.name))]
     n = max(versions, default=0) + 1
     path = models_dir / f"ge7_pedalode_v{n}.json"
     doc = {

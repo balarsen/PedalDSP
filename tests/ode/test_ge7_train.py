@@ -108,6 +108,10 @@ def test_history_and_parameter_file(tmp_path, monkeypatch):
     db = qc.expected_response("boss_ge7", {"hz_800": 10.0}, 48_000, grid)
     h = M.ratio_response(fit["params"], torch.as_tensor(grid), M.sliders_tensor([{"hz_800": 10.0}]))
     np.testing.assert_allclose(db, 20 * np.log10(np.abs(h[0].numpy())), atol=1e-6)
+    # version numbers never repeat: a retired file (moved to the results) counts too
+    retired = tmp_path / "results" / "s1" / "ge7_pedalode_v7_presets_only.json"
+    retired.write_text("{}")
+    assert T.write_parameter_file(fit, ["s1"], tmp_path / "models").name == "ge7_pedalode_v8.json"
 
 
 def test_schematic_band_centres_land_on_the_panel_labels():

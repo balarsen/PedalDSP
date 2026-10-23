@@ -42,7 +42,7 @@ def _dataset(settings: list[tuple[str, dict]], truth: dict) -> dict:
         }
         for i, (name, c) in enumerate(settings)
     ]
-    return {"freqs_hz": freqs.tolist(), "takes": takes}
+    return {"freqs_hz": freqs.tolist(), "takes": takes, "sample_rate": 48_000}
 
 
 def _record_like() -> list[tuple[str, dict]]:
@@ -121,3 +121,20 @@ def test_schematic_band_centres_land_on_the_panel_labels():
     np.testing.assert_allclose(p["band_f"].numpy(), M.PANEL_BAND_HZ, rtol=0.05)
     assert abs(float(p["shelf_f"]) - 4130) < 10
     assert abs(float(p["lvl_f"]) - 7.23) < 0.01
+
+
+def test_cross_validation_and_the_test_score():
+    """No validation settings: k-fold cross-validation inside the fit set judges the model; the
+    test takes are scored by the final fit, with Ge7Sim alongside."""
+    truth = _truth()
+    settings = [s for s in _record_like() if not s[0].startswith("rand_val")]
+    ds = _dataset(settings, truth)
+    cv = T.cross_validate(ds, PROFILE, folds=3)
+    assert cv["folds"] == 3 and "cross-validation" in cv["method"]
+    fit_names = {ds["takes"][i]["preset"] for i in T.groups(ds, PROFILE)["fit"]}
+    assert {p["take"].split("/")[0] for p in cv["per_take"]} == fit_names  # each scored once
+    assert cv["shape_db"] < 0.1  # noise-free data from the model itself
+    fit = T.fit_dataset(ds, PROFILE, max_iter=T.FINAL_MAX_ITER)
+    test = T.score_test(fit, ds, PROFILE)
+    assert [r["take"] for r in test["per_take"]] == ["smile/sweep"]
+    assert test["shape_db"] < 0.1 < test["ge7sim_shape_db"]

@@ -118,6 +118,7 @@ class AnalysisWindow(QMainWindow):
         self.history: list[dict] = []
         self.busy = False
         self.seen = None  # (session.json mtime, number of takes) at the last update
+        self.n_shown = 0  # takes in the list at the last fill (a new one: follow it)
 
         central = QWidget()
         outer = QVBoxLayout(central)
@@ -240,6 +241,7 @@ class AnalysisWindow(QMainWindow):
         self.root = Path(path) if path else None
         # a fresh cache object: a fit still running for the previous session keeps its own
         self.cache, self.dataset, self.fit, self.seen = {}, None, None, None
+        self.n_shown = 0
         self.history = []
         if self.root is not None:
             hist = T.history_path(self.root.name)
@@ -300,11 +302,12 @@ class AnalysisWindow(QMainWindow):
             self._update(force=True)
             return
         self.dataset = ds
-        self._fill_takes()
         if fit is None:
+            self._fill_takes()
             self.status.setText(why)
             return
         self.fit = fit
+        self._fill_takes()
         self.history = T.append_history(self.root.name, fit)
         self._draw_history()
         self._fill_table()
@@ -349,17 +352,24 @@ class AnalysisWindow(QMainWindow):
             self.c_std[g].setData(np.r_[0.0, x], np.r_[prior, ys], connect="finite")
 
     def _fill_takes(self) -> None:
-        current = self.takes.currentText()
+        """The take list. With Follow live on, a newly captured take is shown at once (newest by
+        capture time; the list itself is in plan order); otherwise the selection stays."""
+        current = self.takes.currentData()
+        takes = (self.dataset or {}).get("takes", [])
         self.takes.blockSignals(True)
         self.takes.clear()
         groups = (self.fit or {}).get("groups", {})
         where = {n: g for g, names in groups.items() for n in names}
-        for t in (self.dataset or {}).get("takes", []):
+        for t in takes:
             name = f"{t['preset']}/{t['role']}"
             self.takes.addItem(f"{name}   [{where.get(name, '…')}]", name)
         self.takes.blockSignals(False)
-        i = self.takes.findText(current)
-        self.takes.setCurrentIndex(i if i >= 0 else self.takes.count() - 1)
+        newest = max(range(len(takes)), key=lambda k: takes[k].get("captured") or "", default=-1)
+        i = self.takes.findData(current)
+        if (self.follow.isChecked() and len(takes) > self.n_shown) or i < 0:
+            i = newest
+        self.n_shown = len(takes)
+        self.takes.setCurrentIndex(i)
 
     def _show_take(self, *_) -> None:
         if not self.dataset or self.takes.currentIndex() < 0:
@@ -410,18 +420,39 @@ class AnalysisWindow(QMainWindow):
 
     # ── parameter file ──────────────────────────────────────────────────── #
 
+    def _write_with_cv(self, cv: dict) -> None:
+        self.write_btn.setEnabled(True)
+        path = T.write_parameter_file(self.fit, [self.root.name], validation=cv)
+        self.status.setText(f"Wrote {path.name}: cross-validation {cv['shape_db']:.2f} dB shape")
+        self.log.add(
+            "ok",
+            f"Wrote {path.name}",
+            f"{cv['method']}: {cv['rms_db']:.2f} dB RMS, {cv['shape_db']:.2f} dB shape",
+        )
+
     def _write(self) -> None:
         if self.fit is None:
             QMessageBox.information(self, "Parameter file", "No fit yet.")
             return
         if self.fit["n_validation"] == 0:
-            QMessageBox.warning(
+            ok = QMessageBox.question(
                 self,
                 "Parameter file",
-                "Not written: no validation settings yet, so this model cannot be judged. QC would "
-                "grade every later take against it (2026-10-22: an 8-preset model failed a good "
-                "mid_scoop take). Capture the record run (slider map, pairs, random settings) "
-                "first.",
+                "No validation settings in this session, so the model is judged by 4-fold "
+                "cross-validation instead: each quarter of the fit takes is scored by a fit of the "
+                "other three (a few minutes). The file records that. Then write it? QC grades "
+                "every later take against it.",
+            )
+            if ok != QMessageBox.Yes:
+                return
+            self.write_btn.setEnabled(False)
+            self.status.setText("Cross-validating…")
+            run_async(
+                T.cross_validate,
+                self.dataset,
+                self.profile.raw,
+                on_done=self._write_with_cv,
+                on_fail=self._failed,
             )
             return
         ok = QMessageBox.question(

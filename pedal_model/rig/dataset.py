@@ -299,6 +299,7 @@ def session_dataset(
                     "controls": p.get("controls"),
                     "send_level_db": send,
                     "calibration_file": t.get("calibration_file"),
+                    "captured": t.get("t"),  # UTC time the take was saved
                     **info,
                     **curve,
                 }

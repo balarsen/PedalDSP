@@ -38,7 +38,10 @@ PRIOR_NOISE_NP = 0.01  # the scale s of the prior rows (any constant; the data w
 # 294 Hz and two Qs to 70-100 (2026-10-22).
 DATA_NOISE_NP = 0.03  # ≈0.26 dB, the re-set floor
 N_EFF_PER_TAKE = 20  # ~1/2-octave correlation over ~10 octaves
-MAX_ITER = 60
+MAX_ITER = 60  # per live update (warm start); a final fit uses FINAL_MAX_ITER
+FINAL_MAX_ITER = 200
+SCORE_BAND_HZ = (50.0, 10_000.0)  # where takes are scored (as QC and the plan's criteria)
+CV_FOLDS = 4
 RESULTS_DIR = PROJECT_ROOT / "results" / "ge7_fit"
 MODELS_DIR = PROJECT_ROOT / "pedal_model" / "rig" / "models" / "ge7"
 
@@ -109,7 +112,11 @@ def per_take_rms_db(
 
 
 def fit_dataset(
-    dataset: dict, profile_raw: dict, start: dict | None = None, use_prior: bool = True
+    dataset: dict,
+    profile_raw: dict,
+    start: dict | None = None,
+    use_prior: bool = True,
+    max_iter: int = MAX_ITER,
 ) -> dict:
     """Fit the block model to the dataset's "fit" takes; score the validation takes.
 
@@ -139,7 +146,7 @@ def fit_dataset(
         h,
         init,
         weight=w,
-        max_iter=MAX_ITER,
+        max_iter=max_iter,
         prior=schematic if use_prior else None,
         prior_noise_np=PRIOR_NOISE_NP,
     )
@@ -165,6 +172,85 @@ def fit_dataset(
         "groups": {k: [names[i] for i in v] for k, v in g.items()},
         "converged": bool(fit["converged"]),
         "condition": float(rep["condition"]),
+    }
+
+
+def take_errors(params: dict, dataset: dict, i: int) -> dict:
+    """How far the model is from one take over SCORE_BAND_HZ: rms (dB), shape (dB, after removing
+    the median offset: the level), offset (dB), max (dB) and where."""
+    t = dataset["takes"][i]
+    f = np.asarray(dataset["freqs_hz"])
+    sliders, h, w = arrays(dataset, [i])
+    model = M.ratio_response(params, torch.as_tensor(f, dtype=torch.float64), sliders)
+    e = (torch.log(model / h).real * F.NEPER_TO_DB)[0].numpy() * -1.0  # measured - model
+    ok = (f >= SCORE_BAND_HZ[0]) & (f <= SCORE_BAND_HZ[1]) & (w[0].numpy() > 0)
+    e, f = e[ok], f[ok]
+    off = float(np.median(e))
+    k = int(np.argmax(np.abs(e)))
+    return {
+        "take": f"{t['preset']}/{t['role']}",
+        "rms_db": float(np.sqrt(np.mean(e**2))),
+        "shape_db": float(np.sqrt(np.mean((e - off) ** 2))),
+        "offset_db": off,
+        "max_db": float(e[k]),
+        "max_at_hz": float(f[k]),
+    }
+
+
+def cross_validate(dataset: dict, profile_raw: dict, folds: int = CV_FOLDS, seed: int = 0) -> dict:
+    """K-fold cross-validation inside the fit set, for when there are no validation settings.
+
+    The fit takes are shuffled (seeded) into ``folds`` groups; each group is scored by a fit of the
+    others (schematic prior, as in training). Test and excluded takes are never used.
+
+    Returns:
+        dict: method, folds, per_take [take_errors ...], rms_db, shape_db (RMS over the takes).
+    """
+    g = groups(dataset, profile_raw)
+    idx = np.array(g["fit"])
+    np.random.default_rng(seed).shuffle(idx)
+    per_take = []
+    for hold in np.array_split(idx, folds):
+        held = {int(i) for i in hold}
+        sub = dict(dataset)
+        sub["takes"] = [t for i, t in enumerate(dataset["takes"]) if i not in held]
+        fit = fit_dataset(sub, profile_raw, max_iter=FINAL_MAX_ITER)
+        per_take += [take_errors(fit["params"], dataset, i) for i in sorted(held)]
+    return {
+        "method": f"{folds}-fold cross-validation inside the fit set (seed {seed})",
+        "folds": folds,
+        "per_take": per_take,
+        "rms_db": float(np.sqrt(np.mean([p["rms_db"] ** 2 for p in per_take]))),
+        "shape_db": float(np.sqrt(np.mean([p["shape_db"] ** 2 for p in per_take]))),
+    }
+
+
+def score_test(fit: dict, dataset: dict, profile_raw: dict) -> dict:
+    """The test takes, scored by a final fit: once, at the end (plan D6). Also Ge7Sim's shape
+    error on the same takes (the criterion "better than Ge7Sim")."""
+    from pedal_model.synthetic.ge7 import Ge7Sim, Ge7Sliders
+
+    g = groups(dataset, profile_raw)
+    f = np.asarray(dataset["freqs_hz"])
+    rows = []
+    for i in g["test"]:
+        row = take_errors(fit["params"], dataset, i)
+        t = dataset["takes"][i]
+        fz, dbz = Ge7Sim.from_sliders(Ge7Sliders.from_dict(t["controls"])).frequency_response(
+            int(dataset["sample_rate"]), n_fft=32768
+        )
+        _, h, w = arrays(dataset, [i])
+        meas = 20 * np.log10(np.abs(h[0].numpy()))
+        ok = (f >= SCORE_BAND_HZ[0]) & (f <= SCORE_BAND_HZ[1]) & (w[0].numpy() > 0)
+        e = (meas - np.interp(f, fz, dbz))[ok]
+        row["ge7sim_shape_db"] = float(np.sqrt(np.mean((e - np.median(e)) ** 2)))
+        rows.append(row)
+    return {
+        "per_take": rows,
+        "shape_db": float(np.sqrt(np.mean([r["shape_db"] ** 2 for r in rows]))) if rows else None,
+        "ge7sim_shape_db": float(np.sqrt(np.mean([r["ge7sim_shape_db"] ** 2 for r in rows])))
+        if rows
+        else None,
     }
 
 
@@ -200,8 +286,21 @@ def append_history(session: str, fit: dict) -> list[dict]:
     return hist
 
 
-def write_parameter_file(fit: dict, sessions: list[str], models_dir: Path = MODELS_DIR) -> Path:
+def write_parameter_file(
+    fit: dict,
+    sessions: list[str],
+    models_dir: Path = MODELS_DIR,
+    validation: dict | None = None,
+    test: dict | None = None,
+    extra: dict | None = None,
+) -> Path:
     """Write the next ge7_pedalode_v<N>.json (never overwrites). QC's expected curve then uses it.
+
+    Args:
+        validation: How the model was judged when there were no validation settings
+            (``cross_validate``'s result), or None (the validation settings' score is in ``fit``).
+        test: ``score_test``'s result, if the test settings have been scored.
+        extra: Anything else to record (e.g. a fit without the prior, for the physics score).
 
     Returns:
         The new file's path.
@@ -227,7 +326,15 @@ def write_parameter_file(fit: dict, sessions: list[str], models_dir: Path = MODE
         "rms_fit_db": fit["rms_fit_db"],
         "rms_validation_db": fit["rms_validation_db"],
         "groups": fit["groups"],
-        "note": "Fitted with the schematic prior; the test settings are not scored yet.",
+        "validation": validation
+        or {
+            "method": f"{fit['n_validation']} validation settings",
+            "rms_db": fit["rms_validation_db"],
+        },
+        "test": test,
+        "note": "Fitted with the schematic prior."
+        + ("" if test else " The test settings are not scored yet."),
+        **(extra or {}),
     }
     path.write_text(json.dumps(doc, indent=1) + "\n", encoding="utf-8", newline="\n")
     return path

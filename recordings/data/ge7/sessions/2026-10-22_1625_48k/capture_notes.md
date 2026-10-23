@@ -61,3 +61,24 @@ write a parameter file without validation settings; its table names the bands.
 
 Next: retire v1 (QC grades against it now), drift check, then Load record run in this session
 (accepted presets are skipped): map, pairs, random settings, repeats, full-train copies.
+
+## The partial record run and model v3 (2026-10-22 night)
+
+Captured after the presets: 16 of the 32 slider-map steps (two positions per control; the other
+16 skipped), no pairs, random settings, repeats or full-train copies (the slider map was added
+with "+ Add slider map", not "Load record run"). A recalibration at 19:08; drift checks: the first
+-1.53 dB median (footswitch on, I think: that is the engaged/bypassed level), then 0.16 dB max /
+-0.10 median bypassed (warn). The owner chose to go on with the partial set.
+
+Model v3 (pedal_model/rig/models/ge7/ge7_pedalode_v3.json), 24 fit takes (8 presets + 16 map):
+0.64 dB RMS. No validation settings, so judged by 4-fold cross-validation inside the fit set:
+1.21 dB RMS, 0.52 dB shape. Probe (thrown away): separate boost/cut pot-law exponents fitted
+better (0.60 dB) but cross-validated worse (0.59 vs 0.52 dB shape): kept one exponent.
+Test settings scored once: shape frown 1.34, smile 1.43, warm 1.85, mid_scoop 2.57 dB (Ge7Sim
+1.70 / 2.23 / 2.90 / 1.81); overall 1.86 vs 2.21. Rung A not passed (mid_scoop worse than Ge7Sim;
+far from 2x the floor). The weak spot: deep and adjacent cuts (mid_scoop's notch too deep, up to
++7 dB at 1.7 kHz; single cuts at -10 up to 3.3 dB at the band centre). The pair set has no
+both-cut pairs, which would test exactly this.
+Physics, fitted without the prior: band centres 0.96-1.01 of the schematic, Qs 0.87-1.15,
+strengths 0.78-0.99, shelf 0.95; EQ resistor ratios ~1.2; pot law γ 0.20 (the G taper); the
+LEVEL stage is not identified from LEVEL at ±10 alone.
